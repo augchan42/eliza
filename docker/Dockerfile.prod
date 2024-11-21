@@ -1,0 +1,17 @@
+FROM node:21-slim as builder
+
+RUN npm install -g pnpm@9.4.0
+WORKDIR /app
+
+COPY . .
+RUN pnpm install
+RUN pnpm build
+
+FROM node:21-slim
+WORKDIR /app
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json .
+
+CMD ["pnpm", "start:service:all"]

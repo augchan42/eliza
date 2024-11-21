@@ -1,49 +1,96 @@
 import { Scraper } from "agent-twitter-client";
 import dotenv from "dotenv";
 import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
-const TWEETS_FILE = "tweets.json";
+// Create necessary directories
+const DATA_DIR = path.join(process.cwd(), 'data', 'tweets');
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
+const TARGET_USERNAME = "michaelmjfm";  // Change this to the user you want to scrape
+
+// Create timestamp for filename
+const timestamp = new Date().toISOString()
+    .replace(/[:.]/g, '-')
+    .replace('T', '_')
+    .slice(0, -1);
+
+const TWEETS_FILE = path.join(DATA_DIR, `${TARGET_USERNAME}_${timestamp}.json`);
+
+async function initTwitterScraper() {
+    const scraper = new Scraper();
+    let isAuthenticated = false;
+
+    // Check for existing cookies
+    if (fs.existsSync('./cookies.json')) {
+        try {
+            const cookiesText = fs.readFileSync('./cookies.json', 'utf8');
+            const cookiesArray = JSON.parse(cookiesText);
+
+            // Format cookies for setting
+            const cookieStrings = cookiesArray.map(cookie => 
+                `${cookie.key}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}; ` +
+                `${cookie.secure ? 'Secure' : ''}; ${cookie.httpOnly ? 'HttpOnly' : ''}; ` +
+                `SameSite=${cookie.sameSite || 'Lax'}`
+            );
+
+            await scraper.setCookies(cookieStrings);
+            isAuthenticated = await scraper.isLoggedIn();
+            console.log('Loaded existing cookies:', isAuthenticated ? 'success' : 'failed');
+        } catch (e) {
+            console.error('Error loading cookies:', e);
+        }
+    }
+
+    // If no valid cookies, login with credentials
+    if (!isAuthenticated) {
+        if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {
+            throw new Error('Twitter credentials are required');
+        }
+
+        try {
+            await scraper.login(
+                process.env.TWITTER_USERNAME,
+                process.env.TWITTER_PASSWORD,
+                process.env.TWITTER_EMAIL
+            );
+
+            // Save cookies for future use
+            const cookies = await scraper.getCookies();
+            fs.writeFileSync('./cookies.json', JSON.stringify(cookies, null, 2));
+            console.log('Logged in and saved new cookies');
+        } catch (e) {
+            console.error('Login failed:', e);
+            throw e;
+        }
+    }
+
+    return scraper;
+}
+
+// Main execution
 (async () => {
     try {
-        // Create a new instance of the Scraper
-        const scraper = new Scraper();
+        const scraper = await initTwitterScraper();
 
-        // Log in to Twitter using the configured environment variables
-        await scraper.login(
-            process.env.TWITTER_USERNAME,
-            process.env.TWITTER_PASSWORD
-        );
-
-        // Check if login was successful
         if (await scraper.isLoggedIn()) {
-            console.log("Logged in successfully!");
+            console.log("Successfully authenticated!");
+            console.log('Tweets will be saved to:', TWEETS_FILE);
 
-            // Fetch all tweets for the user "@realdonaldtrump"
-            const tweets = scraper.getTweets("pmarca", 2000);
-
-            // Initialize an empty array to store the fetched tweets
+            const tweets = scraper.getTweets(TARGET_USERNAME, 2000);
             let fetchedTweets = [];
 
-            // Load existing tweets from the JSON file if it exists
+            // Load existing tweets if file exists
             if (fs.existsSync(TWEETS_FILE)) {
                 const fileContent = fs.readFileSync(TWEETS_FILE, "utf-8");
                 fetchedTweets = JSON.parse(fileContent);
             }
 
-            // skip first 200
-
-            let count = 0;
-
-            // Fetch and process tweets
             for await (const tweet of tweets) {
-                if (count < 1000) {
-                    count++;
-                    continue;
-                }
-
                 console.log("--------------------");
                 console.log("Tweet ID:", tweet.id);
                 console.log("Text:", tweet.text);
@@ -52,25 +99,27 @@ const TWEETS_FILE = "tweets.json";
                 console.log("Likes:", tweet.likeCount);
                 console.log("--------------------");
 
-                // Add the new tweet to the fetched tweets array
                 fetchedTweets.push(tweet);
 
-                // Save the updated fetched tweets to the JSON file
+                // Save after each tweet to prevent data loss
                 fs.writeFileSync(
                     TWEETS_FILE,
                     JSON.stringify(fetchedTweets, null, 2)
                 );
             }
 
-            console.log("All tweets fetched and saved to", TWEETS_FILE);
+            console.log(`All tweets fetched and saved to ${TWEETS_FILE}`);
 
-            // Log out from Twitter
             await scraper.logout();
             console.log("Logged out successfully!");
         } else {
-            console.log("Login failed. Please check your credentials.");
+            console.log("Authentication failed. Please check your credentials or cookies.");
         }
     } catch (error) {
         console.error("An error occurred:", error);
+        if (error.response) {
+            console.error("Response data:", error.response.data);
+            console.error("Response status:", error.response.status);
+        }
     }
 })();

@@ -85,6 +85,64 @@ You may need to install Sharp. If you see an error when starting up, try install
 ```
 pnpm install --include=optional sharp
 ```
+## 🐳 Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+1. Clone the repository and create your `.env` file:
+```bash
+git clone https://github.com/ai16z/eliza
+cd eliza
+cp .env.example .env
+```
+
+2. Configure your `.env` file with your API keys and settings
+
+3. Start with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+### Manual Docker Build
+
+```bash
+# Build the Docker image
+docker build -t eliza .
+
+# Run the container
+docker run -d \
+  --name eliza \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/characters:/app/characters \
+  -v $(pwd)/.env:/app/.env \
+  eliza
+```
+
+### Docker Management Commands
+
+```bash
+# View logs
+docker-compose logs -f
+
+# Restart services
+docker-compose restart
+
+# Stop services
+docker-compose down
+
+# Update to latest version
+git pull
+docker-compose down
+docker-compose up -d --build
+```
+
+### System Requirements for Docker Deployment
+
+- Minimum 4GB RAM (8GB+ recommended)
+- 20GB+ available storage
+- Docker 20.10.0 or higher
+- Docker Compose v2.0.0 or higher
+
 
 ### Community & contact
 
@@ -100,3 +158,4 @@ pnpm install --include=optional sharp
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=ai16z/eliza&type=Date)](https://star-history.com/#ai16z/eliza&Date)
+
