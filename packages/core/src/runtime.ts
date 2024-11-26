@@ -1118,7 +1118,7 @@ Text: ${attachment.text}
                                   0,
                                   conversationLength / 2
                               );
-                              return allSliced.concat(allSliced).join("\n");
+                              return allSliced.join("\n");
                           })()
                       )
                     : "",
