@@ -200,11 +200,19 @@ export class MessageManager {
         return null; // No image found
     }
 
+    // Add this method to check if a message is from the bot
+    private isFromBot(message: Message): boolean {
+        return message.from?.id === this.bot.botInfo?.id;
+    }
     // Decide if the bot should respond to the message
     private async _shouldRespond(
         message: Message,
         state: State
     ): Promise<boolean> {
+        // First check if message is from the bot itself
+        if (this.isFromBot(message)) {
+            return false;
+        }
         // Respond if bot is mentioned
 
         if (
@@ -378,7 +386,7 @@ export class MessageManager {
             // Get text or caption
             let messageText = "";
             if ("text" in message) {
-                messageText = message.text;
+                messageText = message.text?.trim() || "";
             } else if ("caption" in message && message.caption) {
                 messageText = message.caption;
             }
@@ -388,8 +396,9 @@ export class MessageManager {
                 ? `${messageText} ${imageInfo.description}`
                 : messageText;
 
-            if (!fullText) {
-                return; // Skip if no content
+            // Add early return for empty or whitespace-only messages
+            if (!fullText || fullText.length === 0) {
+                return; // Skip empty messages
             }
 
             const content: Content = {
@@ -414,6 +423,7 @@ export class MessageManager {
                 content,
                 createdAt: message.date * 1000,
                 embedding: embeddingZeroVector,
+                userName: userName
             };
 
             await this.runtime.messageManager.createMemory(memory);
@@ -467,7 +477,7 @@ export class MessageManager {
                                     this.runtime.agentId
                             ),
                             agentId,
-                            userId,
+                            userId: this.runtime.agentId,
                             roomId,
                             content: {
                                 ...content,
@@ -476,6 +486,7 @@ export class MessageManager {
                             },
                             createdAt: sentMessage.date * 1000,
                             embedding: embeddingZeroVector,
+                            userName: this.runtime.character.name
                         };
 
                         // Set action to CONTINUE for all messages except the last one

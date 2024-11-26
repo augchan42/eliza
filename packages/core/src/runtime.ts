@@ -911,17 +911,12 @@ Text: ${attachment.text}
             // Format the recent messages
             const formattedInteractions = await Promise.all(
                 recentInteractionsData.map(async (message) => {
-                    const isSelf = message.userId === this.agentId;
-                    let sender: string;
-                    if (isSelf) {
-                        sender = this.character.name;
-                    } else {
-                        const accountId =
-                            await this.databaseAdapter.getAccountById(
-                                message.userId
-                            );
-                        sender = accountId?.username || "unknown";
-                    }
+                // Use the userName from the Memory object directly
+                const sender = message.userName || (
+                    message.userId === this.agentId 
+                        ? this.character.name 
+                        : "Unknown User"
+                );
                     return `${sender}: ${message.content.text}`;
                 })
             );
