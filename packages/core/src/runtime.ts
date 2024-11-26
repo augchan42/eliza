@@ -43,12 +43,13 @@ import {
 } from "./types.ts";
 import { stringToUuid } from "./uuid.ts";
 import { v4 as uuidv4 } from 'uuid';
+import { formatIChingKnowledge } from "./iching.ts";
 
 /**
  * Represents the runtime environment for an agent, handling message processing,
  * action registration, and interaction with external services like OpenAI and Supabase.
  */
-export class AgentRuntime implements IAgentRuntime {
+export class AgentRuntime implements IAgentRuntime {    
     /**
      * Default count for recent messages to be kept in memory.
      * @private
@@ -222,7 +223,8 @@ export class AgentRuntime implements IAgentRuntime {
         fetch?: typeof fetch | unknown;
         speechModelPath?: string;
         logging?: boolean;
-    }) {
+    }) {            
+
         this.#conversationLength =
             opts.conversationLength ?? this.#conversationLength;
         this.databaseAdapter = opts.databaseAdapter;
@@ -234,8 +236,16 @@ export class AgentRuntime implements IAgentRuntime {
 
         elizaLogger.success("Agent ID", this.agentId);
 
-        this.fetch = (opts.fetch as typeof fetch) ?? this.fetch;
-        this.character = opts.character || defaultCharacter;
+        this.fetch = (opts.fetch as typeof fetch) ?? this.fetch;   
+        this.character = opts.character || defaultCharacter;                
+                
+        // Add debug logging with null checks
+        elizaLogger.debug("Initializing runtime with character:", {
+            name: this.character?.name || 'unnamed',
+            hasSystemKnowledge: !!this.character?.systemKnowledge,
+            iChingData: this.character?.systemKnowledge?.iChing?.hexagrams?.length || 0
+        });
+            
         if (!opts.databaseAdapter) {
             throw new Error("No database adapter provided");
         }
@@ -332,6 +342,12 @@ export class AgentRuntime implements IAgentRuntime {
      * @param knowledge An array of knowledge items containing id, path, and content.
      */
     private async processCharacterKnowledge(knowledge: string[]) {
+        elizaLogger.info("Starting processCharacterKnowledge with:", {
+            agentId: this.agentId,
+            characterName: this.character.name,
+            knowledgeLength: knowledge.length
+        });
+
         // ensure the room exists and the agent exists in the room
         this.ensureRoomExists(this.agentId);
         this.ensureUserExists(
@@ -343,6 +359,11 @@ export class AgentRuntime implements IAgentRuntime {
 
         for (const knowledgeItem of knowledge) {
             const knowledgeId = stringToUuid(knowledgeItem);
+            console.log("Processing knowledge item:", {
+                knowledgeId,
+                contentPreview: knowledgeItem.slice(0, 100),
+                contentLength: knowledgeItem.length
+            });
             const existingDocument =
                 await this.documentsManager.getMemoryById(knowledgeId);
             if (!existingDocument) {
@@ -363,21 +384,39 @@ export class AgentRuntime implements IAgentRuntime {
                         text: knowledgeItem,
                     },
                 });
+                elizaLogger.debug("Creating fragments for knowledge item");
                 const fragments = await splitChunks(knowledgeItem, 1200, 200);
+                elizaLogger.debug(`Created ${fragments.length} fragments`);
+
                 for (const fragment of fragments) {
-                    const embedding = await embed(this, fragment);
-                    await this.knowledgeManager.createMemory({
-                        id: stringToUuid(fragment),
-                        roomId: this.agentId,
-                        agentId: this.agentId,
-                        userId: this.agentId,
-                        createdAt: Date.now(),
-                        content: {
-                            source: knowledgeId,
-                            text: fragment,
-                        },
-                        embedding,
+                    elizaLogger.debug("Embedding fragment:", {
+                        fragmentLength: fragment.length,
+                        fragmentPreview: fragment.slice(0, 50)
                     });
+                    const embedding = await embed(this, fragment);
+                    elizaLogger.debug("Embedding dimensions:", embedding.length);
+            
+                    try {
+                        await this.knowledgeManager.createMemory({
+                            id: stringToUuid(fragment),
+                            roomId: this.agentId,
+                            agentId: this.agentId,
+                            userId: this.agentId,
+                            createdAt: Date.now(),
+                            content: {
+                                source: knowledgeId,
+                                text: fragment
+                            },
+                            embedding
+                        });
+                    } catch (error) {
+                        elizaLogger.error("Error creating memory:", {
+                            error,
+                            fragmentLength: fragment.length,
+                            embeddingDimensions: embedding.length
+                        });
+                        throw error;
+                    }
                 }
             }
         }
@@ -682,6 +721,20 @@ export class AgentRuntime implements IAgentRuntime {
         message: Memory,
         additionalKeys: { [key: string]: unknown } = {}
     ) {
+        // Add safe checks
+        if (!this.character) {
+            elizaLogger.error("No character loaded in runtime");
+            throw new Error("No character loaded in runtime");
+        }
+         // Add near the start of the function
+           // Add debug logging
+        elizaLogger.debug("ComposeState - Character data:", {
+            name: this.character.name,
+            hasSystemKnowledge: !!this.character.systemKnowledge,
+            iChingData: this.character.systemKnowledge?.iChing?.hexagrams?.length,
+            rawSystemKnowledge: JSON.stringify(this.character.systemKnowledge, null, 2)
+        });
+
         const { userId, roomId } = message;
 
         const conversationLength = this.getConversationLength();
@@ -911,20 +964,74 @@ Text: ${attachment.text}
             runtime: AgentRuntime,
             message: Memory
         ): Promise<string[]> {
-            const embedding = await embed(runtime, message.content.text);
-
-            const memories =
-                await runtime.knowledgeManager.searchMemoriesByEmbedding(
+            elizaLogger.debug("getKnowledge called with:", {
+                messageContent: message?.content?.text?.slice(0, 100),
+                agentId: runtime.agentId,
+                messageId: message.id,
+                hasStaticKnowledge: !!runtime.character.knowledge?.length
+            });
+        
+            // Guard clause for case where we have no static knowledge and no message content
+            if (!runtime.character.knowledge?.length && !message?.content?.text) {
+                elizaLogger.debug("No knowledge sources available, returning empty array");
+                return [];
+            }
+        
+            const knowledgeSources: string[] = [];
+        
+            // 1. Add static knowledge from character definition
+            if (runtime.character.knowledge?.length > 0) {
+                knowledgeSources.push(...runtime.character.knowledge);
+                elizaLogger.debug("Added static knowledge", {
+                    count: runtime.character.knowledge.length,
+                    sample: runtime.character.knowledge[0]?.slice(0, 100)
+                });
+            }
+        
+            // 2. Add dynamic knowledge through similarity search if message has content
+            if (message?.content?.text) {
+                const embedding = await embed(runtime, message.content.text);
+                elizaLogger.debug("Generated embedding for similarity search:", {
+                    embeddingLength: embedding.length,
+                    sampleEmbedding: embedding.slice(0, 3)
+                });
+        
+                const memories = await runtime.knowledgeManager.searchMemoriesByEmbedding(
                     embedding,
                     {
-                        roomId: message.agentId,
-                        agentId: message.agentId,
+                        roomId: runtime.agentId,
+                        agentId: runtime.agentId,
                         count: 3,
                     }
                 );
-
-            const knowledge = memories.map((memory) => memory.content.text);
-            return knowledge;
+        
+                if (memories.length > 0) {
+                    const dynamicKnowledge = memories.map(memory => memory.content.text);
+                    knowledgeSources.push(...dynamicKnowledge);
+                    
+                    elizaLogger.debug("Added dynamic knowledge from similarity search:", {
+                        foundMemories: memories.length,
+                        memoryIds: memories.map(m => m.id),
+                        sampleContent: memories[0]?.content?.text?.slice(0, 100),
+                        // @ts-expect-error similarity is added by vector search but not in type
+                        similarities: memories.map(m => m.similarity)
+                    });
+                }
+            }
+        
+            if (knowledgeSources.length === 0) {
+                elizaLogger.debug("No knowledge found from any source, returning empty array");
+                return [];
+            }
+        
+            elizaLogger.debug("Final knowledge sources:", {
+                totalCount: knowledgeSources.length,
+                staticCount: runtime.character.knowledge?.length || 0,
+                dynamicCount: knowledgeSources.length - (runtime.character.knowledge?.length || 0),
+                sampleKnowledge: knowledgeSources.slice(0, 2).map(k => k.slice(0, 100))
+            });
+        
+            return knowledgeSources;
         }
 
         const formatKnowledge = (knowledge: string[]) => {
@@ -940,6 +1047,7 @@ Text: ${attachment.text}
             agentName,
             bio,
             lore,
+            systemKnowledge: this.character.systemKnowledge,
             adjective:
                 this.character.adjectives &&
                 this.character.adjectives.length > 0
@@ -1068,6 +1176,12 @@ Text: ${attachment.text}
             ...additionalKeys,
         };
 
+           // Add debug logging
+        elizaLogger.debug("ComposeState - Final state:", {
+            hasSystemKnowledge: !!initialState.systemKnowledge,
+            iChingData: initialState.systemKnowledge?.iChing?.hexagrams?.length
+        });
+
         const actionPromises = this.actions.map(async (action: Action) => {
             const result = await action.validate(this, message, initialState);
             if (result) {
@@ -1134,6 +1248,7 @@ Text: ${attachment.text}
                 `# Additional Information About ${this.character.name} and The World`,
                 providers
             ),
+            iChing: formatIChingKnowledge(this.character),
         };
 
         return { ...initialState, ...actionState } as State;

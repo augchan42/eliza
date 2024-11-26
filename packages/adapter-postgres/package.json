@@ -12,7 +12,7 @@
         "tsup": "^8.3.5"
     },
     "scripts": {
-        "build": "tsup --format esm --dts",
-        "dev": "tsup --format esm --dts --watch"
+        "build": "tsup --format esm --dts --sourcemap",
+        "dev": "tsup --format esm --dts --watch --sourcemap"
     }
 }

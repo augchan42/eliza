@@ -28,10 +28,19 @@ export const composeContext = ({
     state: State;
     template: string;
 }) => {
-    // @ts-expect-error match isn't working as expected
-    const out = template.replace(/{{\w+}}/g, (match) => {
-        const key = match.replace(/{{|}}/g, "");
-        return state[key] ?? "";
+    // Handle both simple keys and nested objects with dot notation
+    const out = template.replace(/{{\s*[\w.#]+\s*}}/g, (match) => {
+        const key = match.replace(/[{}\s]/g, "");
+        
+        // Get the value, handling both direct and nested properties
+        const value = key.split('.').reduce((obj, k) => obj?.[k], state);
+        
+        // Convert to string if it's an object/array
+        if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value, null, 2);
+        }
+        
+        return String(value ?? "");  // Convert to string explicitly
     });
     return out;
 };

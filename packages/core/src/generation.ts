@@ -694,6 +694,10 @@ export async function generateMessageResponse({
     context: string;
     modelClass: string;
 }): Promise<Content> {
+    elizaLogger.debug(
+        "generateMessageResponse with context:",
+        context
+    );
     const max_context_length =
         models[runtime.modelProvider].settings.maxInputTokens;
     context = trimTokens(context, max_context_length, "gpt-4o");

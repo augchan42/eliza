@@ -6,8 +6,16 @@ import {
     type Memory,
     type UUID,
 } from "./types.ts";
+import settings from "./settings.ts";
 
-export const embeddingDimension = 1536;
+// Embedding dimensions for different models
+export const OPENAI_EMBEDDING_DIMENSION = 1536;  // ada-002
+export const BGE_EMBEDDING_DIMENSION = 384; 
+
+export const embeddingDimension = settings.USE_OPENAI_EMBEDDING === 'true' 
+    ? OPENAI_EMBEDDING_DIMENSION 
+    : BGE_EMBEDDING_DIMENSION;
+
 export const embeddingZeroVector = Array(embeddingDimension).fill(0);
 
 const defaultMatchThreshold = 0.1;

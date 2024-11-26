@@ -109,4 +109,19 @@ export class TelegramClient {
         await this.bot.stop();
         elizaLogger.log("Telegram bot stopped");
     }
+
+    public addErrorHandler(handler: (err: any) => void) {
+        this.bot.catch(handler);
+    }
+
+    public handleChatKick(chatId: number) {
+        // Remove any stored conversations or state for this chat
+        // Stop any ongoing operations for this chat
+        // Optionally notify any monitoring systems
+        this.removeChat(chatId);
+    }
+
+    private removeChat(chatId: number) {
+        // Implementation to clean up chat-specific resources
+    }
 }

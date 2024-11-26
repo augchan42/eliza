@@ -328,6 +328,18 @@ export enum Clients {
     TELEGRAM = "telegram",
 }
 
+export type Trigram = {
+    key: string;
+    name: string;
+    quality: string;
+    traits: string;
+    personages: string;
+    totemicAnimal: string;
+    immortal: string;
+    imageInNature: string;
+    trigramFigure: string;
+};
+
 export type Character = {
     id?: UUID; // optional UUID which can be passed down to identify the character
     name: string;
@@ -336,6 +348,32 @@ export type Character = {
     modelEndpointOverride?: string;
     templates?: {
         [key: string]: string;
+    };
+    systemContext?: string;  // Add this line
+    // Add structured knowledge section
+    systemKnowledge?: {
+        iChing?: {
+            trigrams?: Array<Trigram>;
+            hexagrams: Array<{
+                number: number;
+                unicode: string;
+                name: {
+                    pinyin: string;
+                    chinese: string;
+                };
+                trigrams: {
+                    top: string;
+                    bottom: string;
+                };
+                meaning: string;
+            }>;
+        };
+         // Generic knowledge for quick additions
+        general?: {
+            [key: string]: string | Record<string, unknown>;
+        };
+        // Other knowledge domains can be added here
+        [key: string]: unknown;
     };
     bio: string | string[];
     lore: string[];

@@ -13,6 +13,19 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- Create a function to determine vector dimension
+CREATE OR REPLACE FUNCTION get_embedding_dimension() 
+RETURNS INTEGER AS $$
+BEGIN
+    -- Check environment variable, default to 384 if not using OpenAI
+    IF current_setting('app.use_openai_embedding', TRUE) = 'true' THEN
+        RETURN 1536;  -- OpenAI dimension
+    ELSE
+        RETURN 384;   -- BGE/Other embedding dimension
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 BEGIN;
 
 CREATE TABLE accounts (
@@ -35,7 +48,7 @@ CREATE TABLE memories (
     "type" TEXT NOT NULL,
     "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     "content" JSONB NOT NULL,
-    "embedding" vector(1536),
+    "embedding" vector(get_embedding_dimension()),  -- Dynamic vector size
     "userId" UUID REFERENCES accounts("id"),
     "agentId" UUID REFERENCES accounts("id"),
     "roomId" UUID REFERENCES rooms("id"),

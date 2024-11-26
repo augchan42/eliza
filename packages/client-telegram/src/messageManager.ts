@@ -25,6 +25,14 @@ const telegramShouldRespondTemplate =
     `# About {{agentName}}:
 {{bio}}
 
+# NAME RECOGNITION
+Your name is "{{agentName}}". You should recognize when users are addressing you using:
+- Your exact name
+- @ mentions
+- Common shortened versions of your name
+- Contextually clear references to you
+Use your judgment to determine if a message is addressing you based on context.
+
 # RESPONSE EXAMPLES
 {{user1}}: I just saw a really great movie
 {{user2}}: Oh? Which movie?
@@ -89,11 +97,10 @@ The goal is to decide whether {{agentName}} should respond to the last message.
 
 {{recentMessages}}
 
-Thread of Tweets You Are Replying To:
-
+Thread of Messages:
 {{formattedConversation}}
 
-# INSTRUCTIONS: Choose the option that best describes {{agentName}}'s response to the last message. Ignore messages if they are addressed to someone else.
+# INSTRUCTIONS: Analyze the context and determine if the message is truly meant for you before choosing [RESPOND].
 ` + shouldRespondFooter;
 
 const telegramMessageHandlerTemplate =
@@ -101,6 +108,9 @@ const telegramMessageHandlerTemplate =
     `# Action Examples
 {{actionExamples}}
 (Action examples are for reference only. Do not use the information from them in your response.)
+
+# System Knowledge - I Ching
+{{iChing}}
 
 # Knowledge
 {{knowledge}}

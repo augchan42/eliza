@@ -62,7 +62,7 @@ export async function loadCharacters(
                 return `../${path}`;
             }
             if (path.startsWith("characters")) {
-                return `../../${path}`;
+                return `${path}`;
             }
             if (path.startsWith("./characters")) {
                 return `../.${path}`;

@@ -11,6 +11,9 @@ import {
     Participant,
 } from "@ai16z/eliza";
 import { DatabaseAdapter } from "@ai16z/eliza";
+import { elizaLogger } from "@ai16z/eliza";
+import { embeddingConfig } from "@ai16z/eliza";
+
 const { Pool } = pg;
 
 export class PostgresDatabaseAdapter extends DatabaseAdapter {
@@ -201,6 +204,7 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
         }
     }
 
+
     async getActorById(params: { roomId: UUID }): Promise<Actor[]> {
         const client = await this.pool.connect();
         try {
@@ -245,6 +249,11 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
     }
 
     async createMemory(memory: Memory, tableName: string): Promise<void> {
+        elizaLogger.debug("PostgresAdapter createMemory:", {
+            memoryId: memory.id,
+            embeddingLength: memory.embedding?.length,
+            contentLength: memory.content?.text?.length
+        });
         const client = await this.pool.connect();
         try {
             let isUnique = true;
@@ -277,6 +286,13 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
                     Date.now(),
                 ]
             );
+        } catch (error) {
+            elizaLogger.error("PostgresAdapter createMemory error:", {
+                error,
+                memoryId: memory.id,
+                embeddingDimensions: memory.embedding?.length
+            });
+            throw error;
         } finally {
             client.release();
         }
@@ -292,25 +308,33 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
     }): Promise<Memory[]> {
         const client = await this.pool.connect();
         try {
+
+            // Validate embedding dimension matches configuration
+            if (params.embedding.length !== embeddingConfig.dimensions) {
+                throw new Error(`Invalid embedding dimension: expected ${embeddingConfig.dimensions}, got ${params.embedding.length}`);
+            }
+        
+
             let sql = `
                 SELECT *,
-                1 - (embedding <-> $3) as similarity
+                1 - (embedding <=> $3::vector(${embeddingConfig.dimensions})) as similarity
                 FROM memories
-                WHERE type = $1 AND "roomId" = $2
+                WHERE type = $1 
+                AND "roomId" = $2::uuid
             `;
-
+            
             if (params.unique) {
                 sql += ` AND "unique" = true`;
             }
-
-            sql += ` AND 1 - (embedding <-> $3) >= $4
-                ORDER BY embedding <-> $3
+            
+            sql += ` AND 1 - (embedding <=> $3::vector(${embeddingConfig.dimensions})) >= $4
+                ORDER BY embedding <=> $3::vector(${embeddingConfig.dimensions})
                 LIMIT $5`;
-
+            
             const { rows } = await client.query(sql, [
                 params.tableName,
                 params.roomId,
-                params.embedding,
+                `[${params.embedding.join(',')}]`,
                 params.match_threshold,
                 params.match_count,
             ]);
@@ -639,16 +663,50 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
     ): Promise<Memory[]> {
         const client = await this.pool.connect();
         try {
-            const vectorStr = `[${embedding.join(",")}]`;
+            elizaLogger.debug("Incoming vector:", {
+                length: embedding.length,
+                sample: embedding.slice(0, 5),
+                isArray: Array.isArray(embedding),
+                allNumbers: embedding.every(n => typeof n === 'number')
+            });
+
+            // Validate embedding dimension
+            if (embedding.length !== embeddingConfig.dimensions) {
+                throw new Error(`Invalid embedding dimension: expected ${embeddingConfig.dimensions}, got ${embedding.length}`);
+            }
+
+             // Ensure vector is properly formatted
+            const cleanVector = embedding.map(n => {
+                if (!Number.isFinite(n)) return 0;
+                // Limit precision to avoid floating point issues
+                return Number(n.toFixed(6));
+            });
+            
+            // Format for Postgres pgvector
+            const vectorStr = `[${cleanVector.join(",")}]`;
+        
+            elizaLogger.debug("Vector debug:", {
+                originalLength: embedding.length,
+                cleanLength: cleanVector.length,
+                sampleStr: vectorStr.slice(0, 100)
+            });    
 
             let sql = `
                 SELECT *,
-                1 - (embedding <-> $1::vector) as similarity
+                1 - (embedding <-> $1::vector(${embeddingConfig.dimensions})) as similarity
                 FROM memories
                 WHERE type = $2
             `;
 
             const values: any[] = [vectorStr, params.tableName];
+
+            // Log the query for debugging
+            elizaLogger.debug("Query debug:", {
+                sql: sql.slice(0, 200),
+                paramTypes: values.map(v => typeof v),
+                vectorStrLength: vectorStr.length
+            });
+
             let paramCount = 2;
 
             if (params.unique) {

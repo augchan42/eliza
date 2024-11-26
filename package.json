@@ -22,6 +22,11 @@
         "docker": "pnpm docker:build && pnpm docker:run && pnpm docker:bash",
         "test": "pnpm --dir packages/core test"
     },
+    "nodemonConfig": {
+        "watch": ["agent/src", "packages/*/src"],
+        "ext": ".ts,.js",
+        "exec": "node --enable-source-maps -r ts-node/register ./agent/src/index.ts"
+    },
     "devDependencies": {
         "concurrently": "^9.1.0",
         "husky": "^9.1.6",

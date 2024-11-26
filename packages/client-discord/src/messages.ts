@@ -85,6 +85,15 @@ const discordShouldRespondTemplate =
     `# About {{agentName}}:
 {{bio}}
 
+# NAME RECOGNITION
+Your name is "{{agentName}}". You should recognize when users are addressing you using:
+- Your exact name
+- @ mentions
+- Common shortened versions of your name
+- Contextually clear references to you
+Use your judgment to determine if a message is addressing you based on context.
+
+
 # RESPONSE EXAMPLES
 {{user1}}: I just saw a really great movie
 {{user2}}: Oh? Which movie?
@@ -157,6 +166,9 @@ export const discordMessageHandlerTemplate =
     `# Action Examples
 {{actionExamples}}
 (Action examples are for reference only. Do not use the information from them in your response.)
+
+# System Knowledge - I Ching
+{{iChing}}
 
 # Knowledge
 {{knowledge}}
@@ -917,7 +929,7 @@ export class MessageManager {
             );
             return false;
         }
-    }
+    }    
 
     private async _generateResponse(
         message: Memory,
@@ -926,14 +938,45 @@ export class MessageManager {
     ): Promise<Content> {
         const { userId, roomId } = message;
 
+        elizaLogger.debug("Character data:", JSON.stringify(this.runtime.character, null, 2));
+
+           // Ensure the knowledge and systemKnowledge are included in context
+        const contextWithKnowledge = {
+            ...this.runtime.character,
+            knowledge: this.runtime.character.knowledge || [],
+            systemKnowledge: this.runtime.character.systemKnowledge || {},
+            ...state
+        };
+
+        // const getCircularReplacer = () => {
+        //     const seen = new WeakSet();
+        //     return (key, value) => {
+        //         if (typeof value === 'bigint') {
+        //             return value.toString();
+        //         }
+        //         if (typeof value === 'object' && value !== null) {
+        //             if (seen.has(value)) {
+        //                 return '[Circular]';
+        //             }
+        //             seen.add(value);
+        //         }
+        //         return value;
+        //     };
+        // };
+
+        // elizaLogger.debug("Template context:", JSON.stringify(contextWithKnowledge, getCircularReplacer(), 2));
+    
         const response = await generateMessageResponse({
             runtime: this.runtime,
-            context,
-            modelClass: ModelClass.SMALL,
+            context: composeContext({
+                state: contextWithKnowledge,
+                template: this.runtime.character.templates?.discordMessageHandlerTemplate || discordMessageHandlerTemplate
+            }),
+            modelClass: ModelClass.SMALL                 
         });
 
         if (!response) {
-            console.error("No response from generateMessageResponse");
+            elizaLogger.error("No response from generateMessageResponse");
             return;
         }
 

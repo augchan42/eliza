@@ -1,6 +1,9 @@
 import { config } from "dotenv";
 import fs from "fs";
 import path from "path";
+import elizaLogger from "./logger.ts";
+
+elizaLogger.info('Loading settings with USE_OPENAI_EMBEDDING:', process.env.USE_OPENAI_EMBEDDING);
 
 interface Settings {
     [key: string]: string | undefined;
@@ -114,4 +117,11 @@ export function hasEnvVariable(key: string): boolean {
 
 // Initialize settings based on environment
 export const settings = isBrowser() ? environmentSettings : loadEnvConfig();
+
+elizaLogger.info('Parsed settings:', {
+    USE_OPENAI_EMBEDDING: settings.USE_OPENAI_EMBEDDING,
+    USE_OPENAI_EMBEDDING_TYPE: typeof settings.USE_OPENAI_EMBEDDING
+});
+
+
 export default settings;
