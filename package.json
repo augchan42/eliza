@@ -23,12 +23,16 @@
         "test": "pnpm --dir packages/core test"
     },
     "nodemonConfig": {
-        "watch": ["agent/src", "packages/*/src"],
+        "watch": [
+            "agent/src",
+            "packages/*/src"
+        ],
         "ext": ".ts,.js",
         "exec": "node --enable-source-maps -r ts-node/register ./agent/src/index.ts"
     },
     "devDependencies": {
         "concurrently": "^9.1.0",
+        "eslint": "^9",
         "husky": "^9.1.6",
         "lerna": "^8.1.5",
         "only-allow": "^1.2.1",

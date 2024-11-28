@@ -131,6 +131,24 @@ class ElizaLogger {
         if (this.closeByNewLine) console.log("");
     }
 
+    private getTimestamp(): string {
+        const now = new Date();
+        return `[${now.toISOString()}]`;
+    }
+
+    private formatLogMessage(message: any): string {
+        if (typeof message === "object") {
+            try {
+                return JSON.stringify(message, (key, value) =>
+                    typeof value === "bigint" ? value.toString() : value
+                );
+            } catch (error) {
+                return String(message);
+            }
+        }
+        return String(message);
+    }
+
     #logWithStyle(
         strings: any[],
         options: {
@@ -141,15 +159,19 @@ class ElizaLogger {
         }
     ) {
         const { fg, bg, icon, groupTitle } = options;
+        const timestamp = this.getTimestamp();
 
         if (strings.length > 1) {
             if (this.isNode) {
                 const c = this.#getColor(fg, bg);
-                console.group(c, (this.useIcons ? icon : "") + groupTitle);
+                console.group(
+                    c,
+                    `${timestamp} ${this.useIcons ? icon : ""}${groupTitle}`
+                );
             } else {
                 const style = this.#getColor(fg, bg);
                 console.group(
-                    `%c${this.useIcons ? icon : ""}${groupTitle}`,
+                    `%c${timestamp} ${this.useIcons ? icon : ""}${groupTitle}`,
                     style
                 );
             }
@@ -157,19 +179,18 @@ class ElizaLogger {
             const nl = this.closeByNewLine;
             this.closeByNewLine = false;
             strings.forEach((item) => {
-                this.print(fg, bg, item);
+                const formattedMessage = this.formatLogMessage(item);
+                this.print(fg, bg, formattedMessage);
             });
             this.closeByNewLine = nl;
             console.groupEnd();
             if (nl) console.log();
         } else {
-            this.print(
-                fg,
-                bg,
-                strings.map((item) => {
-                    return `${this.useIcons ? `${icon} ` : ""}${item}`;
-                })
-            );
+            const formattedMessages = strings.map((item) => {
+                const formattedMessage = this.formatLogMessage(item);
+                return `${timestamp} ${this.useIcons ? `${icon} ` : ""}${formattedMessage}`;
+            });
+            this.print(fg, bg, ...formattedMessages);
         }
     }
 

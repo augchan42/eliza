@@ -31,7 +31,156 @@ import { elizaLogger } from "@ai16z/eliza/src/logger.ts";
 import { AttachmentManager } from "./attachments.ts";
 import { VoiceManager } from "./voice.ts";
 
+// Add simple regex patterns for quick checks
+const DIRECT_MENTION_REGEX = /@agentName/i; // Will be replaced with actual name
+const NAME_MENTION_REGEX = /\b(agentName)\b/i; // Will be replaced with actual name
+const STOP_PHRASES = new Set([
+    "stfu",
+    "shut up",
+    "stop talking",
+    "be quiet",
+    "stop responding",
+]);
 const MAX_MESSAGE_LENGTH = 1900;
+const RETRY_DELAY_MS = 1000; // 1 second delay between attempts
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Add basic pre-filtering before hitting the LLM
+function quickShouldRespond(
+    message: string,
+    agentName: string,
+    isReply: boolean,
+    isDirectMention: boolean
+): "RESPOND" | "IGNORE" | "STOP" | null {
+    // Replace placeholders with actual agent name
+    const directMentionPattern = DIRECT_MENTION_REGEX.source.replace(
+        "agentName",
+        agentName
+    );
+    const namePattern = NAME_MENTION_REGEX.source.replace(
+        "agentName",
+        agentName
+    );
+
+    const directMentionRegex = new RegExp(directMentionPattern, "i");
+    const nameRegex = new RegExp(namePattern, "i");
+
+    // Convert to lowercase once for all checks
+    const lowerMessage = message.toLowerCase();
+
+    // Quick STOP check
+    if (STOP_PHRASES.has(lowerMessage)) {
+        return "STOP";
+    }
+
+    // Definite cases where we should respond
+    if (
+        isDirectMention ||
+        isReply ||
+        directMentionRegex.test(message) ||
+        nameRegex.test(message)
+    ) {
+        return "RESPOND";
+    }
+
+    // Very short messages should be ignored
+    if (message.length < 3) {
+        return "IGNORE";
+    }
+
+    // If we can't make a quick decision, return null to use LLM
+    return null;
+}
+
+// Rate limiter implementation
+const rateLimiter = {
+    lastCall: 0,
+    minInterval: 1000,
+    shouldThrottle(message: Memory, runtime: IAgentRuntime): boolean {
+        const now = Date.now();
+
+        // Always process direct mentions or replies regardless of rate limit
+        const isDirectMention =
+            Array.isArray(message.content?.mentions) &&
+            message.content.mentions.includes(runtime.agentId);
+        const isReply = message.content?.inReplyTo === runtime.agentId;
+
+        if (isDirectMention || isReply) {
+            this.lastCall = now;
+            return false;
+        }
+
+        // Apply rate limiting only to ambient messages
+        if (now - this.lastCall < this.minInterval) {
+            return true;
+        }
+        this.lastCall = now;
+        return false;
+    },
+};
+
+export async function shouldRespond(
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State
+): Promise<boolean> {
+    // Check rate limiting
+    if (rateLimiter.shouldThrottle(message, runtime)) {
+        return false; // Skip if we're being rate limited
+    }
+
+    // Get message metadata
+    const isReply = message.content?.inReplyTo === runtime.agentId;
+    const isDirectMention =
+        Array.isArray(message.content?.mentions) &&
+        message.content.mentions.includes(runtime.agentId);
+    // Quick check first
+    const quickResult = quickShouldRespond(
+        message.content.text,
+        runtime.character.name,
+        isReply,
+        isDirectMention
+    );
+
+    if (quickResult !== null) {
+        return quickResult === "RESPOND";
+    }
+
+    // Only use LLM for ambiguous cases
+    const context = composeContext({
+        state,
+        template:
+            runtime.character.templates?.discordShouldRespondTemplate ||
+            discordShouldRespondTemplate,
+    });
+
+    // Existing LLM logic
+    for (let i = 0; i < 5; i++) {
+        if (i > 0) {
+            // Don't delay on first attempt
+            await delay(RETRY_DELAY_MS);
+        }
+
+        const response = await generateText({
+            runtime,
+            context,
+            modelClass: ModelClass.SMALL,
+        });
+
+        if (response.includes("[RESPOND]")) {
+            return true;
+        } else if (response.includes("[IGNORE]")) {
+            return false;
+        } else if (response.includes("[STOP]")) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 async function generateSummary(
     runtime: IAgentRuntime,
     text: string
@@ -929,7 +1078,7 @@ export class MessageManager {
             );
             return false;
         }
-    }    
+    }
 
     private async _generateResponse(
         message: Memory,
@@ -938,14 +1087,17 @@ export class MessageManager {
     ): Promise<Content> {
         const { userId, roomId } = message;
 
-        elizaLogger.debug("Character data:", JSON.stringify(this.runtime.character, null, 2));
+        elizaLogger.debug(
+            "Character data:",
+            JSON.stringify(this.runtime.character, null, 2)
+        );
 
-           // Ensure the knowledge and systemKnowledge are included in context
+        // Ensure the knowledge and systemKnowledge are included in context
         const contextWithKnowledge = {
             ...this.runtime.character,
             knowledge: this.runtime.character.knowledge || [],
             systemKnowledge: this.runtime.character.systemKnowledge || {},
-            ...state
+            ...state,
         };
 
         // const getCircularReplacer = () => {
@@ -965,14 +1117,17 @@ export class MessageManager {
         // };
 
         // elizaLogger.debug("Template context:", JSON.stringify(contextWithKnowledge, getCircularReplacer(), 2));
-    
+
         const response = await generateMessageResponse({
             runtime: this.runtime,
             context: composeContext({
                 state: contextWithKnowledge,
-                template: this.runtime.character.templates?.discordMessageHandlerTemplate || discordMessageHandlerTemplate
+                template:
+                    this.runtime.character.templates
+                        ?.discordMessageHandlerTemplate ||
+                    discordMessageHandlerTemplate,
             }),
-            modelClass: ModelClass.SMALL                 
+            modelClass: ModelClass.SMALL,
         });
 
         if (!response) {

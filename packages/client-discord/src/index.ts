@@ -22,6 +22,8 @@ import { MessageManager } from "./messages.ts";
 import channelStateProvider from "./providers/channelState.ts";
 import voiceStateProvider from "./providers/voiceState.ts";
 import { VoiceManager } from "./voice.ts";
+import path from "path";
+import { fileURLToPath } from "url";
 
 export class DiscordClient extends EventEmitter {
     apiToken: string;
@@ -33,6 +35,7 @@ export class DiscordClient extends EventEmitter {
 
     constructor(runtime: IAgentRuntime) {
         super();
+
         this.apiToken = runtime.getSetting("DISCORD_API_TOKEN") as string;
         this.client = new Client({
             intents: [
@@ -111,6 +114,35 @@ export class DiscordClient extends EventEmitter {
 
     private async onClientReady(readyClient: { user: { tag: any; id: any } }) {
         elizaLogger.success(`Logged in as ${readyClient.user?.tag}`);
+
+        // Register slash commands
+        const commands = [
+            {
+                name: "joinchannel",
+                description: "Join a voice channel",
+                options: [
+                    {
+                        name: "channel",
+                        type: 7, // CHANNEL type
+                        description: "The voice channel to join",
+                        required: true,
+                        channel_types: [2], // GuildVoice type
+                    },
+                ],
+            },
+            {
+                name: "leavechannel",
+                description: "Leave the current voice channel",
+            },
+        ];
+
+        try {
+            await this.client.application?.commands.set(commands);
+            elizaLogger.success("Slash commands registered");
+        } catch (error) {
+            console.error("Error registering slash commands:", error);
+        }
+
         elizaLogger.success("Use this URL to add the bot to your server:");
         elizaLogger.success(
             `https://discord.com/api/oauth2/authorize?client_id=${readyClient.user?.id}&permissions=0&scope=bot%20applications.commands`

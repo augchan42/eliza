@@ -10,9 +10,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
 
-// const __dirname = path.dirname(new URL(import.meta.url).pathname); #compatibility issues with windows
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Instead, use the same pattern as vits.ts
+const PLUGIN_ROOT = (() => {
+    const currentScriptDir = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(currentScriptDir, "..", "..");
+})();
 
 const execAsync = promisify(exec);
 
@@ -31,9 +33,8 @@ export class TranscriptionService extends Service {
 
     constructor() {
         super();
-        const rootDir = path.resolve(__dirname, "../../");
-        this.CONTENT_CACHE_DIR = path.join(rootDir, "content_cache");
-        this.DEBUG_AUDIO_DIR = path.join(rootDir, "debug_audio");
+        this.CONTENT_CACHE_DIR = path.join(PLUGIN_ROOT, "content_cache");
+        this.DEBUG_AUDIO_DIR = path.join(PLUGIN_ROOT, "debug_audio");
         this.ensureCacheDirectoryExists();
         this.ensureDebugDirectoryExists();
         // TODO: It'd be nice to handle this more gracefully, but we can do local transcription for now
@@ -140,14 +141,122 @@ export class TranscriptionService extends Service {
         }
     }
 
-    private async saveDebugAudio(audioBuffer: ArrayBuffer, prefix: string) {
-        this.ensureDebugDirectoryExists();
+    private createWavHeader(
+        dataLength: number,
+        sampleRate: number = 16000,
+        channels: number = 1,
+        bitsPerSample: number = 16
+    ): Buffer {
+        const header = Buffer.alloc(44);
 
-        const filename = `${prefix}_${Date.now()}.wav`;
-        const filePath = path.join(this.DEBUG_AUDIO_DIR, filename);
+        // RIFF identifier
+        header.write("RIFF", 0);
+        // File length minus RIFF header
+        header.writeInt32LE(36 + dataLength, 4);
+        // WAVE format
+        header.write("WAVE", 8);
+        // Format chunk identifier
+        header.write("fmt ", 12);
+        // Format chunk length
+        header.writeInt32LE(16, 16);
+        // Sample format (1 is PCM)
+        header.writeInt16LE(1, 20);
+        // Channel count
+        header.writeInt16LE(channels, 22);
+        // Sample rate
+        header.writeInt32LE(sampleRate, 24);
+        // Byte rate (sample rate * block align)
+        header.writeInt32LE((sampleRate * channels * bitsPerSample) / 8, 28);
+        // Block align
+        header.writeInt16LE((channels * bitsPerSample) / 8, 32);
+        // Bits per sample
+        header.writeInt16LE(bitsPerSample, 34);
+        // Data chunk identifier
+        header.write("data", 36);
+        // Data chunk length
+        header.writeInt32LE(dataLength, 40);
 
-        fs.writeFileSync(filePath, Buffer.from(audioBuffer));
-        console.log(`Debug audio saved: ${filePath}`);
+        return header;
+    }
+
+    private async saveDebugAudio(
+        audioBuffer: ArrayBuffer | Buffer,
+        prefix: string
+    ) {
+        try {
+            this.ensureDebugDirectoryExists();
+            const filename = `${prefix}_${Date.now()}.wav`;
+            const filePath = path.join(this.DEBUG_AUDIO_DIR, filename);
+
+            // Log the audio buffer details
+            console.log("Debug audio details:", {
+                prefix,
+                bufferSize: audioBuffer.byteLength,
+                path: filePath,
+                type: audioBuffer.constructor.name,
+            });
+
+            // Ensure we have an ArrayBuffer to work with
+            let arrayBuffer: ArrayBuffer;
+            if (Buffer.isBuffer(audioBuffer)) {
+                arrayBuffer = audioBuffer.buffer.slice(
+                    audioBuffer.byteOffset,
+                    audioBuffer.byteOffset + audioBuffer.byteLength
+                );
+            } else {
+                arrayBuffer = audioBuffer;
+            }
+
+            try {
+                // Check if it's a valid WAV format
+                const view = new DataView(arrayBuffer);
+                const header = {
+                    riff: String.fromCharCode(
+                        ...new Uint8Array(arrayBuffer.slice(0, 4))
+                    ),
+                    sampleRate: view.getUint32(24, true),
+                    bitsPerSample: view.getUint16(34, true),
+                    channels: view.getUint16(22, true),
+                };
+                console.log("WAV header info:", header);
+
+                if (header.riff !== "RIFF") {
+                    // No WAV header, add one
+                    const wavHeader = this.createWavHeader(
+                        arrayBuffer.byteLength,
+                        16000,
+                        1,
+                        16
+                    );
+
+                    // Create a new buffer with header + data
+                    const finalBuffer = Buffer.concat([
+                        wavHeader,
+                        Buffer.from(arrayBuffer),
+                    ]);
+                    fs.writeFileSync(filePath, finalBuffer);
+                } else {
+                    // Already has WAV header, write directly
+                    fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+                }
+            } catch (error) {
+                console.error("Error processing audio buffer:", {
+                    error,
+                    bufferType: audioBuffer.constructor.name,
+                    bufferSize: audioBuffer.byteLength,
+                    hasArrayBuffer: !!arrayBuffer,
+                });
+                throw error;
+            }
+
+            console.log(`Debug audio saved: ${filePath}`);
+        } catch (error) {
+            console.error("Error saving debug audio:", {
+                error,
+                bufferType: audioBuffer?.constructor.name,
+                bufferSize: audioBuffer?.byteLength,
+            });
+        }
     }
 
     public async transcribeAttachment(
@@ -159,11 +268,15 @@ export class TranscriptionService extends Service {
     public async transcribe(audioBuffer: ArrayBuffer): Promise<string | null> {
         // if the audio buffer is less than .2 seconds, just return null
         if (audioBuffer.byteLength < 0.2 * 16000) {
+            console.log("Audio buffer too small, skipping");
             return null;
         }
+
         return new Promise((resolve) => {
+            console.log("Adding to transcription queue");
             this.queue.push({ audioBuffer, resolve });
             if (!this.processing) {
+                console.log("Starting queue processing");
                 this.processQueue();
             }
         });
@@ -176,11 +289,17 @@ export class TranscriptionService extends Service {
     }
 
     private async processQueue(): Promise<void> {
+        console.log("=== Queue Processing Start ===");
         if (this.processing || this.queue.length === 0) {
+            console.log("Queue processing skipped:", {
+                isProcessing: this.processing,
+                queueLength: this.queue.length,
+            });
             return;
         }
 
         this.processing = true;
+        console.log("Processing queue items:", this.queue.length);
 
         while (this.queue.length > 0) {
             const { audioBuffer, resolve } = this.queue.shift()!;
@@ -188,14 +307,17 @@ export class TranscriptionService extends Service {
 
             if (this.openai) {
                 result = await this.transcribeWithOpenAI(audioBuffer);
+                console.log("openai Transcription result:", result);
             } else {
                 result = await this.transcribeLocally(audioBuffer);
+                console.log("local Transcription result:", result);
             }
 
             resolve(result);
         }
 
         this.processing = false;
+        console.log("=== Queue Processing End ===");
     }
 
     private async transcribeWithOpenAI(
@@ -277,7 +399,7 @@ export class TranscriptionService extends Service {
                     translateToEnglish: false,
                     wordTimestamps: false,
                     timestamps_length: 60,
-                    splitOnWord: true,
+                    // splitOnWord: true,
                 },
             });
 

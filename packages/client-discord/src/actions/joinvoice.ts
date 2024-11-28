@@ -69,7 +69,7 @@ export default {
         const client = state.discordClient as Client;
 
         // Check if the client is connected to any voice channel
-        const isConnectedToVoice = client.voice.adapters.size === 0;
+        const isConnectedToVoice = client.voice.adapters.size > 0;
 
         return isConnectedToVoice;
     },
@@ -184,15 +184,17 @@ You should only respond with the name of the voice channel or none, no commentar
                     const name = (
                         channel as { name: string }
                     ).name.toLowerCase();
+                    const messageWords = messageContent
+                        .toLowerCase()
+                        .split(/\s+/);
+                    const channelWords = name.split(/\s+/);
 
-                    // remove all non-alphanumeric characters (keep spaces between words)
-                    const replacedName = name.replace(/[^a-z0-9 ]/g, "");
-
-                    return (
-                        name.includes(channelName) ||
-                        channelName.includes(name) ||
-                        replacedName.includes(channelName) ||
-                        channelName.includes(replacedName)
+                    // Check for partial word matches
+                    return channelWords.some((word) =>
+                        messageWords.some(
+                            (msgWord) =>
+                                word.includes(msgWord) || msgWord.includes(word)
+                        )
                     );
                 });
 
@@ -204,6 +206,9 @@ You should only respond with the name of the voice channel or none, no commentar
                         adapterCreator: (client.guilds.cache.get(id) as Guild)
                             .voiceAdapterCreator,
                     });
+                    await (discordMessage as DiscordMessage).reply(
+                        `Joined voice channel: ${targetChannel.name}`
+                    );
                     return true;
                 }
             }

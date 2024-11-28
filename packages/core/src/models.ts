@@ -24,14 +24,14 @@ export const models: Models = {
         settings: {
             stop: [],
             maxInputTokens: 200000,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 4096,
             frequency_penalty: 0.4,
             presence_penalty: 0.4,
             temperature: 0.7,
         },
         endpoint: "https://api.anthropic.com/v1",
         model: {
-            [ModelClass.SMALL]: "claude-3-5-haiku-20241022",
+            [ModelClass.SMALL]: "claude-3-haiku-20240307",
             [ModelClass.MEDIUM]: "claude-3-5-sonnet-20241022",
             [ModelClass.LARGE]: "claude-3-5-sonnet-20241022",
         },
@@ -40,14 +40,14 @@ export const models: Models = {
         settings: {
             stop: [],
             maxInputTokens: 200000,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 4096,
             frequency_penalty: 0.4,
             presence_penalty: 0.4,
             temperature: 0.7,
         },
         endpoint: "https://api.anthropic.com/v1", // TODO: check
         model: {
-            [ModelClass.SMALL]: "claude-3-5-sonnet-20241022",
+            [ModelClass.SMALL]: "claude-3-haiku-20240307",
             [ModelClass.MEDIUM]: "claude-3-5-sonnet-20241022",
             [ModelClass.LARGE]: "claude-3-opus-20240229",
         },

@@ -7,6 +7,7 @@ import { spawn } from "child_process";
 import * as CldrSegmentation from "cldr-segmentation";
 import commandExists from "command-exists";
 import { randomBytes } from "crypto";
+import * as fs from "fs";
 import * as fsExtra from "fs-extra";
 import { GaxiosOptions, request } from "gaxios";
 import gracefulFS from "graceful-fs";
@@ -18,6 +19,93 @@ import { detectAll } from "tinyld";
 import { fileURLToPath } from "url";
 import { inspect, promisify } from "util";
 import { vitsVoiceList } from "./vitsVoiceList.ts";
+
+const PLUGIN_ROOT = (() => {
+    const currentScriptDir = path.dirname(fileURLToPath(import.meta.url));
+    // We're in packages/plugin-node/dist/vendor/vits.ts
+    console.log("Current script directory:", currentScriptDir);
+    const pluginRoot = path.resolve(currentScriptDir, "..");
+    console.log("Plugin root:", pluginRoot);
+    return pluginRoot;
+})();
+
+function resolvePackage(
+    packageName: string,
+    entryPoints: string[] = ["index.js"]
+): string {
+    console.log("Resolving package:", packageName);
+    console.log("Looking for entry points:", entryPoints);
+
+    // Try plugin-node's node_modules first
+    const pluginModulePath = path.resolve(
+        // Use resolve instead of join
+        PLUGIN_ROOT,
+        "node_modules",
+        packageName
+    );
+
+    console.log("Looking for package in:", {
+        packageName,
+        pluginModulePath,
+        exists: fs.existsSync(pluginModulePath),
+    });
+
+    // Try each entry point
+    const possiblePaths = entryPoints.map(
+        (entry) => path.resolve(pluginModulePath, entry) // Use resolve instead of join
+    );
+
+    // Check plugin-node paths
+    for (const entryPoint of possiblePaths) {
+        console.log("Checking plugin path:", entryPoint);
+        if (fs.existsSync(entryPoint)) {
+            console.log("✓ Found at plugin path:", entryPoint);
+            return entryPoint;
+        }
+        console.log("✗ Not found at plugin path");
+    }
+
+    // Fall back to workspace root node_modules
+    const workspaceRoot = path.resolve(PLUGIN_ROOT, "../..");
+    const workspaceModulePath = path.resolve(
+        // Use resolve instead of join
+        workspaceRoot,
+        "node_modules",
+        packageName
+    );
+    console.log("Workspace module path:", workspaceModulePath);
+
+    // Try the same paths in workspace root
+    const workspacePaths = entryPoints.map(
+        (entry) => path.resolve(workspaceModulePath, entry) // Use resolve instead of join
+    );
+
+    // Check workspace paths
+    for (const entryPoint of workspacePaths) {
+        console.log("Checking workspace path:", entryPoint);
+        if (fs.existsSync(entryPoint)) {
+            console.log("✓ Found at workspace path:", entryPoint);
+            return entryPoint;
+        }
+        console.log("✗ Not found at workspace path");
+    }
+
+    throw new Error(
+        `Could not find ${packageName} entry point in any of:\n` +
+            [...possiblePaths, ...workspacePaths]
+                .map((p) => `- ${p}`)
+                .join("\n")
+    );
+}
+
+// Helper specifically for echogarden packages
+function resolveEchogardenPackage(packageName: string): string {
+    return resolvePackage(`@echogarden/${packageName}`, [
+        "dist/index.js",
+        "espeak-ng.js",
+        "lib/index.js",
+    ]);
+}
 
 export async function synthesize(
     input: string | string[],
@@ -456,15 +544,19 @@ function fftFrameToPowerSpectrum(fftFrame: Float32Array) {
     return powerSpectrum;
 }
 
+// Update imports to use the correct resolution
 async function getKissFFTInstance() {
     if (!kissFFTInstance) {
-        const { default: initializer } = await import(
-            "@echogarden/kissfft-wasm"
-        );
-
-        kissFFTInstance = await initializer();
+        const kissfftPath = resolveEchogardenPackage("kissfft-wasm");
+        console.log("Loading kissfft from:", kissfftPath);
+        try {
+            const { default: initializer } = await import(kissfftPath);
+            kissFFTInstance = await initializer();
+        } catch (error) {
+            console.error("Failed to load kissfft module:", error);
+            throw error;
+        }
     }
-
     return kissFFTInstance;
 }
 
@@ -3247,18 +3339,54 @@ async function setVoice(voiceId: string) {
     instance.set_voice(voiceId);
 }
 
+// Add specific helper for espeak paths that includes the entry point
 async function getEspeakInstance() {
     if (!espeakInstance) {
-        const { default: EspeakInitializer } = await import(
-            "@echogarden/espeak-ng-emscripten"
-        );
+        try {
+            // Get absolute paths
+            const espeakPath = path.resolve(
+                resolveEchogardenPackage("espeak-ng-emscripten")
+            );
+            const espeakDir = path.dirname(espeakPath);
+            const dataPath = path.join(espeakDir, "espeak-ng.data");
 
-        const m = await EspeakInitializer();
-        espeakInstance = await new m.eSpeakNGWorker();
-        espeakModule = m;
+            // Read the data file ourselves
+            const dataFile = fs.readFileSync(dataPath);
+            console.log("Read data file:", {
+                size: dataFile.length,
+                path: dataPath,
+            });
+
+            // Import the module
+            const importPath = `file://${espeakPath}`;
+            const module = await import(importPath);
+
+            // Initialize with our own locateFile function
+            espeakInstance = await module.default({
+                locateFile: (filename: string) => {
+                    const absolutePath = path.resolve(espeakDir, filename);
+                    console.log(
+                        `Locating file: ${filename} -> ${absolutePath}`
+                    );
+                    return absolutePath;
+                },
+                wasmBinary: dataFile,
+                preloadedFiles: {
+                    "espeak-ng.data": dataFile,
+                },
+            });
+
+            return espeakInstance;
+        } catch (error) {
+            console.error("Failed to initialize espeak:", {
+                error,
+                stack: error.stack,
+                message: error.message,
+            });
+            throw error;
+        }
     }
-
-    return { instance: espeakInstance, module: espeakModule };
+    return espeakInstance;
 }
 
 async function getSampleRate(): Promise<22050> {
@@ -8116,13 +8244,13 @@ interface LangInfoEntry {
     ANSICodePage: string;
 }
 
-function getModuleRootDir() {
-    const currentScriptDir = path.dirname(fileURLToPath(import.meta.url));
-    return path.resolve(currentScriptDir, "..", "..");
-}
-
-function resolveToModuleRootDir(relativePath: string) {
-    return path.resolve(getModuleRootDir(), relativePath);
+// Update module root dir resolution
+function resolveToModuleRootDir(relativePath: string): string {
+    const resolvedPath = path.join(PLUGIN_ROOT, relativePath);
+    if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Could not find module file: ${resolvedPath}`);
+    }
+    return resolvedPath;
 }
 
 async function loadLangInfoEntriesIfNeeded() {
@@ -8183,10 +8311,11 @@ const emptyLangInfoEntry: LangInfoEntry = {
 /////////////////////////////////////////////////////////////////////////////////////////////
 // Voice list request
 /////////////////////////////////////////////////////////////////////////////////////////////
-async function requestVoiceList(
+export async function requestVoiceList(
     options: VoiceListRequestOptions
 ): Promise<RequestVoiceListResult> {
-    console.log("voice list requests", options);
+    // console.log("voice list requests", options);
+    console.log("voice list requested");
     options = extendDeep(defaultVoiceListRequestOptions, options);
 
     const cacheOptions = options.cache!;
@@ -8236,8 +8365,8 @@ async function requestVoiceList(
         voiceList = await loadVoiceList();
     }
 
-    console.log("voiceList");
-    console.log(voiceList);
+    console.log("voiceList loaded.");
+    // console.log(voiceList);
 
     const languageCode = await normalizeIdentifierToLanguageCode(
         options.language || ""
@@ -8309,6 +8438,7 @@ async function requestVoiceList(
         }
     }
 
+    console.log("bestMatchingVoice", bestMatchingVoice.name);
     return { voiceList, bestMatchingVoice };
 }
 

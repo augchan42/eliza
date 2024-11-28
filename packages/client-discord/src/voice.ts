@@ -714,6 +714,10 @@ export class VoiceManager extends EventEmitter {
     }
 
     async scanGuild(guild: Guild) {
+        // Removed automatic joining logic
+        // This method is now only called explicitly when needed
+        return;
+
         const channels = (await guild.channels.fetch()).filter(
             (channel) => channel?.type == ChannelType.GuildVoice
         );

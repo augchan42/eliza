@@ -13,7 +13,7 @@
     "editor.defaultFormatter": "foxundermoon.shell-format"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
@@ -35,5 +35,8 @@
   },
   "files.associations": {
     "*.css": "tailwindcss"
+  },
+  "[ignore]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
   }
 }
