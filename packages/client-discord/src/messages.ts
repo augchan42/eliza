@@ -30,6 +30,7 @@ import {
 import { elizaLogger } from "@ai16z/eliza/src/logger.ts";
 import { AttachmentManager } from "./attachments.ts";
 import { VoiceManager } from "./voice.ts";
+import { embeddingConfig } from "@ai16z/eliza";
 
 // Add simple regex patterns for quick checks
 const DIRECT_MENTION_REGEX = /@agentName/i; // Will be replaced with actual name
@@ -95,29 +96,83 @@ function quickShouldRespond(
 }
 
 // Rate limiter implementation
-const rateLimiter = {
+export const rateLimiter = {
     lastCall: 0,
     minInterval: 1000,
-    shouldThrottle(message: Memory, runtime: IAgentRuntime): boolean {
-        const now = Date.now();
+    maxQueueSize: 50,
+    maxMemoryMB: 10, // 10MB max memory usage
+    messageQueue: [] as Memory[],
+    currentMemoryUsage: 0,
 
-        // Always process direct mentions or replies regardless of rate limit
+    estimateMessageSize(message: Memory): number {
+        const baseSize = 100; // Fixed fields
+        const textSize = (message.content?.text?.length || 0) * 2;
+        const embeddingSize = embeddingConfig.dimensions * 4; // 4 bytes per float
+        const attachmentsSize =
+            message.content?.attachments?.reduce((sum, att) => {
+                return sum + (att.text?.length || 0) * 2;
+            }, 0) || 0;
+
+        return baseSize + textSize + embeddingSize + attachmentsSize;
+    },
+
+    async enqueue(message: Memory, runtime: IAgentRuntime): Promise<boolean> {
+        const messageSize = this.estimateMessageSize(message);
+        const newMemoryUsage = this.currentMemoryUsage + messageSize;
+
+        // Drop messages if memory limit exceeded
+        if (newMemoryUsage > this.maxMemoryMB * 1024 * 1024) {
+            console.log(
+                `Memory limit (${this.maxMemoryMB}MB) exceeded, dropping oldest message`
+            );
+            while (
+                this.messageQueue.length > 0 &&
+                newMemoryUsage > this.maxMemoryMB * 1024 * 1024
+            ) {
+                const dropped = this.messageQueue.shift();
+                this.currentMemoryUsage -= this.estimateMessageSize(dropped!);
+            }
+        }
+
+        const now = Date.now();
         const isDirectMention =
             Array.isArray(message.content?.mentions) &&
             message.content.mentions.includes(runtime.agentId);
         const isReply = message.content?.inReplyTo === runtime.agentId;
 
+        // Priority messages (mentions/replies) bypass queue
         if (isDirectMention || isReply) {
             this.lastCall = now;
-            return false;
-        }
-
-        // Apply rate limiting only to ambient messages
-        if (now - this.lastCall < this.minInterval) {
             return true;
         }
-        this.lastCall = now;
+
+        // Check if we can process immediately
+        if (now - this.lastCall >= this.minInterval) {
+            this.lastCall = now;
+            return true;
+        }
+
+        // Add to queue if we're rate limited
+        this.messageQueue.push(message);
+        this.currentMemoryUsage += messageSize;
+        console.log(
+            `Queue: ${this.messageQueue.length} messages, ${(this.currentMemoryUsage / 1024 / 1024).toFixed(2)}MB`
+        );
         return false;
+    },
+
+    async processQueue(runtime: IAgentRuntime): Promise<Memory | null> {
+        if (this.messageQueue.length === 0) return null;
+
+        const now = Date.now();
+        if (now - this.lastCall >= this.minInterval) {
+            this.lastCall = now;
+            const message = this.messageQueue.shift()!;
+            this.currentMemoryUsage -= this.estimateMessageSize(message);
+            return message;
+        }
+
+        return null;
     },
 };
 
@@ -126,9 +181,10 @@ export async function shouldRespond(
     message: Memory,
     state: State
 ): Promise<boolean> {
-    // Check rate limiting
-    if (rateLimiter.shouldThrottle(message, runtime)) {
-        return false; // Skip if we're being rate limited
+    // Instead of skipping, queue the message
+    const canProcessNow = await rateLimiter.enqueue(message, runtime);
+    if (!canProcessNow) {
+        return false; // Will be processed later from queue
     }
 
     // Get message metadata
@@ -484,6 +540,7 @@ export class MessageManager {
     private interestChannels: InterestChannels = {};
     private discordClient: any;
     private voiceManager: VoiceManager;
+    private queueInterval: NodeJS.Timeout;
 
     constructor(discordClient: any, voiceManager: VoiceManager) {
         this.client = discordClient.client;
@@ -491,6 +548,37 @@ export class MessageManager {
         this.discordClient = discordClient;
         this.runtime = discordClient.runtime;
         this.attachmentManager = new AttachmentManager(this.runtime);
+
+        // Start the queue processor
+        this.queueInterval = setInterval(async () => {
+            const nextMessage = await rateLimiter.processQueue(this.runtime);
+            if (nextMessage) {
+                // Process the message
+                const state = await this.runtime.composeState(
+                    {
+                        content: nextMessage.content,
+                        userId: nextMessage.userId,
+                        agentId: nextMessage.agentId,
+                        roomId: nextMessage.roomId,
+                    },
+                    {
+                        discordClient: this.client,
+                        agentName:
+                            this.runtime.character.name ||
+                            this.client.user?.displayName,
+                    }
+                );
+
+                await this.runtime.evaluate(nextMessage, state, true);
+            }
+        }, rateLimiter.minInterval);
+    }
+
+    // Add cleanup method to clear the interval when needed
+    cleanup() {
+        if (this.queueInterval) {
+            clearInterval(this.queueInterval);
+        }
     }
 
     async handleMessage(message: DiscordMessage) {

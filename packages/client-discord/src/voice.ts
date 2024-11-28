@@ -36,6 +36,117 @@ import {
     UUID,
 } from "@ai16z/eliza";
 import { stringToUuid } from "@ai16z/eliza";
+import { rateLimiter } from "./messages";
+import { embeddingConfig } from "@ai16z/eliza";
+import { VoiceConnectionStatus } from "@discordjs/voice";
+// Voice-specific rate limiter
+export const voiceRateLimiter = {
+    lastCall: 0,
+    minInterval: 2000, // Slightly longer interval for voice to prevent overlap
+    maxQueueSize: 25, // Smaller queue size for voice
+    maxMemoryMB: 5, // Less memory needed for voice queue
+    messageQueue: [] as VoiceQueueItem[],
+    currentMemoryUsage: 0,
+
+    estimateMessageSize(message: Memory): number {
+        const baseSize = 100; // Fixed fields
+        const textSize = (message.content?.text?.length || 0) * 2;
+        const embeddingSize = embeddingConfig.dimensions * 4; // 4 bytes per float
+        return baseSize + textSize + embeddingSize;
+    },
+
+    async enqueue(
+        message: Memory,
+        runtime: IAgentRuntime,
+        userId: UUID,
+        voiceManager: VoiceManager
+    ): Promise<boolean> {
+        const messageSize = this.estimateMessageSize(message);
+        const newMemoryUsage = this.currentMemoryUsage + messageSize;
+
+        // Add queue size check
+        if (this.messageQueue.length >= this.maxQueueSize) {
+            console.log(
+                `Voice queue full (${this.maxQueueSize} messages), dropping oldest message`
+            );
+            const dropped = this.messageQueue.shift();
+            this.currentMemoryUsage -= this.estimateMessageSize(
+                dropped!.memory
+            );
+        }
+        // Drop messages if memory limit exceeded
+        if (newMemoryUsage > this.maxMemoryMB * 1024 * 1024) {
+            console.log(
+                `Voice memory limit (${this.maxMemoryMB}MB) exceeded, dropping oldest message`
+            );
+            while (
+                this.messageQueue.length > 0 &&
+                newMemoryUsage > this.maxMemoryMB * 1024 * 1024
+            ) {
+                const dropped = this.messageQueue.shift();
+                this.currentMemoryUsage -= this.estimateMessageSize(
+                    dropped!.memory
+                );
+            }
+        }
+
+        const now = Date.now();
+        const isDirectMention =
+            Array.isArray(message.content?.mentions) &&
+            message.content.mentions.includes(runtime.agentId);
+
+        // Priority messages bypass queue
+        if (isDirectMention) {
+            this.lastCall = now;
+            return true;
+        }
+
+        // Check if we can process immediately
+        if (now - this.lastCall >= this.minInterval) {
+            this.lastCall = now;
+            return true;
+        }
+
+        // Add to queue if we're rate limited
+        this.messageQueue.push({
+            memory: message,
+            userId,
+            runtime,
+            voiceManager,
+        });
+        this.currentMemoryUsage += messageSize;
+        console.log(
+            `Voice Queue: ${this.messageQueue.length} messages, ${(
+                this.currentMemoryUsage /
+                1024 /
+                1024
+            ).toFixed(2)}MB`
+        );
+        return false;
+    },
+
+    async processQueue(): Promise<VoiceQueueItem | null> {
+        if (this.messageQueue.length === 0) return null;
+
+        const now = Date.now();
+        if (now - this.lastCall >= this.minInterval) {
+            this.lastCall = now;
+            const item = this.messageQueue.shift()!;
+            this.currentMemoryUsage -= this.estimateMessageSize(item.memory);
+            return item;
+        }
+
+        return null;
+    },
+};
+
+// Add these interfaces
+interface VoiceQueueItem {
+    memory: Memory;
+    userId: UUID;
+    runtime: IAgentRuntime;
+    voiceManager: VoiceManager;
+}
 
 export function getWavHeader(
     audioLength: number,
@@ -67,7 +178,7 @@ import { messageCompletionFooter } from "@ai16z/eliza/src/parsing.ts";
 import { DiscordClient } from ".";
 
 const discordVoiceHandlerTemplate =
-    `# Task: Generate conversational voice dialog for {{agentName}}.
+    `# Task: Consider whether to respond in this voice conversation with {{agentName}}.
 About {{agentName}}:
 {{bio}}
 
@@ -79,11 +190,17 @@ Note that {{agentName}} is capable of reading/seeing/hearing various forms of me
 
 {{actions}}
 
+# Conversation Guidelines
+- Only respond if it feels natural and appropriate
+- Allow for comfortable pauses in conversation
+- Don't force responses if the conversation has reached a natural end
+- Consider the context and timing of the last message
+
 {{messageDirections}}
 
 {{recentMessages}}
 
-# Instructions: Write the next message for {{agentName}}. Include an optional action if appropriate. {{actionNames}}
+# Instructions: Consider whether {{agentName}} should respond. If appropriate, write a natural response. {{actionNames}}
 ` + messageCompletionFooter;
 
 // These values are chosen for compatibility with picovoice components
@@ -183,11 +300,72 @@ export class VoiceManager extends EventEmitter {
         string,
         { channel: BaseGuildVoiceChannel; monitor: AudioMonitor }
     > = new Map();
+    private queueInterval: NodeJS.Timeout;
 
     constructor(client: DiscordClient) {
         super();
         this.client = client.client;
         this.runtime = client.runtime;
+
+        // Start the voice queue processor
+        this.queueInterval = setInterval(async () => {
+            const nextItem = await voiceRateLimiter.processQueue();
+            if (nextItem) {
+                try {
+                    const { memory, userId, runtime } = nextItem;
+                    const speechService = runtime.getService<ISpeechService>(
+                        ServiceType.SPEECH_GENERATION
+                    );
+                    if (!speechService) {
+                        throw new Error("Speech generation service not found");
+                    }
+
+                    const responseStream = await speechService.generate(
+                        runtime,
+                        memory.content.text
+                    );
+
+                    if (responseStream) {
+                        await this.playAudioStream(
+                            userId,
+                            responseStream as Readable
+                        );
+                        console.log(
+                            `Processed queued voice message: ${memory.content.text.substring(0, 50)}...`
+                        );
+                    }
+                } catch (error) {
+                    console.error(
+                        "Error processing queued voice message:",
+                        error
+                    );
+                }
+            }
+        }, voiceRateLimiter.minInterval);
+    }
+
+    // Add cleanup method
+    cleanup() {
+        if (this.queueInterval) {
+            clearInterval(this.queueInterval);
+        }
+
+        // Clean up all active connections
+        for (const [, connection] of this.connections) {
+            connection.destroy();
+        }
+        this.connections.clear();
+
+        // Clean up all streams
+        for (const [, stream] of this.streams) {
+            stream.destroy();
+        }
+        this.streams.clear();
+
+        // Clean up all monitors
+        for (const [memberId] of this.activeMonitors) {
+            this.stopMonitoringMember(memberId);
+        }
     }
 
     async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState) {
@@ -235,6 +413,9 @@ export class VoiceManager extends EventEmitter {
             selfMute: false,
         });
 
+        // Store the connection in the connections map
+        this.connections.set(channel.id, connection);
+
         for (const [, member] of channel.members) {
             if (!member.user.bot) {
                 this.monitorMember(member, channel);
@@ -254,6 +435,25 @@ export class VoiceManager extends EventEmitter {
             if (!user?.user.bot) {
                 this.streams.get(userId)?.emit("speakingStopped");
             }
+        });
+
+        // Add error and disconnect handlers
+        connection.on("error", (error: any) => {
+            console.error(`Voice connection error in ${channel.name}:`, error);
+        });
+
+        connection.on(VoiceConnectionStatus.Disconnected, () => {
+            this.connections.delete(channel.id);
+            // Clean up associated resources
+            this.leaveChannel(channel);
+            console.log(`Disconnected from ${channel.name}`);
+        });
+
+        connection.on(VoiceConnectionStatus.Destroyed, () => {
+            this.connections.delete(channel.id);
+            // Clean up associated resources
+            this.leaveChannel(channel);
+            console.log(`Connection destroyed for ${channel.name}`);
         });
     }
 
@@ -320,18 +520,25 @@ export class VoiceManager extends EventEmitter {
     }
 
     leaveChannel(channel: BaseGuildVoiceChannel) {
-        const connection = this.connections.get(channel.id);
-        if (connection) {
-            connection.destroy();
-            this.connections.delete(channel.id);
+        // Clean up all connections associated with this channel
+        for (const [userId, conn] of this.connections) {
+            if (conn.joinConfig.channelId === channel.id) {
+                conn.destroy();
+                this.connections.delete(userId);
+            }
         }
 
-        // Stop monitoring all members in this channel
+        // Clean up all streams for this channel
+        for (const [userId, stream] of this.streams) {
+            if (this.activeMonitors.get(userId)?.channel.id === channel.id) {
+                stream.destroy();
+                this.streams.delete(userId);
+            }
+        }
+
+        // Existing monitor cleanup
         for (const [memberId, monitorInfo] of this.activeMonitors) {
-            if (
-                monitorInfo.channel.id === channel.id &&
-                memberId !== this.client.user?.id
-            ) {
+            if (monitorInfo.channel.id === channel.id) {
                 this.stopMonitoringMember(memberId);
             }
         }
@@ -369,6 +576,13 @@ export class VoiceManager extends EventEmitter {
         let lastChunkTime = Date.now();
         let transcriptionStarted = false;
         let transcriptionText = "";
+
+        // Clean up old monitor if it exists
+        const existingMonitor = this.activeMonitors.get(userId);
+        if (existingMonitor) {
+            existingMonitor.monitor.stop();
+            this.activeMonitors.delete(userId);
+        }
 
         const monitor = new AudioMonitor(
             audioStream,
@@ -489,6 +703,19 @@ export class VoiceManager extends EventEmitter {
                             return { text: "", action: "IGNORE" };
                         }
 
+                        // Add rate limiting here
+                        const canProcessNow = await rateLimiter.enqueue(
+                            memory,
+                            this.runtime
+                        );
+                        if (!canProcessNow) {
+                            console.log(
+                                `Voice message queued for later processing: ${text.substring(0, 50)}...`
+                            );
+                            transcriptionText = ""; // Reset transcription text
+                            return; // Will be processed later from queue
+                        }
+
                         await this.runtime.messageManager.createMemory(memory);
 
                         state =
@@ -539,6 +766,26 @@ export class VoiceManager extends EventEmitter {
                             };
 
                             if (responseMemory.content.text?.trim()) {
+                                // Filter out I-Ching hexagrams before speech generation
+                                const textForSpeech = content.text
+                                    .replace(/[䷀-䷿]/g, "")
+                                    .trim();
+
+                                const canProcessNow =
+                                    await voiceRateLimiter.enqueue(
+                                        responseMemory,
+                                        this.runtime,
+                                        userId,
+                                        this
+                                    );
+
+                                if (!canProcessNow) {
+                                    console.log(
+                                        `Voice response queued for later: ${content.text?.substring(0, 50)}...`
+                                    );
+                                    return [responseMemory];
+                                }
+
                                 await this.runtime.messageManager.createMemory(
                                     responseMemory
                                 );
@@ -560,7 +807,7 @@ export class VoiceManager extends EventEmitter {
                                 const responseStream =
                                     await speechService.generate(
                                         this.runtime,
-                                        content.text
+                                        textForSpeech
                                     );
 
                                 if (responseStream) {
@@ -610,6 +857,8 @@ export class VoiceManager extends EventEmitter {
                 }
             }
         );
+        // Store the monitor in activeMonitors
+        this.activeMonitors.set(userId, { channel, monitor });
     }
 
     private async convertOpusToWav(pcmBuffer: Buffer): Promise<Buffer> {
