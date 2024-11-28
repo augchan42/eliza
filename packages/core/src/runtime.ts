@@ -747,9 +747,9 @@ export class AgentRuntime implements IAgentRuntime {
         // Add debug logging
         elizaLogger.debug("ComposeState - Character data:", {
             name: this.character.name,
-            hasSystemKnowledge: !!this.character.systemKnowledge,
-            iChingData:
-                this.character.systemKnowledge?.iChing?.hexagrams?.length,
+            // hasSystemKnowledge: !!this.character.systemKnowledge,
+            // iChingData:
+            // this.character.systemKnowledge?.iChing?.hexagrams?.length,
             // rawSystemKnowledge: JSON.stringify(this.character.systemKnowledge, null, 2)
         });
 

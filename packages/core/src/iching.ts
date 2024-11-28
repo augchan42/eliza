@@ -11,30 +11,37 @@ export function formatIChingKnowledge(character: Character): string {
         return "";
     }
 
-    const trigramsSection = character.systemKnowledge.iChing.trigrams?.map(trigram => `
-        ${trigram.trigramFigure} ${trigram.name} (${trigram.key})
-        Quality: ${trigram.quality}
-        Traits: ${trigram.traits}
-        Personages: ${trigram.personages}
-        Animal: ${trigram.totemicAnimal}
-        Immortal: ${trigram.immortal}
-        Nature: ${trigram.imageInNature}
-    `.trim()).join('\n\n');
-
-    const hexagramsSection = character.systemKnowledge.iChing.hexagrams.map(hexagram => `
-        Hexagram ${hexagram.number} ${hexagram.unicode} - ${hexagram.name.chinese} (${hexagram.name.pinyin})
-        Trigrams: ${hexagram.trigrams.top} over ${hexagram.trigrams.bottom}
-        Meaning: ${hexagram.meaning}
-    `.trim()).join('\n\n');
+    const formattedData = {
+        trigrams: character.systemKnowledge.iChing.trigrams?.map((trigram) => ({
+            symbol: trigram.trigramFigure,
+            name: trigram.name,
+            key: trigram.key,
+            quality: trigram.quality,
+            traits: trigram.traits,
+            personages: trigram.personages,
+            animal: trigram.totemicAnimal,
+            immortal: trigram.immortal,
+            nature: trigram.imageInNature,
+        })),
+        hexagrams: character.systemKnowledge.iChing.hexagrams.map(
+            (hexagram) => ({
+                number: hexagram.number,
+                symbol: hexagram.unicode,
+                name: {
+                    chinese: hexagram.name.chinese,
+                    pinyin: hexagram.name.pinyin,
+                },
+                trigrams: {
+                    top: hexagram.trigrams.top,
+                    bottom: hexagram.trigrams.bottom,
+                },
+                meaning: hexagram.meaning,
+            })
+        ),
+    };
 
     return addHeader(
         "# I Ching Knowledge",
-        `
-        # Trigrams
-        ${trigramsSection}
-
-        # Hexagrams
-        ${hexagramsSection}
-        `.trim()
+        JSON.stringify(formattedData, null, 2)
     );
 }
