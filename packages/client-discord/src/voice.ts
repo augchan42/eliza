@@ -39,6 +39,11 @@ import { stringToUuid } from "@ai16z/eliza";
 import { rateLimiter } from "./messages";
 import { embeddingConfig } from "@ai16z/eliza";
 import { VoiceConnectionStatus } from "@discordjs/voice";
+import {
+    hexagramData,
+    trigramFigures,
+    trigramDescriptions,
+} from "@ai16z/agent/data/hexagrams.ts";
 // Voice-specific rate limiter
 export const voiceRateLimiter = {
     lastCall: 0,
@@ -826,9 +831,26 @@ export class VoiceManager extends EventEmitter {
                             };
 
                             if (responseMemory.content.text?.trim()) {
-                                // Filter out I-Ching hexagrams before speech generation
+                                // Replace I-Ching hexagrams with their English meanings before speech generation
                                 const textForSpeech = content.text
-                                    .replace(/[䷀-䷿]/g, "")
+                                    .replace(/[䷀-䷿]/g, (match) => {
+                                        const hexagram = hexagramData.find(
+                                            (h) => h.unicode === match
+                                        );
+                                        return hexagram
+                                            ? `[${hexagram.meaning}]`
+                                            : "";
+                                    })
+                                    .replace(/[☰☱☲☳☴☵☶☷]/g, (match) => {
+                                        const trigram = Object.entries(
+                                            trigramFigures
+                                        ).find(
+                                            ([_, figure]) => figure === match
+                                        );
+                                        return trigram
+                                            ? `[${trigramDescriptions[trigram[0]]}]`
+                                            : "";
+                                    })
                                     .trim();
 
                                 const canProcessNow =
@@ -978,7 +1000,7 @@ export class VoiceManager extends EventEmitter {
             return true;
         }
 
-        const loseInterestWords = [
+        const interruptWords = [
             // telling the bot to stop talking
             "shut up",
             "stop",
@@ -990,8 +1012,30 @@ export class VoiceManager extends EventEmitter {
             "stfu",
             "stupid bot",
             "dumb bot",
+        ];
 
-            // offensive words
+        // Check for interrupt words
+        if (
+            interruptWords.some((word) =>
+                (message.content as Content).text?.toLowerCase().includes(word)
+            )
+        ) {
+            this.stopCurrentSpeech();
+            return true;
+        }
+
+        if (
+            (message.content as Content).text.length < 50 &&
+            interruptWords.some((word) =>
+                (message.content as Content).text?.toLowerCase().includes(word)
+            )
+        ) {
+            return true;
+        }
+
+        const offensiveWords = [
+            "stupid bot",
+            "dumb bot",
             "fuck",
             "shit",
             "damn",
@@ -1002,19 +1046,9 @@ export class VoiceManager extends EventEmitter {
             "sexy",
         ];
 
-        // Check for interrupt words
-        if (
-            loseInterestWords.some((word) =>
-                (message.content as Content).text?.toLowerCase().includes(word)
-            )
-        ) {
-            this.stopCurrentSpeech();
-            return true;
-        }
-
         if (
             (message.content as Content).text.length < 50 &&
-            loseInterestWords.some((word) =>
+            offensiveWords.some((word) =>
                 (message.content as Content).text?.toLowerCase().includes(word)
             )
         ) {

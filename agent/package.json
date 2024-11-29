@@ -2,6 +2,10 @@
     "name": "@ai16z/agent",
     "version": "0.0.1",
     "main": "src/index.ts",
+    "exports": {
+        ".": "./src/index.ts",
+        "./data/*": "./data/*"
+    },
     "type": "module",
     "scripts": {
         "build": "tsup --format esm --dts",

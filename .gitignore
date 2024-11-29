@@ -1,3 +1,8 @@
+# Allow agent data files
+!agent/
+!agent/data/
+!agent/data/hexagrams.ts
+
 node_modules
 /out
 

@@ -1,6 +1,11 @@
-*.ts
+# First unignore specific files and directories
 !index.ts
 !character.ts
+!data/
+!data/hexagrams.ts
+
+# Then list ignores
+#*.ts
 .env
 *.env
 .env*

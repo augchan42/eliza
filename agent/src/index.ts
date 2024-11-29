@@ -22,6 +22,10 @@ import fs from "fs";
 import readline from "readline";
 import yargs from "yargs";
 import { character } from "./character.ts";
+// Add this with other imports at the top
+import * as hexagrams from "../data/hexagrams.ts";
+
+export { hexagrams };
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
@@ -96,7 +100,7 @@ export async function loadCharacters(
             } catch (e) {
                 console.error(`Error loading character from ${path}: ${e}`);
                 // don't continue to load if a specified file is not found
-                process.exit(1)
+                process.exit(1);
             }
         }
     }

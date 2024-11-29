@@ -5,7 +5,12 @@
         "rootDir": ".",
         "module": "ESNext",
         "moduleResolution": "Bundler",
-        "types": ["node"]
+        "types": [
+            "node"
+        ]
     },
-    "include": ["src"]
+    "include": [
+        "src",
+        "data"
+    ]
 }
