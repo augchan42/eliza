@@ -1175,10 +1175,10 @@ export class MessageManager {
     ): Promise<Content> {
         const { userId, roomId } = message;
 
-        elizaLogger.debug(
-            "Character data:",
-            JSON.stringify(this.runtime.character, null, 2)
-        );
+        // elizaLogger.debug(
+        //     "Character data:",
+        //     JSON.stringify(this.runtime.character, null, 2)
+        // );
 
         // Ensure the knowledge and systemKnowledge are included in context
         const contextWithKnowledge = {

@@ -40,6 +40,6 @@ packages/core/src/providers/cache
 packages/core/src/providers/cache/*
 cache/*
 
-log.txt
+log*.txt
 # Explicitly include plugin-node data files
 !packages/plugin-node/data/**

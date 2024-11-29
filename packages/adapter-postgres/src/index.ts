@@ -362,36 +362,72 @@ export class PostgresDatabaseAdapter extends DatabaseAdapter {
                 contentLength: memory.content?.text?.length,
             });
 
-            let isUnique = true;
-            if (memory.embedding) {
-                const similarMemories = await this.searchMemoriesByEmbedding(
-                    memory.embedding,
-                    {
-                        tableName,
-                        roomId: memory.roomId,
-                        match_threshold: 0.95,
-                        count: 1,
-                    }
+            try {
+                // First check if memory exists
+                const existingMemory = await this.pool.query(
+                    "SELECT id FROM memories WHERE id = $1",
+                    [memory.id]
                 );
-                isUnique = similarMemories.length === 0;
-            }
 
-            await this.pool.query(
-                `INSERT INTO memories (
-                    id, type, content, embedding, "userId", "roomId", "agentId", "unique", "createdAt"
-                ) VALUES ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, to_timestamp($9/1000.0))`,
-                [
-                    memory.id ?? v4(),
-                    tableName,
-                    JSON.stringify(memory.content),
-                    memory.embedding ? `[${memory.embedding.join(",")}]` : null,
-                    memory.userId,
-                    memory.roomId,
-                    memory.agentId,
-                    memory.unique ?? isUnique,
-                    Date.now(),
-                ]
-            );
+                if (existingMemory.rowCount > 0) {
+                    elizaLogger.debug(
+                        `Memory ${memory.id} already exists, skipping creation`
+                    );
+                    return;
+                }
+
+                // Check for semantic duplicates if embedding exists
+                let isUnique = true;
+                if (memory.embedding) {
+                    const similarMemories =
+                        await this.searchMemoriesByEmbedding(memory.embedding, {
+                            tableName,
+                            roomId: memory.roomId,
+                            match_threshold: 0.95,
+                            count: 1,
+                        });
+                    isUnique = similarMemories.length === 0;
+                }
+
+                // Insert the memory
+                await this.pool.query(
+                    `INSERT INTO memories (
+                        id, type, content, embedding, "userId", "roomId", "agentId", "unique", "createdAt"
+                    ) VALUES ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, to_timestamp($9/1000.0))`,
+                    [
+                        memory.id ?? v4(),
+                        tableName,
+                        JSON.stringify(memory.content),
+                        memory.embedding
+                            ? `[${memory.embedding.join(",")}]`
+                            : null,
+                        memory.userId,
+                        memory.roomId,
+                        memory.agentId,
+                        memory.unique ?? isUnique,
+                        Date.now(),
+                    ]
+                );
+            } catch (error) {
+                if (error.code === "23505") {
+                    // Unique violation
+                    elizaLogger.warn(
+                        `Duplicate memory ID ${memory.id}, skipping`,
+                        {
+                            error: error.message,
+                            constraint: error.constraint,
+                        }
+                    );
+                    return;
+                }
+                // Log other errors and rethrow
+                elizaLogger.error("Error creating memory:", {
+                    memoryId: memory.id,
+                    error: error.message,
+                    code: error.code,
+                });
+                throw error;
+            }
         });
     }
 
