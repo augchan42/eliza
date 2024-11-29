@@ -48,6 +48,12 @@ import {
 } from "./templates.ts";
 import debounce from "lodash/debounce.js";
 import { getWavHeader } from "./utils.ts";
+import {
+    hexagramData,
+    trigramFigures,
+    trigramDescriptions,
+    trigramChineseMapping,
+} from "@ai16z/agent/data/hexagrams.ts";
 
 // These values are chosen for compatibility with picovoice components
 const DECODE_FRAME_SIZE = 1024;
@@ -822,6 +828,11 @@ export class VoiceManager extends EventEmitter {
             return;
         }
 
+        // Translate any I-Ching symbols before text-to-speech
+        if (response.text) {
+            response.text = this.translateIdeograms(response.text);
+        }
+
         await this.runtime.databaseAdapter.log({
             body: { message, context, response },
             userId: userId,
@@ -1035,5 +1046,49 @@ export class VoiceManager extends EventEmitter {
             console.error("Error leaving voice channel:", error);
             await interaction.reply("Failed to leave the voice channel.");
         }
+    }
+
+    private translateIdeograms(text: string): string {
+        // Create reverse mappings
+        const trigramByFigure = Object.entries(trigramFigures).reduce(
+            (acc, [name, figure]) => {
+                acc[figure] = name;
+                return acc;
+            },
+            {} as Record<string, string>
+        );
+
+        const trigramByChinese = Object.entries(trigramChineseMapping).reduce(
+            (acc, [name, chinese]) => {
+                acc[chinese] = name;
+                return acc;
+            },
+            {} as Record<string, string>
+        );
+
+        const hexagramByUnicode = hexagramData.reduce(
+            (acc, hex) => {
+                acc[hex.unicode] = `${hex.meaning} (${hex.name.pinyin})`;
+                return acc;
+            },
+            {} as Record<string, string>
+        );
+
+        // Replace trigram figures (☰, ☱, etc)
+        text = text.replace(/[☰☱☲☳☴☵☶☷]/g, (match) =>
+            trigramByFigure[match] ? `${trigramByFigure[match]}` : match
+        );
+
+        // Replace trigram Chinese characters (乾, 兌, etc)
+        text = text.replace(/[乾兌離震巽坎艮坤]/g, (match) =>
+            trigramByChinese[match] ? `${trigramByChinese[match]}` : match
+        );
+
+        // Replace hexagram characters (䷀-䷿)
+        text = text.replace(/[䷀-䷿]/g, (match) =>
+            hexagramByUnicode[match] ? `${hexagramByUnicode[match]}` : match
+        );
+
+        return text;
     }
 }
