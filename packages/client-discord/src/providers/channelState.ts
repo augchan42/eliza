@@ -7,52 +7,37 @@ import { IAgentRuntime, Memory, Provider, State } from "@ai16z/eliza";
 
 const channelStateProvider: Provider = {
     get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-        const discordMessage =
-            (state?.discordMessage as DiscordMessage) ||
-            (state?.discordChannel as DiscordMessage);
-        if (!discordMessage) {
-            return "";
-        }
+        // Handle both message and channel cases
+        const channel = state?.discordChannel as TextChannel;
+        const discordMessage = state?.discordMessage as DiscordMessage;
 
-        const guild = discordMessage?.guild;
+        // Get guild from either source
+        const guild = channel?.guild || discordMessage?.guild;
         const agentName = state?.agentName || "The agent";
         const senderName = state?.senderName || "someone";
 
         if (!guild) {
-            return (
-                agentName +
-                " is currently in a direct message conversation with " +
-                senderName
-            );
+            return `${agentName} is currently in a direct message conversation with ${senderName}`;
         }
 
-        const serverName = guild.name; // The name of the server
-        const guildId = guild.id; // The ID of the guild
-        const channel = discordMessage.channel;
+        const serverName = guild.name;
+        const guildId = guild.id;
+        const currentChannel = channel || discordMessage?.channel;
 
-        if (!channel) {
+        if (!currentChannel) {
             console.log("channel is null");
             return "";
         }
 
-        let response =
-            agentName +
-            " is currently having a conversation in the channel `@" +
-            channel.id +
-            " in the server `" +
-            serverName +
-            "` (@" +
-            guildId +
-            ")";
+        let response = `${agentName} is currently having a conversation in the channel \`@${currentChannel.id} in the server \`${serverName}\` (@${guildId})`;
+
         if (
-            channel.type === ChannelType.GuildText &&
-            (channel as TextChannel).topic
+            currentChannel.type === ChannelType.GuildText &&
+            (currentChannel as TextChannel).topic
         ) {
-            // Check if the channel is a text channel
-            response +=
-                "\nThe topic of the channel is: " +
-                (channel as TextChannel).topic;
+            response += `\nThe topic of the channel is: ${(currentChannel as TextChannel).topic}`;
         }
+
         return response;
     },
 };
