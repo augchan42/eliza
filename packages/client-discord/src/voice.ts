@@ -53,6 +53,7 @@ import {
     trigramFigures,
     trigramDescriptions,
     trigramChineseMapping,
+    trigrams_named,
 } from "@ai16z/agent/data/hexagrams.ts";
 
 // These values are chosen for compatibility with picovoice components
@@ -1049,18 +1050,27 @@ export class VoiceManager extends EventEmitter {
     }
 
     private translateIdeograms(text: string): string {
-        // Create reverse mappings
+        // Create element to pinyin mapping
+        const elementToPinyin = Object.entries(trigrams_named).reduce(
+            (acc, [pinyin, data]) => {
+                acc[data.element] = pinyin;
+                return acc;
+            },
+            {} as Record<string, string>
+        );
+
+        // Create reverse mappings using pinyin instead of element names
         const trigramByFigure = Object.entries(trigramFigures).reduce(
-            (acc, [name, figure]) => {
-                acc[figure] = name;
+            (acc, [element, figure]) => {
+                acc[figure] = elementToPinyin[element];
                 return acc;
             },
             {} as Record<string, string>
         );
 
         const trigramByChinese = Object.entries(trigramChineseMapping).reduce(
-            (acc, [name, chinese]) => {
-                acc[chinese] = name;
+            (acc, [element, chinese]) => {
+                acc[chinese] = elementToPinyin[element];
                 return acc;
             },
             {} as Record<string, string>
