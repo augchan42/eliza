@@ -135,11 +135,24 @@ export class DiscordClient extends EventEmitter {
                 name: "leavechannel",
                 description: "Leave the current voice channel",
             },
+            {
+                name: "botleave",
+                description: "Bot owner command to leave server",
+            },
         ];
 
         try {
+            // Add debug logging
+            elizaLogger.debug("Attempting to register commands:", commands);
+
+            // Register globally
             await this.client.application?.commands.set(commands);
-            elizaLogger.success("Slash commands registered");
+
+            // Log success with more details
+            elizaLogger.success("Slash commands registered successfully", {
+                commandCount: commands.length,
+                commandNames: commands.map((c) => c.name),
+            });
         } catch (error) {
             console.error("Error registering slash commands:", error);
         }
@@ -371,6 +384,39 @@ export class DiscordClient extends EventEmitter {
                 break;
             case "leavechannel":
                 await this.voiceManager.handleLeaveChannelCommand(interaction);
+                break;
+            case "botleave":
+                // Check if command user is bot owner
+                const BOT_OWNER_ID = this.runtime.getSetting(
+                    "DISCORD_BOT_OWNER_ID"
+                );
+
+                // Add debug logging
+                elizaLogger.debug("Bot leave command attempted", {
+                    commandUserId: interaction.user.id,
+                    expectedOwnerId: BOT_OWNER_ID,
+                    userName: interaction.user.username,
+                });
+
+                if (interaction.user.id !== BOT_OWNER_ID) {
+                    await interaction.reply({
+                        content: "Only the bot owner can use this command.",
+                        ephemeral: true,
+                    });
+                    return;
+                }
+                try {
+                    await interaction.reply({
+                        content: "Leaving server as requested by bot owner",
+                    });
+                    await interaction.guild.leave();
+                } catch (error) {
+                    elizaLogger.error("Error leaving server:", error);
+                    await interaction.reply({
+                        content: "Failed to leave the server.",
+                        ephemeral: true,
+                    });
+                }
                 break;
         }
     }
