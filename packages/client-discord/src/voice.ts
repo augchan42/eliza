@@ -301,6 +301,17 @@ export class VoiceManager extends EventEmitter {
         { channel: BaseGuildVoiceChannel; monitor: AudioMonitor }
     > = new Map();
     private queueInterval: NodeJS.Timeout;
+    // Add new property to track current audio player
+    private currentAudioPlayer: any = null;
+
+    // Add method to stop current speech
+    private stopCurrentSpeech() {
+        if (this.currentAudioPlayer) {
+            this.currentAudioPlayer.stop();
+            this.currentAudioPlayer = null;
+            elizaLogger.debug("Interrupted current speech");
+        }
+    }
 
     constructor(client: DiscordClient) {
         super();
@@ -520,30 +531,72 @@ export class VoiceManager extends EventEmitter {
     }
 
     leaveChannel(channel: BaseGuildVoiceChannel) {
-        // Clean up all connections associated with this channel
-        for (const [userId, conn] of this.connections) {
-            if (conn.joinConfig.channelId === channel.id) {
-                conn.destroy();
-                this.connections.delete(userId);
-            }
-        }
+        try {
+            // Get all connections for this channel
+            const channelConnections = Array.from(
+                this.connections.entries()
+            ).filter(([, conn]) => conn.joinConfig.channelId === channel.id);
 
-        // Clean up all streams for this channel
-        for (const [userId, stream] of this.streams) {
-            if (this.activeMonitors.get(userId)?.channel.id === channel.id) {
-                stream.destroy();
-                this.streams.delete(userId);
+            // Safely destroy each connection
+            for (const [userId, conn] of channelConnections) {
+                try {
+                    if (conn.state.status !== "destroyed") {
+                        conn.destroy();
+                    }
+                    this.connections.delete(userId);
+                    elizaLogger.debug(
+                        `Destroyed connection for user ${userId}`
+                    );
+                } catch (error) {
+                    elizaLogger.error(
+                        `Error destroying connection for user ${userId}:`,
+                        error
+                    );
+                }
             }
-        }
 
-        // Existing monitor cleanup
-        for (const [memberId, monitorInfo] of this.activeMonitors) {
-            if (monitorInfo.channel.id === channel.id) {
-                this.stopMonitoringMember(memberId);
+            // Clean up streams
+            const channelStreams = Array.from(this.streams.entries()).filter(
+                ([userId]) =>
+                    this.activeMonitors.get(userId)?.channel.id === channel.id
+            );
+
+            for (const [userId, stream] of channelStreams) {
+                try {
+                    stream.destroy();
+                    this.streams.delete(userId);
+                    elizaLogger.debug(`Destroyed stream for user ${userId}`);
+                } catch (error) {
+                    elizaLogger.error(
+                        `Error destroying stream for user ${userId}:`,
+                        error
+                    );
+                }
             }
-        }
 
-        console.log(`Left voice channel: ${channel.name} (${channel.id})`);
+            // Clean up monitors
+            const channelMonitors = Array.from(
+                this.activeMonitors.entries()
+            ).filter(([, info]) => info.channel.id === channel.id);
+
+            for (const [memberId] of channelMonitors) {
+                try {
+                    this.stopMonitoringMember(memberId);
+                    elizaLogger.debug(`Stopped monitoring user ${memberId}`);
+                } catch (error) {
+                    elizaLogger.error(
+                        `Error stopping monitor for user ${memberId}:`,
+                        error
+                    );
+                }
+            }
+
+            elizaLogger.success(
+                `Left voice channel: ${channel.name} (${channel.id})`
+            );
+        } catch (error) {
+            elizaLogger.error(`Error during channel leave cleanup:`, error);
+        }
     }
 
     stopMonitoringMember(memberId: string) {
@@ -634,7 +687,14 @@ export class VoiceManager extends EventEmitter {
                     console.log("transcription finished");
                     transcriptionStarted = false;
 
-                    if (!transcriptionText) return;
+                    // Add early return for null/empty transcription
+                    if (!transcriptionText || transcriptionText.trim() === "") {
+                        console.log(
+                            "Transcription was empty or null, skipping response"
+                        );
+                        transcriptionText = ""; // Reset transcription text
+                        return;
+                    }
 
                     try {
                         const text = transcriptionText;
@@ -912,6 +972,7 @@ export class VoiceManager extends EventEmitter {
     private async _shouldIgnore(message: Memory): Promise<boolean> {
         console.log("message: ", message);
         console.log("message.content: ", message.content);
+
         // if the message is 3 characters or less, ignore it
         if ((message.content as Content).text.length < 3) {
             return true;
@@ -940,6 +1001,17 @@ export class VoiceManager extends EventEmitter {
             "sex",
             "sexy",
         ];
+
+        // Check for interrupt words
+        if (
+            loseInterestWords.some((word) =>
+                (message.content as Content).text?.toLowerCase().includes(word)
+            )
+        ) {
+            this.stopCurrentSpeech();
+            return true;
+        }
+
         if (
             (message.content as Content).text.length < 50 &&
             loseInterestWords.some((word) =>
@@ -994,11 +1066,19 @@ export class VoiceManager extends EventEmitter {
             console.log(`No connection for user ${userId}`);
             return;
         }
+
+        // Stop any existing speech
+        this.stopCurrentSpeech();
+
         const audioPlayer = createAudioPlayer({
             behaviors: {
                 noSubscriber: NoSubscriberBehavior.Pause,
             },
         });
+
+        // Store reference to current player
+        this.currentAudioPlayer = audioPlayer;
+
         connection.subscribe(audioPlayer);
 
         const audioStartTime = Date.now();
@@ -1006,6 +1086,7 @@ export class VoiceManager extends EventEmitter {
         const resource = createAudioResource(audioStream, {
             inputType: StreamType.Arbitrary,
         });
+
         audioPlayer.play(resource);
 
         audioPlayer.on("error", (err: any) => {
@@ -1015,11 +1096,15 @@ export class VoiceManager extends EventEmitter {
         audioPlayer.on(
             "stateChange",
             (oldState: any, newState: { status: string }) => {
-                if (newState.status == "idle") {
+                if (newState.status === "idle") {
                     const idleTime = Date.now();
                     console.log(
                         `Audio playback took: ${idleTime - audioStartTime}ms`
                     );
+                    // Clear reference when done
+                    if (this.currentAudioPlayer === audioPlayer) {
+                        this.currentAudioPlayer = null;
+                    }
                 }
             }
         );
@@ -1058,19 +1143,40 @@ export class VoiceManager extends EventEmitter {
     }
 
     async handleLeaveChannelCommand(interaction: any) {
-        const connection = getVoiceConnection(interaction.guildId as any);
-
-        if (!connection) {
-            await interaction.reply("Not currently in a voice channel.");
-            return;
-        }
-
         try {
-            connection.destroy();
+            const connection = getVoiceConnection(interaction.guildId as any);
+            const channel = interaction.member?.voice
+                ?.channel as BaseGuildVoiceChannel;
+
+            if (!connection) {
+                await interaction.reply("Not currently in a voice channel.");
+                return;
+            }
+
+            if (!channel) {
+                await interaction.reply("Could not determine voice channel.");
+                return;
+            }
+
+            // Leave channel first
+            this.leaveChannel(channel);
+
+            // Then destroy connection if it still exists
+            try {
+                if (connection.state.status !== "destroyed") {
+                    connection.destroy();
+                }
+            } catch (error) {
+                elizaLogger.error("Error destroying connection:", error);
+            }
+
             await interaction.reply("Left the voice channel.");
         } catch (error) {
-            console.error("Error leaving voice channel:", error);
-            await interaction.reply("Failed to leave the voice channel.");
+            elizaLogger.error("Error handling leave command:", error);
+            await interaction.reply({
+                content: "Failed to leave the voice channel.",
+                ephemeral: true,
+            });
         }
     }
 }
