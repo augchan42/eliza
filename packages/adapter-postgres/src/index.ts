@@ -22,7 +22,7 @@ import {
     Participant,
     elizaLogger,
     getEmbeddingConfig,
-    BaseCircuitBreakerAdapter,
+    DatabaseAdapter,
 } from "@ai16z/eliza";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -32,7 +32,7 @@ const __filename = fileURLToPath(import.meta.url); // get the resolved path to t
 const __dirname = path.dirname(__filename); // get the name of the directory
 
 export class PostgresDatabaseAdapter
-    extends BaseCircuitBreakerAdapter<Pool>
+    extends DatabaseAdapter<Pool>
     implements IDatabaseCacheAdapter
 {
     private pool: Pool;
@@ -46,7 +46,7 @@ export class PostgresDatabaseAdapter
         super({
             //circuitbreaker stuff
             failureThreshold: 5,
-            resetTimeout: 60000, // 1 minute
+            resetTimeout: 60000,
             halfOpenMaxAttempts: 3,
         });
 
