@@ -48,3 +48,5 @@ cache/*
 log*.txt
 # Explicitly include plugin-node data files
 !packages/plugin-node/data/**
+
+.turbo

@@ -144,6 +144,39 @@ docker-compose up -d --build
 - Docker Compose v2.0.0 or higher
 
 
+
+### Twitter Scraper Target
+
+We have included a new script to scrape tweets from a specified Twitter user. This script uses the `agent-twitter-client` package to perform the scraping.
+
+#### Usage
+
+1. Ensure you have the necessary environment variables set in your `.env` file:
+    ```plaintext
+    TWITTER_USERNAME=your_twitter_username
+    TWITTER_PASSWORD=your_twitter_password
+    TWITTER_EMAIL=your_twitter_email
+    ```
+
+2. Run the script with the target Twitter username as an argument:
+    ```bash
+    pnpm scrape-twitter <username>
+    ```
+
+   Replace `<username>` with the Twitter handle of the user you want to scrape tweets from.
+
+3. The scraped tweets will be saved in the `data/tweets` directory with a timestamped filename.
+
+#### Example
+
+To scrape tweets from the user `exampleuser`, you would run:
+    ```bash
+    pnpm scrape-twitter exampleuser
+    ```
+
+    This will create a file named something like `exampleuser_2023-09-15_12-34-56.json` in the `data/tweets` directory, containing the scraped tweets.
+
+
 ### Community & contact
 
 -   [GitHub Issues](https://github.com/ai16z/eliza/issues). Best for: bugs you encounter using Eliza, and feature proposals.

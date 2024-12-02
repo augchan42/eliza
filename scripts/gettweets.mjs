@@ -5,13 +5,19 @@ import path from "path";
 
 dotenv.config();
 
+// Get username from command line argument
+const TARGET_USERNAME = process.argv[2];
+if (!TARGET_USERNAME) {
+    console.error("Please provide a Twitter username as an argument");
+    console.error("Usage: ts-node twitter-scraper.ts <username>");
+    process.exit(1);
+}
+
 // Create necessary directories
 const DATA_DIR = path.join(process.cwd(), 'data', 'tweets');
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-
-const TARGET_USERNAME = "michaelmjfm";  // Change this to the user you want to scrape
 
 // Create timestamp for filename
 const timestamp = new Date().toISOString()
@@ -20,6 +26,7 @@ const timestamp = new Date().toISOString()
     .slice(0, -1);
 
 const TWEETS_FILE = path.join(DATA_DIR, `${TARGET_USERNAME}_${timestamp}.json`);
+
 
 async function initTwitterScraper() {
     const scraper = new Scraper();
