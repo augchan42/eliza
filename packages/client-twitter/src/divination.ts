@@ -164,6 +164,13 @@ Structure:
 
 Generate only the tweet text, no other commentary.`;
 
+interface MarketSentiment {
+    data: {
+        overview: string;
+        // ... other fields we don't need
+    };
+}
+
 export class TwitterDivinationClient {
     client: ClientBase;
     runtime: IAgentRuntime;
@@ -227,7 +234,6 @@ export class TwitterDivinationClient {
         return res.json();
     }
 
-    // Add sentiment fetch function
     private async fetchMarketSentiment() {
         const res = await fetch("https://api.irai.co/get_market_sentiment", {
             headers: {
@@ -239,7 +245,39 @@ export class TwitterDivinationClient {
             throw new Error("Failed to fetch market sentiment");
         }
 
-        return res.json();
+        const fullData: MarketSentiment = await res.json();
+
+        // Log the raw data to debug
+        elizaLogger.debug("Raw sentiment data:", fullData);
+
+        // Extract overview string and parse it
+        const overviewStr = fullData.data.overview;
+        const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
+
+        if (sentimentMatch) {
+            try {
+                // Replace single quotes with double quotes for JSON parsing
+                const jsonStr = sentimentMatch[1].replace(/'/g, '"');
+                const overview = JSON.parse(jsonStr);
+
+                return {
+                    telegram: overview.Telegram.current,
+                    reddit: overview.Reddit.current,
+                    market: overview["General market"].current,
+                };
+            } catch (error) {
+                elizaLogger.error("Error parsing sentiment:", {
+                    error,
+                    rawData: overviewStr,
+                });
+            }
+        }
+
+        return {
+            telegram: "unknown",
+            reddit: "unknown",
+            market: "unknown",
+        };
     }
 
     private async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
