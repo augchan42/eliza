@@ -95,7 +95,7 @@ const pixDivinationTemplate = `
 # Context
 Latest News: {{newsEvent}}
 Market Sentiment: {{marketSentiment}}
-Source: irai.co market vibes
+Source: irai_co market vibes
 Oracle Reading: {{oracleReading}}
 
 # Oracle Reading Format
@@ -140,7 +140,7 @@ Create a post that:
 2. Uses gentle neon pink vibes (vs 8bo's matrix green)
 3. Keeps things light while staying insightful
 4. Can use up to 4000 characters, but keep it accessible
-5. Seamlessly includes "vibes via irai.co" for market data
+5. Seamlessly includes "vibes via irai_co" for market data
 6. Ends with "✨ divination by @8bitoracle"
 
 Voice Guidelines:
@@ -152,15 +152,33 @@ Voice Guidelines:
 - Always format hexagrams as: [unicode] [pinyin] ([meaning])
 - Sound natural when mentioning sources
 
-Background:
-- This post will be done every few hours, with updated news and divination
+# Structure (REQUIRED - EXACTLY AS SHOWN)
 
-
-Structure:
 [NEWS SPARK]
+{news summary}
+(vibes via irai_co)
+
 [MARKET MOOD]
+{brief market sentiment, emoji per sentiment is fine}
+
 [Quick I-Ching Take]
+{hexagram unicode} {pinyin} ({meaning})
+{if transformed, add: "flows into {unicode} {pinyin} ({meaning})"}
+{include one emoji}
+
 [Simple Insight]
+{one clear takeaway in street-wise voice}
+
+✨ divination by @8bitoracle
+
+# Format Rules
+- Each section MUST begin with the exact bracket labels shown above
+- Each section MUST be separated by one blank line
+- News section MUST include "vibes via irai_co"
+- The I-Ching Take MUST include hexagram unicode
+- Must end with "✨ divination by @8bitoracle"
+- Limit emoji usage to where strictly necessary (e.g., for sentiment) (not counting the required ✨)
+- Do not use alternative formatting or structure
 
 Generate only the tweet text, no other commentary.`;
 
