@@ -145,12 +145,19 @@ Create a post that:
 
 Voice Guidelines:
 - Keep tone bright and accessible
-- Include max 2 emoji for key concepts
 - Break down complex ideas into simple patterns
 - Focus on the heart of the matter
 - Maintain tech noir aesthetic but make it kawaii
 - Always format hexagrams as: [unicode] [pinyin] ([meaning])
 - Sound natural when mentioning sources
+
+# Market Sentiment Format
+Map sentiment values to emojis:
+- "highly positive" = 🚀
+- "positive" = 📈
+- "neutral" = 😐
+- "negative" = 📉
+- "highly negative" = 💀
 
 # Structure (REQUIRED - EXACTLY AS SHOWN)
 
@@ -159,12 +166,13 @@ Voice Guidelines:
 (vibes via irai_co)
 
 [MARKET MOOD]
-{brief market sentiment, emoji per sentiment is fine}
+telegram: {sentiment_text} {mapped_emoji}
+reddit: {sentiment_text} {mapped_emoji}
+market: {sentiment_text} {mapped_emoji}
 
 [Quick I-Ching Take]
 {hexagram unicode} {pinyin} ({meaning})
 {if transformed, add: "flows into {unicode} {pinyin} ({meaning})"}
-{include one emoji}
 
 [Simple Insight]
 {one clear takeaway in street-wise voice}
