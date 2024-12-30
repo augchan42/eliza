@@ -141,7 +141,7 @@ Create a post that:
 3. Keeps things light while staying insightful
 4. Can use up to 4000 characters, but keep it accessible
 5. Seamlessly includes "vibes via irai_co" for market data
-6. Ends with "✨ divination by @8bitoracle"
+6. Ends with "✨ hexagrams by @8bitoracle"
 
 Voice Guidelines:
 - Keep tone bright and accessible
