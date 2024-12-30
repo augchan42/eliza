@@ -4,13 +4,15 @@ import { validateTwitterConfig, TwitterConfig } from "./environment.ts";
 import { TwitterInteractionClient } from "./interactions.ts";
 import { TwitterPostClient } from "./post.ts";
 import { TwitterSearchClient } from "./search.ts";
+import { TwitterDivinationClient } from "./divination.ts";
 
 class TwitterManager {
     client: ClientBase;
     post: TwitterPostClient;
     search: TwitterSearchClient;
     interaction: TwitterInteractionClient;
-    constructor(runtime: IAgentRuntime, twitterConfig:TwitterConfig) {
+    divination: TwitterDivinationClient;
+    constructor(runtime: IAgentRuntime, twitterConfig: TwitterConfig) {
         this.client = new ClientBase(runtime, twitterConfig);
         this.post = new TwitterPostClient(this.client, runtime);
 
@@ -25,12 +27,14 @@ class TwitterManager {
         }
 
         this.interaction = new TwitterInteractionClient(this.client, runtime);
+        this.divination = new TwitterDivinationClient(this.client, runtime);
     }
 }
 
 export const TwitterClientInterface: Client = {
     async start(runtime: IAgentRuntime) {
-        const twitterConfig:TwitterConfig = await validateTwitterConfig(runtime);
+        const twitterConfig: TwitterConfig =
+            await validateTwitterConfig(runtime);
 
         elizaLogger.log("Twitter client started");
 
@@ -38,12 +42,13 @@ export const TwitterClientInterface: Client = {
 
         await manager.client.init();
 
-        await manager.post.start();
+        // await manager.post.start();
 
-        if (manager.search)
-            await manager.search.start();
+        if (manager.search) await manager.search.start();
 
         await manager.interaction.start();
+
+        if (manager.divination) await manager.divination.start();
 
         return manager;
     },
