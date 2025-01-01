@@ -55,7 +55,9 @@ IRAI Analysis: {{iraiAnalysis}}
 # Oracle Reading for Query: "{{userQuery}}"
 {{oracleReading}}
 
-# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Synthesize the market sentiment, IRAI analysis and I-Ching Oracle Reading to form a reply.  You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
+# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Synthesize the market sentiment, IRAI analysis and I-Ching Oracle Reading to form a reply.  Mention "(wetwork by irai_co)" at the end when sharing market news and sentiment.
+
+You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
 {{actions}}
 
