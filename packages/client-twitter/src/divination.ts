@@ -195,6 +195,49 @@ interface MarketSentiment {
     };
 }
 
+interface IraiAskRequest {
+    question: string;
+    citations?: boolean;
+    lang?: string;
+    features?: {
+        news?: boolean;
+        trending?: boolean;
+        market_sentiment?: boolean;
+        coin_sentiment?: boolean;
+        price_actions?: boolean;
+        technical_analysis?: boolean;
+        market_update?: boolean;
+        stop_loss_take_profit?: boolean;
+        top_movers?: boolean;
+        ath_atl?: boolean;
+    };
+}
+
+interface IraiCitationData {
+    y_axis_label: string;
+    time: number[];
+    value: number[];
+    y_axis_units: string;
+    thresholds: Array<{
+        label: string;
+        value: number;
+    }>;
+}
+
+interface IraiCitation {
+    name: string;
+    description: string;
+    data: IraiCitationData;
+}
+
+interface IraiAskResponse {
+    user_query: string;
+    output: string;
+    error: boolean;
+    request_id: string;
+    citations: IraiCitation[];
+}
+
 export class TwitterDivinationClient {
     client: ClientBase;
     runtime: IAgentRuntime;
@@ -244,7 +287,7 @@ export class TwitterDivinationClient {
         }
     }
 
-    private async fetchIraiNews(topK: number = 5) {
+    public async fetchIraiNews(topK: number = 5) {
         const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
             headers: {
                 "irai-api-key": process.env.IRAI_API_KEY || "",
@@ -258,7 +301,7 @@ export class TwitterDivinationClient {
         return res.json();
     }
 
-    private async fetchMarketSentiment() {
+    public async fetchMarketSentiment() {
         const res = await fetch("https://api.irai.co/get_market_sentiment", {
             headers: {
                 "irai-api-key": process.env.IRAI_API_KEY || "",
@@ -272,7 +315,7 @@ export class TwitterDivinationClient {
         const fullData: MarketSentiment = await res.json();
 
         // Log the raw data to debug
-        elizaLogger.debug("Raw sentiment data:", fullData);
+        elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
 
         // Extract overview string and parse it
         const overviewStr = fullData.data.overview;
@@ -304,7 +347,7 @@ export class TwitterDivinationClient {
         };
     }
 
-    private async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
+    public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -488,6 +531,55 @@ export class TwitterDivinationClient {
                         : error,
             });
             throw error; // Bubble up to caller
+        }
+    }
+
+    public async askIrai(
+        question: string,
+        features?: IraiAskRequest["features"]
+    ): Promise<IraiAskResponse> {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 150000);
+
+        try {
+            const response = await fetch("https://api.irai.co/ask", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "irai-api-key": process.env.IRAI_API_KEY || "",
+                },
+                body: JSON.stringify({
+                    question,
+                    citations: false, // Default to false, can be made configurable
+                    lang: "English",
+                    features: {
+                        news: true,
+                        trending: true,
+                        market_sentiment: true,
+                        coin_sentiment: true,
+                        price_actions: true,
+                        technical_analysis: true,
+                        market_update: true,
+                        top_movers: true,
+                        ...features, // Allow overriding defaults
+                    },
+                } as IraiAskRequest),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to ask IRAI: ${response.status} ${response.statusText}`
+                );
+            }
+
+            const data: IraiAskResponse = await response.json();
+            return data;
+        } catch (error: unknown) {
+            elizaLogger.error("IRAI ask failed:", error);
+            throw error;
+        } finally {
+            clearTimeout(timeout);
         }
     }
 }

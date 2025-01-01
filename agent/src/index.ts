@@ -71,6 +71,9 @@ import net from "net";
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
 
+// Add at module level
+let db: IDatabaseAdapter & IDatabaseCacheAdapter;
+
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
         Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
@@ -356,7 +359,7 @@ export function getTokenForProvider(
 function initializeDatabase(dataDir: string) {
     if (process.env.POSTGRES_URL) {
         elizaLogger.info("Initializing PostgreSQL connection...");
-        const db = new PostgresDatabaseAdapter({
+        db = new PostgresDatabaseAdapter({
             connectionString: process.env.POSTGRES_URL,
             parseInputs: true,
         });
@@ -377,8 +380,44 @@ function initializeDatabase(dataDir: string) {
         const filePath =
             process.env.SQLITE_FILE ?? path.resolve(dataDir, "db.sqlite");
         // ":memory:";
-        const db = new SqliteDatabaseAdapter(new Database(filePath));
+        db = new SqliteDatabaseAdapter(new Database(filePath));
         return db;
+    }
+}
+
+// Add signal handlers
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
+
+async function cleanup() {
+    elizaLogger.info("Gracefully shutting down...");
+    try {
+        elizaLogger.debug("Database type:", {
+            isInstance: db instanceof SqliteDatabaseAdapter,
+            type: db?.constructor?.name,
+            exists: !!db,
+        });
+
+        if (!db) {
+            elizaLogger.warn("No database instance found");
+            process.exit(0);
+        }
+
+        if (db instanceof SqliteDatabaseAdapter) {
+            elizaLogger.info("Closing SQLite connection...");
+            await db.close();
+            elizaLogger.info("SQLite connection closed");
+        } else {
+            elizaLogger.warn("Database is not SQLite:", db?.constructor?.name);
+        }
+    } catch (err) {
+        elizaLogger.error("Error closing SQLite connection:", err);
+        if (err instanceof Error) {
+            elizaLogger.error("Stack trace:", err.stack);
+        }
+    } finally {
+        elizaLogger.info("Cleanup complete, exiting process");
+        process.exit(0);
     }
 }
 

@@ -17,6 +17,7 @@ import {
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
+import { TwitterDivinationClient } from "./divination.ts";
 
 export const twitterMessageHandlerTemplate =
     `
@@ -47,7 +48,14 @@ Current Post:
 Thread of Tweets You Are Replying To:
 {{formattedConversation}}
 
-# INSTRUCTIONS: Generate a post in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
+# Market Context:
+Market Sentiment: {{marketSentiment}}
+IRAI Analysis: {{iraiAnalysis}}
+
+# Oracle Reading for Query: "{{userQuery}}"
+{{oracleReading}}
+
+# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Synthesize the market sentiment, IRAI analysis and I-Ching Oracle Reading to form a reply.  You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
 {{actions}}
 
@@ -400,7 +408,7 @@ export class TwitterInteractionClient {
                 const shouldRespond = await generateShouldRespond({
                     runtime: this.runtime,
                     context: shouldRespondContext,
-                    modelClass: ModelClass.MEDIUM,
+                    modelClass: ModelClass.SMALL,
                 });
 
                 // Promise<"RESPOND" | "IGNORE" | "STOP" | null> {
@@ -411,6 +419,55 @@ export class TwitterInteractionClient {
                         action: shouldRespond,
                     };
                 }
+
+                elizaLogger.log("Will respond - fetching divination context");
+                const divinationClient = new TwitterDivinationClient(
+                    this.client,
+                    this.runtime
+                );
+                const marketSentiment =
+                    await divinationClient.fetchMarketSentiment();
+                // const newsEvent = await divinationClient.fetchIraiNews();
+                const oracleReading = await divinationClient.fetch8BitOracle();
+
+                let iraiAnalysis;
+                try {
+                    const iraiResponse = await divinationClient.askIrai(
+                        tweet.text
+                    );
+                    iraiAnalysis = iraiResponse.output;
+                } catch (error) {
+                    elizaLogger.warn(
+                        "IRAI analysis failed, continuing with basic response:",
+                        error
+                    );
+                    iraiAnalysis = "No market analysis available at this time.";
+                }
+
+                elizaLogger.debug("Divination context fetched:", {
+                    sentiment: marketSentiment,
+                    irai:
+                        iraiAnalysis?.output ||
+                        "No market analysis available at this time.",
+                    oracle: oracleReading?.interpretation,
+                });
+
+                // Update state with divination data
+                state = await this.runtime.composeState(message, {
+                    ...state,
+                    marketSentiment: JSON.stringify(marketSentiment, null, 2),
+                    iraiAnalysis:
+                        iraiAnalysis?.output ||
+                        "No market analysis available at this time.",
+                    oracleReading: JSON.stringify(
+                        {
+                            interpretation: oracleReading?.interpretation,
+                        },
+                        null,
+                        2
+                    ),
+                    userQuery: tweet.text,
+                });
 
                 const context = composeContext({
                     state,
