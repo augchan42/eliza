@@ -7,7 +7,7 @@ const twitterUsernameSchema = z
     .min(1)
     .max(15)
     .regex(
-        /^[A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]$|^[A-Za-z]$/,
+        /^[A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]$|^[A-Za-z]$|^\*$/,
         "Invalid Twitter username format"
     );
 
@@ -66,16 +66,18 @@ function parseTargetUsers(targetUsersStr?: string | null): string[] {
         return [];
     }
 
+    // Check for wildcard first
+    if (
+        targetUsersStr.includes("*") ||
+        targetUsersStr.toLowerCase().includes("all")
+    ) {
+        return ["*"];
+    }
+
     return targetUsersStr
         .split(",")
         .map((user) => user.trim())
-        .filter(Boolean); // Remove empty usernames
-    /*
-        .filter(user => {
-            // Twitter username validation (basic example)
-            return user && /^[A-Za-z0-9_]{1,15}$/.test(user);
-        });
-        */
+        .filter(Boolean);
 }
 
 function safeParseInt(
