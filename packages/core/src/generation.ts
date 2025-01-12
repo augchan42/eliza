@@ -2,7 +2,6 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import {
     generateObject as aiGenerateObject,
     generateText as aiGenerateText,
@@ -215,7 +214,10 @@ export async function generateText({
     elizaLogger.log("Using provider:", runtime.modelProvider);
     // If verifiable inference is requested and adapter is provided, use it
     if (verifiableInference && runtime.verifiableInferenceAdapter) {
-        elizaLogger.log("Using verifiable inference adapter:", runtime.verifiableInferenceAdapter);
+        elizaLogger.log(
+            "Using verifiable inference adapter:",
+            runtime.verifiableInferenceAdapter
+        );
         try {
             const result: VerifiableInferenceResult =
                 await runtime.verifiableInferenceAdapter.generateText(
@@ -391,7 +393,8 @@ export async function generateText({
                     apiKey,
                     baseURL: endpoint,
                     fetch: async (url: string, options: any) => {
-                        const chain_id = runtime.getSetting("ETERNALAI_CHAIN_ID") || "45762"
+                        const chain_id =
+                            runtime.getSetting("ETERNALAI_CHAIN_ID") || "45762";
                         if (options?.body) {
                             const body = JSON.parse(options.body);
                             body.chain_id = chain_id;
@@ -790,10 +793,12 @@ export async function generateText({
 
             case ModelProviderName.GALADRIEL: {
                 elizaLogger.debug("Initializing Galadriel model.");
-                const headers = {}
-                const fineTuneApiKey = runtime.getSetting("GALADRIEL_FINE_TUNE_API_KEY")
+                const headers = {};
+                const fineTuneApiKey = runtime.getSetting(
+                    "GALADRIEL_FINE_TUNE_API_KEY"
+                );
                 if (fineTuneApiKey) {
-                    headers["Fine-Tune-Authentication"] = fineTuneApiKey
+                    headers["Fine-Tune-Authentication"] = fineTuneApiKey;
                 }
                 const galadriel = createOpenAI({
                     headers,
@@ -933,12 +938,182 @@ export async function generateShouldRespond({
  * @param bleed - Number of characters to overlap between chunks (default: 100)
  * @returns Promise resolving to array of text chunks with bleed sections
  */
+// export async function splitChunks(
+//     content: string,
+//     chunkSize: number = 512,
+//     bleed: number = 20
+// ): Promise<string[]> {
+//     const textSplitter = new RecursiveCharacterTextSplitter({
+//         chunkSize: Number(chunkSize),
+//         chunkOverlap: Number(bleed),
+//         separators: ["\n\n", "\n", "。", "，", " ", ""], // Add Chinese punctuation
+//         keepSeparator: true, // Keep the separators in the output
+//         lengthFunction: (text: string) => Buffer.byteLength(text, "utf8"), // Use byte length for proper Unicode handling
+//     });
+
+//     return textSplitter.splitText(content);
+// }
+
+export class MarkdownTextSplitter {
+    private chunkSize: number;
+    private chunkOverlap: number;
+    private maxChunkSizeOverflow: number; // Allow chunks to exceed target size by this factor
+
+    constructor({
+        chunkSize = 512,
+        chunkOverlap = 20,
+        maxChunkSizeOverflow = 1.5, // Allow up to 50% size overflow to keep headers together
+    } = {}) {
+        this.chunkSize = chunkSize;
+        this.chunkOverlap = chunkOverlap;
+        this.maxChunkSizeOverflow = maxChunkSizeOverflow;
+    }
+
+    private getByteLength(str: string): number {
+        return new TextEncoder().encode(str).length;
+    }
+
+    private findNextMajorHeader(text: string, startIndex: number = 0): number {
+        // Look specifically for level 1 headers (single #)
+        const headerMatch = text.slice(startIndex).match(/\n# [^\n]+/);
+        if (headerMatch && headerMatch.index !== undefined) {
+            return startIndex + headerMatch.index;
+        }
+        return -1;
+    }
+
+    private shouldKeepChunkTogether(chunk: string): boolean {
+        const byteLength = this.getByteLength(chunk);
+        // Keep together if:
+        // 1. Within the maximum allowed size
+        // 2. Contains a single major section (no other # headers)
+        const headerCount = (chunk.match(/\n# /g) || []).length;
+        return (
+            byteLength <= this.chunkSize * this.maxChunkSizeOverflow &&
+            headerCount <= 1
+        );
+    }
+
+    async splitText(text: string): Promise<string[]> {
+        const chunks: string[] = [];
+        let currentIndex = 0;
+
+        // Ensure text starts with a header
+        text = text.trimStart();
+        if (!text.startsWith("# ")) {
+            text = "# Document\n" + text;
+        }
+
+        while (currentIndex < text.length) {
+            const remainingText = text.slice(currentIndex);
+
+            // Find the next major header
+            const nextHeaderIndex = this.findNextMajorHeader(remainingText, 1); // Start after current header
+
+            let chunk: string;
+            if (nextHeaderIndex === -1) {
+                // No more headers, take all remaining text if it's reasonable
+                chunk = remainingText;
+                if (!this.shouldKeepChunkTogether(chunk)) {
+                    // Fall back to size-based splitting only if really necessary
+                    const splitPoint = this.findBestSplitPoint(
+                        remainingText,
+                        this.chunkSize
+                    );
+                    chunk = remainingText.slice(0, splitPoint);
+                }
+            } else {
+                // Found next header
+                chunk = remainingText.slice(0, nextHeaderIndex);
+
+                // If this chunk would be too large, try to split at a secondary point
+                if (!this.shouldKeepChunkTogether(chunk)) {
+                    // Try to split at a subheader (##) first
+                    const subheaderMatch = chunk.match(/\n## [^\n]+/);
+                    if (subheaderMatch && subheaderMatch.index) {
+                        chunk = chunk.slice(0, subheaderMatch.index);
+                    } else {
+                        // If no subheader, only then fall back to size-based splitting
+                        const splitPoint = this.findBestSplitPoint(
+                            chunk,
+                            this.chunkSize
+                        );
+                        chunk = chunk.slice(0, splitPoint);
+                    }
+                }
+            }
+
+            // Add non-empty chunks
+            if (chunk.trim()) {
+                chunks.push(chunk.trim());
+            }
+
+            // Move index forward
+            currentIndex += chunk.length;
+
+            // If we didn't advance, prevent infinite loop
+            if (chunk.length === 0) {
+                currentIndex++;
+            }
+        }
+
+        return chunks;
+    }
+
+    private findBestSplitPoint(text: string, targetLength: number): number {
+        // Only used as a fallback when header-based splitting isn't suitable
+        const separators = [
+            "\n## ", // Try subheaders first
+            "\n### ",
+            "\n\n", // Then paragraph breaks
+            "\n", // Then line breaks
+            "。", // Then Chinese punctuation
+            "！",
+            "？",
+            "；",
+            "，",
+            " ", // Then spaces
+            "", // Finally character boundaries
+        ];
+
+        for (const separator of separators) {
+            if (separator === "") continue;
+
+            let index = -1;
+            let lastValidIndex = -1;
+            while (true) {
+                index = text.indexOf(separator, index + 1);
+                if (index === -1 || index >= targetLength) break;
+                lastValidIndex = index;
+            }
+
+            if (lastValidIndex !== -1) {
+                return (
+                    lastValidIndex +
+                    (separator.startsWith("\n#") ? 0 : separator.length)
+                );
+            }
+        }
+
+        // If no separator found, find closest character boundary
+        let byteCount = 0;
+        let charIndex = 0;
+        while (byteCount < targetLength && charIndex < text.length) {
+            byteCount += this.getByteLength(text[charIndex]);
+            charIndex++;
+        }
+
+        return Math.max(1, charIndex);
+    }
+}
+
+// Export wrapper function
 export async function splitChunks(
     content: string,
     chunkSize: number = 512,
     bleed: number = 20
 ): Promise<string[]> {
-    const textSplitter = new RecursiveCharacterTextSplitter({
+    const textSplitter = new MarkdownTextSplitter({
         chunkSize: Number(chunkSize),
         chunkOverlap: Number(bleed),
     });
@@ -1423,7 +1598,9 @@ export const generateImage = async (
             });
 
             return { success: true, data: base64s };
-        }else if (runtime.imageModelProvider === ModelProviderName.NINETEEN_AI) {
+        } else if (
+            runtime.imageModelProvider === ModelProviderName.NINETEEN_AI
+        ) {
             const response = await fetch(
                 "https://api.nineteen.ai/v1/text-to-image",
                 {
@@ -1433,13 +1610,15 @@ export const generateImage = async (
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        model: data.modelId || "dataautogpt3/ProteusV0.4-Lightning",
+                        model:
+                            data.modelId ||
+                            "dataautogpt3/ProteusV0.4-Lightning",
                         prompt: data.prompt,
                         negative_prompt: data.negativePrompt,
                         width: data.width,
                         height: data.height,
                         steps: data.numIterations,
-                        cfg_scale: data.guidanceScale || 3
+                        cfg_scale: data.guidanceScale || 3,
                     }),
                 }
             );

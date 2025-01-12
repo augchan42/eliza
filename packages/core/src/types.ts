@@ -760,7 +760,7 @@ export type Character = {
     adjectives: string[];
 
     /** Optional knowledge base */
-    knowledge?: (string | { path: string; shared?: boolean })[];
+    knowledge?: (string | { path: string })[];
 
     /** Supported client platforms */
     clients: Clients[];
@@ -1120,6 +1120,7 @@ export interface IRAGKnowledgeManager {
     }): Promise<RAGKnowledgeItem[]>;
     clearKnowledge(shared?: boolean): Promise<void>;
     processFile(file: {
+        id: string;
         path: string;
         content: string;
         type: "pdf" | "md" | "txt";
