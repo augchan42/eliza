@@ -169,10 +169,14 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
         limit?: number;
         agentId?: UUID;
     }): Promise<RAGKnowledgeItem[]> {
+        elizaLogger.debug("[RAG] Starting knowledge retrieval", { params });
         const agentId = params.agentId || this.runtime.agentId;
 
         // If id is provided, do direct lookup first
         if (params.id) {
+            elizaLogger.debug("[RAG] Attempting direct lookup by ID", {
+                id: params.id,
+            });
             const directResults =
                 await this.runtime.databaseAdapter.getKnowledge({
                     id: params.id,
@@ -180,25 +184,43 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                 });
 
             if (directResults.length > 0) {
+                elizaLogger.debug("[RAG] Found direct results", {
+                    count: directResults.length,
+                });
                 return directResults;
             }
+            elizaLogger.debug(
+                "[RAG] No direct results found, falling back to semantic search",
+            );
         }
 
         // If no id or no direct results, perform semantic search
         if (params.query) {
             try {
                 const processedQuery = this.preprocess(params.query);
+                elizaLogger.debug("[RAG] Processed query", {
+                    original: params.query,
+                    processed: processedQuery,
+                });
 
                 // Build search text with optional context
                 let searchText = processedQuery;
                 if (params.conversationContext) {
                     const relevantContext = this.preprocess(
-                        params.conversationContext
+                        params.conversationContext,
                     );
                     searchText = `${relevantContext} ${processedQuery}`;
+                    elizaLogger.debug("[RAG] Added conversation context", {
+                        originalContext: params.conversationContext,
+                        processedContext: relevantContext,
+                        finalSearchText: searchText,
+                    });
                 }
 
                 const embeddingArray = await embed(this.runtime, searchText);
+                elizaLogger.debug("[RAG] Generated embedding", {
+                    embeddingLength: embeddingArray.length,
+                });
 
                 const embedding = new Float32Array(embeddingArray);
 
@@ -213,61 +235,107 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                         searchText: processedQuery,
                     });
 
+                elizaLogger.debug("[RAG] Initial search results", {
+                    count: results.length,
+                    threshold: this.defaultRAGMatchThreshold,
+                    requestedCount:
+                        (params.limit || this.defaultRAGMatchCount) * 2,
+                });
+
                 // Enhanced reranking with sophisticated scoring
                 const rerankedResults = results
                     .map((result) => {
                         let score = result.similarity;
-
-                        // Check for direct query term matches
                         const queryTerms = this.getQueryTerms(processedQuery);
-
                         const matchingTerms = queryTerms.filter((term) =>
-                            result.content.text.toLowerCase().includes(term)
+                            result.content.text.toLowerCase().includes(term),
                         );
 
+                        elizaLogger.debug("[RAG] Scoring result", {
+                            initialScore: score,
+                            queryTerms,
+                            matchingTerms,
+                            textPreview: result.content.text.substring(0, 100),
+                        });
+
                         if (matchingTerms.length > 0) {
-                            // Much stronger boost for matches
-                            score *=
+                            const termBoost =
                                 1 +
-                                (matchingTerms.length / queryTerms.length) * 2; // Double the boost
+                                (matchingTerms.length / queryTerms.length) * 2;
+                            score *= termBoost;
+                            elizaLogger.debug(
+                                "[RAG] Applied term match boost",
+                                {
+                                    termBoost,
+                                    scoreAfterBoost: score,
+                                },
+                            );
 
                             if (
                                 this.hasProximityMatch(
                                     result.content.text,
-                                    matchingTerms
+                                    matchingTerms,
                                 )
                             ) {
-                                score *= 1.5; // Stronger proximity boost
+                                score *= 1.5;
+                                elizaLogger.debug(
+                                    "[RAG] Applied proximity boost",
+                                    {
+                                        proximityBoost: 1.5,
+                                        finalScore: score,
+                                    },
+                                );
                             }
-                        } else {
-                            // More aggressive penalty
-                            if (!params.conversationContext) {
-                                score *= 0.3; // Stronger penalty
-                            }
+                        } else if (!params.conversationContext) {
+                            score *= 0.3;
+                            elizaLogger.debug(
+                                "[RAG] Applied no-match penalty",
+                                {
+                                    penalty: 0.3,
+                                    finalScore: score,
+                                },
+                            );
                         }
 
                         return {
                             ...result,
                             score,
-                            matchedTerms: matchingTerms, // Add for debugging
+                            matchedTerms: matchingTerms,
                         };
                     })
                     .sort((a, b) => b.score - a.score);
 
-                // Filter and return results
-                return rerankedResults
+                const finalResults = rerankedResults
                     .filter(
                         (result) =>
-                            result.score >= this.defaultRAGMatchThreshold
+                            result.score >= this.defaultRAGMatchThreshold,
                     )
                     .slice(0, params.limit || this.defaultRAGMatchCount);
+
+                elizaLogger.debug("[RAG] Final results after reranking", {
+                    originalCount: results.length,
+                    rerankedCount: rerankedResults.length,
+                    finalCount: finalResults.length,
+                    topScores: finalResults.slice(0, 3).map((r) => ({
+                        score: r.score,
+                        matchedTerms: r.matchedTerms,
+                        textPreview: r.content.text.substring(0, 100),
+                    })),
+                });
+
+                return finalResults;
             } catch (error) {
-                console.log(`[RAG Search Error] ${error}`);
+                elizaLogger.error(
+                    "[RAG] Error during knowledge retrieval",
+                    error,
+                );
                 return [];
             }
         }
 
-        // If neither id nor query provided, return empty array
+        elizaLogger.debug(
+            "[RAG] No query or ID provided, returning empty array",
+        );
         return [];
     }
 
@@ -282,7 +350,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
             const processedContent = this.preprocess(item.content.text);
             const mainEmbeddingArray = await embed(
                 this.runtime,
-                processedContent
+                processedContent,
             );
 
             const mainEmbedding = new Float32Array(mainEmbeddingArray);
@@ -366,7 +434,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
     async clearKnowledge(shared?: boolean): Promise<void> {
         await this.runtime.databaseAdapter.clearKnowledge(
             this.runtime.agentId,
-            shared ? shared : false
+            shared ? shared : false,
         );
     }
 
@@ -379,7 +447,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
      */
     async listAllKnowledge(agentId: UUID): Promise<RAGKnowledgeItem[]> {
         elizaLogger.debug(
-            `[Knowledge List] Fetching all entries for agent: ${agentId}`
+            `[Knowledge List] Fetching all entries for agent: ${agentId}`,
         );
 
         try {
@@ -389,13 +457,13 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
             });
 
             elizaLogger.debug(
-                `[Knowledge List] Found ${results.length} entries`
+                `[Knowledge List] Found ${results.length} entries`,
             );
             return results;
         } catch (error) {
             elizaLogger.error(
                 "[Knowledge List] Error fetching knowledge entries:",
-                error
+                error,
             );
             throw error;
         }
@@ -405,24 +473,24 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
         try {
             elizaLogger.debug(
                 "[Cleanup] Starting knowledge cleanup process, agent: ",
-                this.runtime.agentId
+                this.runtime.agentId,
             );
 
             elizaLogger.debug(
-                `[Cleanup] Knowledge root path: ${this.knowledgeRoot}`
+                `[Cleanup] Knowledge root path: ${this.knowledgeRoot}`,
             );
 
             const existingKnowledge = await this.listAllKnowledge(
-                this.runtime.agentId
+                this.runtime.agentId,
             );
             // Only process parent documents, ignore chunks
             const parentDocuments = existingKnowledge.filter(
                 (item) =>
-                    !item.id.includes("chunk") && item.content.metadata?.source // Must have a source path
+                    !item.id.includes("chunk") && item.content.metadata?.source, // Must have a source path
             );
 
             elizaLogger.debug(
-                `[Cleanup] Found ${parentDocuments.length} parent documents to check`
+                `[Cleanup] Found ${parentDocuments.length} parent documents to check`,
             );
 
             for (const item of parentDocuments) {
@@ -430,17 +498,17 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                 const filePath = join(this.knowledgeRoot, relativePath);
 
                 elizaLogger.debug(
-                    `[Cleanup] Checking joined file path: ${filePath}`
+                    `[Cleanup] Checking joined file path: ${filePath}`,
                 );
 
                 if (!existsSync(filePath)) {
                     elizaLogger.warn(
-                        `[Cleanup] File not found, starting removal process: ${filePath}`
+                        `[Cleanup] File not found, starting removal process: ${filePath}`,
                     );
 
                     const idToRemove = item.id;
                     elizaLogger.debug(
-                        `[Cleanup] Using ID for removal: ${idToRemove}`
+                        `[Cleanup] Using ID for removal: ${idToRemove}`,
                     );
 
                     try {
@@ -457,7 +525,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                         // });
 
                         elizaLogger.success(
-                            `[Cleanup] Successfully removed knowledge for file: ${filePath}`
+                            `[Cleanup] Successfully removed knowledge for file: ${filePath}`,
                         );
                     } catch (deleteError) {
                         elizaLogger.error(
@@ -468,7 +536,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                                       stack: deleteError.stack,
                                       name: deleteError.name,
                                   }
-                                : deleteError
+                                : deleteError,
                         );
                     }
                 }
@@ -478,7 +546,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
         } catch (error) {
             elizaLogger.error(
                 "[Cleanup] Error cleaning up deleted knowledge files:",
-                error
+                error,
             );
         }
     }
@@ -507,13 +575,13 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
         try {
             const fileSizeKB = new TextEncoder().encode(content).length / 1024;
             elizaLogger.info(
-                `[File Progress] Starting ${file.path} (${fileSizeKB.toFixed(2)} KB)`
+                `[File Progress] Starting ${file.path} (${fileSizeKB.toFixed(2)} KB)`,
             );
 
             // Generate scoped ID for the file
             const scopedId = this.generateScopedId(
                 file.path,
-                file.isShared || false
+                file.isShared || false,
             );
 
             // Step 1: Preprocessing
@@ -524,7 +592,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
             // Step 2: Main document embedding
             const mainEmbeddingArray = await embed(
                 this.runtime,
-                processedContent
+                processedContent,
             );
             const mainEmbedding = new Float32Array(mainEmbeddingArray);
             timeMarker("Main embedding");
@@ -560,12 +628,12 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                 const batchStart = Date.now();
                 const batch = chunks.slice(
                     i,
-                    Math.min(i + BATCH_SIZE, chunks.length)
+                    Math.min(i + BATCH_SIZE, chunks.length),
                 );
 
                 // Process embeddings in parallel
                 const embeddings = await Promise.all(
-                    batch.map((chunk) => embed(this.runtime, chunk))
+                    batch.map((chunk) => embed(this.runtime, chunk)),
                 );
 
                 // Batch database operations
@@ -593,19 +661,19 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                             embedding: chunkEmbedding,
                             createdAt: Date.now(),
                         });
-                    })
+                    }),
                 );
 
                 processedChunks += batch.length;
                 const batchTime = (Date.now() - batchStart) / 1000;
                 elizaLogger.info(
-                    `[Batch Progress] ${file.path}: Processed ${processedChunks}/${totalChunks} chunks (${batchTime.toFixed(2)}s for batch)`
+                    `[Batch Progress] ${file.path}: Processed ${processedChunks}/${totalChunks} chunks (${batchTime.toFixed(2)}s for batch)`,
                 );
             }
 
             const totalTime = (Date.now() - startTime) / 1000;
             elizaLogger.info(
-                `[Complete] Processed ${file.path} in ${totalTime.toFixed(2)}s`
+                `[Complete] Processed ${file.path} in ${totalTime.toFixed(2)}s`,
             );
         } catch (error) {
             if (
@@ -613,7 +681,7 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
                 error?.code === "SQLITE_CONSTRAINT_PRIMARYKEY"
             ) {
                 elizaLogger.info(
-                    `Shared knowledge ${file.path} already exists in database, skipping creation`
+                    `Shared knowledge ${file.path} already exists in database, skipping creation`,
                 );
                 return;
             }

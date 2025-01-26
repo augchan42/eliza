@@ -654,7 +654,7 @@ export enum Clients {
     SLACK = "slack",
     GITHUB = "github",
     INSTAGRAM = "instagram",
-    SIMSAI = "simsai"
+    SIMSAI = "simsai",
 }
 
 export interface IAgentConfig {
@@ -916,6 +916,7 @@ export type Character = {
         username: string;
         bio: string;
         nicknames?: string[];
+    };
 
     /** Optional SimsAI profile */
     simsaiProfile?: {
