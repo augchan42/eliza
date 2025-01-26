@@ -866,21 +866,26 @@ export const models: Models = {
         endpoint: "https://integrate.api.nvidia.com/v1",
         model: {
             [ModelClass.SMALL]: {
-                name: settings.SMALL_NVIDIA_MODEL || "meta/llama-3.2-3b-instruct",
+                name:
+                    settings.SMALL_NVIDIA_MODEL || "meta/llama-3.2-3b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
                 temperature: 0.6,
             },
             [ModelClass.MEDIUM]: {
-                name: settings.MEDIUM_NVIDIA_MODEL || "meta/llama-3.3-70b-instruct",
+                name:
+                    settings.MEDIUM_NVIDIA_MODEL ||
+                    "meta/llama-3.3-70b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
                 temperature: 0.6,
             },
             [ModelClass.LARGE]: {
-                name: settings.LARGE_NVIDIA_MODEL || "meta/llama-3.1-405b-instruct",
+                name:
+                    settings.LARGE_NVIDIA_MODEL ||
+                    "meta/llama-3.1-405b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
@@ -1029,7 +1034,7 @@ export const models: Models = {
                 maxOutputTokens: 8192,
                 frequency_penalty: 0.0,
                 presence_penalty: 0.0,
-                temperature: 0.7,
+                temperature: 1.3, //https://api-docs.deepseek.com/quick_start/parameter_settings
             },
             [ModelClass.MEDIUM]: {
                 name: settings.MEDIUM_DEEPSEEK_MODEL || "deepseek-chat",
@@ -1038,7 +1043,7 @@ export const models: Models = {
                 maxOutputTokens: 8192,
                 frequency_penalty: 0.0,
                 presence_penalty: 0.0,
-                temperature: 0.7,
+                temperature: 1.3,
             },
             [ModelClass.LARGE]: {
                 name: settings.LARGE_DEEPSEEK_MODEL || "deepseek-chat",
@@ -1047,7 +1052,7 @@ export const models: Models = {
                 maxOutputTokens: 8192,
                 frequency_penalty: 0.0,
                 presence_penalty: 0.0,
-                temperature: 0.7,
+                temperature: 1.3,
             },
         },
     },
@@ -1087,13 +1092,13 @@ export const models: Models = {
 
 export function getModelSettings(
     provider: ModelProviderName,
-    type: ModelClass
+    type: ModelClass,
 ): ModelSettings | undefined {
     return models[provider]?.model[type] as ModelSettings | undefined;
 }
 
 export function getImageModelSettings(
-    provider: ModelProviderName
+    provider: ModelProviderName,
 ): ImageModelSettings | undefined {
     return models[provider]?.model[ModelClass.IMAGE] as
         | ImageModelSettings
@@ -1101,7 +1106,7 @@ export function getImageModelSettings(
 }
 
 export function getEmbeddingModelSettings(
-    provider: ModelProviderName
+    provider: ModelProviderName,
 ): EmbeddingModelSettings | undefined {
     return models[provider]?.model[ModelClass.EMBEDDING] as
         | EmbeddingModelSettings
