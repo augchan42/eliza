@@ -5,6 +5,24 @@ import type { Readable } from "stream";
  */
 export type UUID = `${string}-${string}-${string}-${string}-${string}`;
 
+// Define specific correction type
+export interface ValidationCorrection {
+    original: string;
+    corrected: string;
+    reason: string;
+}
+
+// Define metadata structure
+export interface ContentMetadata {
+    source?: string;
+    timestamp?: number;
+    validationCorrections?: ValidationCorrection[];
+    messageId?: string | number;
+    replyTo?: string | number;
+    // ... other metadata fields you might need
+    [key: string]: unknown;
+}
+
 /**
  * Represents the content of a message or communication
  */
@@ -28,6 +46,8 @@ export interface Content {
 
     /** Array of media attachments */
     attachments?: Media[];
+
+    metadata?: ContentMetadata; // Now properly typed
 
     /** Additional dynamic properties */
     [key: string]: unknown;
@@ -882,6 +902,7 @@ export type Character = {
                 pinnedMessagesGroups?: string[];
                 minTimeBetweenPosts?: number;
             };
+            showCorrections: string;
         };
         slack?: {
             shouldIgnoreBotMessages?: boolean;

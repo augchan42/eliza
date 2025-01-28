@@ -107,9 +107,8 @@ export class RAGKnowledgeManager implements IRAGKnowledgeManager {
     private getQueryTerms(query: string): string[] {
         return query
             .toLowerCase()
-            .split(" ")
-            .filter((term) => term.length > 3) // Filter very short words
-            .filter((term) => !this.stopWords.has(term)); // Filter stop words
+            .split(/\s+/)
+            .filter((term) => !this.stopWords.has(term));
     }
 
     /**

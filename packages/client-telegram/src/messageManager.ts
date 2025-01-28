@@ -33,6 +33,7 @@ import {
     RESPONSE_CHANCES,
     TEAM_COORDINATION,
 } from "./constants";
+import { ResponseValidator } from "./responseValidator";
 
 import fs from "fs";
 
@@ -81,9 +82,12 @@ export class MessageManager {
     private lastChannelActivity: { [channelId: string]: number } = {};
     private autoPostInterval: NodeJS.Timeout;
 
+    private responseValidator: ResponseValidator;
+
     constructor(bot: Telegraf<Context>, runtime: IAgentRuntime) {
         this.bot = bot;
         this.runtime = runtime;
+        this.responseValidator = new ResponseValidator(runtime);
 
         this._initializeTeamMemberUsernames().catch((error) =>
             elizaLogger.error(
@@ -1143,6 +1147,35 @@ export class MessageManager {
         return chunks;
     }
 
+    private async validateAndCorrectResponse(
+        content: Content,
+        conversationContext: string,
+    ): Promise<Content> {
+        const validation = await this.responseValidator.validateResponse(
+            content,
+            conversationContext,
+        );
+
+        if (!validation.isValid && validation.correctedContent) {
+            elizaLogger.info("Response correction applied:", {
+                original: validation.corrections[0].original,
+                corrected: validation.corrections[0].corrected,
+                reason: validation.corrections[0].reason,
+            });
+            // Append correction notes if configured
+            if (
+                this.runtime.character.clientConfig?.telegram?.showCorrections
+            ) {
+                const correctionNotes = `Note: ${validation.corrections[0].reason}`;
+                validation.correctedContent.text += `\n\n${correctionNotes}`;
+            }
+
+            return validation.correctedContent;
+        }
+
+        return content;
+    }
+
     // Generate a response using AI
     private async _generateResponse(
         message: Memory,
@@ -1188,16 +1221,28 @@ export class MessageManager {
             type: "response",
         });
 
+        // Get recent messages for context
+        const recentContext = _state.recentMessagesData
+            .slice(-3)
+            .map((msg) => msg.content.text)
+            .join(" ");
+
+        // Add validation step
+        const validatedResponse = await this.validateAndCorrectResponse(
+            response,
+            recentContext,
+        );
+
         elizaLogger.debug("Final processed response:", {
-            responseText: response.text,
-            responseAction: response.action,
-            reasoning: response.reasoning,
-            additionalKeys: Object.keys(response).filter(
+            responseText: validatedResponse.text,
+            responseAction: validatedResponse.action,
+            reasoning: validatedResponse.reasoning,
+            additionalKeys: Object.keys(validatedResponse).filter(
                 (k) => !["text", "action", "reasoning"].includes(k),
             ),
         });
 
-        return response;
+        return validatedResponse;
     }
 
     // Main handler for incoming messages

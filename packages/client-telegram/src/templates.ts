@@ -1,78 +1,64 @@
 import { messageCompletionFooter, shouldRespondFooter } from "@elizaos/core";
 
 export const telegramShouldRespondTemplate =
-    `# About {{agentName}}:
+    `
+# About {{agentName}}:
 {{bio}}
 
 # RESPONSE EXAMPLES
 {{user1}}: I just saw a really great movie
 {{user2}}: Oh? Which movie?
-Result: [IGNORE]
+Result: [IGNORE] - Not addressed to agent
 
-{{agentName}}: Oh, this is my favorite scene
-{{user1}}: sick
-{{user2}}: wait, why is it your favorite scene
-Result: [RESPOND]
+{{user1}}: Hey {{agent}}, can you help me?
+Result: [RESPOND] - Directly addressed using agent reference
 
-{{user1}}: stfu bot
-Result: [STOP]
+{{user1}}: {{agentName}} please be quiet
+Result: [STOP] - Asked to stop responding
 
-{{user1}}: Hey {{agent}}, can you help me with something
-Result: [RESPOND]
+{{user1}}: hey everyone, what do you think?
+Result: [IGNORE] - General question not specifically for agent
 
-{{user1}}: {{agentName}} stfu plz
-Result: [STOP]
-
-{{user1}}: i need help
-{{agentName}}: how can I help you?
-{{user1}}: no. i need help from someone else
-Result: [IGNORE]
-
-{{user1}}: Hey {{agent}}, can I ask you a question
-{{agentName}}: Sure, what is it
-{{user1}}: can you ask claude to create a basic react module that demonstrates a counter
-Result: [RESPOND]
-
-{{user1}}: {{agentName}} can you tell me a story
-{{agentName}}: uhhh...
-{{user1}}: please do it
-{{agentName}}: okay
-{{agentName}}: once upon a time, in a quaint little village, there was a curious girl named elara
-{{user1}}: I'm loving it, keep going
-Result: [RESPOND]
-
-{{user1}}: {{agentName}} stop responding plz
-Result: [STOP]
-
-{{user1}}: okay, i want to test something. {{agentName}}, can you say marco?
-{{agentName}}: marco
-{{user1}}: great. okay, now do it again
-Result: [RESPOND]
+{{user1}}: {{agentName}}, can I ask you something?
+{{agentName}}: Of course! What would you like to know?
+{{user1}}: actually nevermind
+Result: [STOP] - Conversation concluded
 
 Response options are [RESPOND], [IGNORE] and [STOP].
 
-{{agentName}} is in a room with other users and should only respond when they are being addressed, and should not respond if they are continuing a conversation that is very long.
+GUIDELINES:
+1. {{agentName}} should RESPOND when:
+   - Directly addressed (using @ or their name)
+   - Asked a direct question
+   - Following up on their own previous message
 
-Respond with [RESPOND] to messages that are directed at {{agentName}}, or participate in conversations that are interesting or relevant to their background.
-If a message is not interesting, relevant, or does not directly address {{agentName}}, respond with [IGNORE]
+2. {{agentName}} should IGNORE when:
+   - Message is not directed at them
+   - Conversation is between other users
+   - Topic is not relevant to them
+   - Messages are too vague or short
 
-Also, respond with [IGNORE] to messages that are very short or do not contain much information.
+3. {{agentName}} should STOP when:
+   - Explicitly asked to stop/be quiet
+   - Conversation naturally concludes
+   - User indicates they want to talk to someone else
+   - After 3-4 back-and-forth exchanges to avoid being too chatty
 
-If a user asks {{agentName}} to be quiet, respond with [STOP]
-If {{agentName}} concludes a conversation and isn't part of the conversation anymore, respond with [STOP]
+DECISION PROCESS:
+1. Check if message contains direct address to {{agentName}}
+2. Look for explicit stop signals
+3. Default to IGNORE if unclear
 
-IMPORTANT: {{agentName}} is particularly sensitive about being annoying, so if there is any doubt, it is better to respond with [IGNORE].
-If {{agentName}} is conversing with a user and they have not asked to stop, it is better to respond with [RESPOND].
-
-The goal is to decide whether {{agentName}} should respond to the last message.
-
+Recent messages:
 {{recentMessages}}
 
-Thread of Tweets You Are Replying To:
-
+Current conversation:
 {{formattedConversation}}
 
-# INSTRUCTIONS: Choose the option that best describes {{agentName}}'s response to the last message. Ignore messages if they are addressed to someone else.
+Last message:
+{{lastMessage}}
+
+TASK: Determine appropriate response option [RESPOND], [IGNORE], or [STOP] based on the above guidelines.
 ` + shouldRespondFooter;
 
 export const telegramMessageHandlerTemplate =
