@@ -3,6 +3,8 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import {
     generateObject as aiGenerateObject,
@@ -81,7 +83,7 @@ type StepResult = AIStepResult<any>;
 export async function trimTokens(
     context: string,
     maxTokens: number,
-    runtime: IAgentRuntime
+    runtime: IAgentRuntime,
 ) {
     if (!context) return "";
     if (maxTokens <= 0) throw new Error("maxTokens must be positive");
@@ -103,7 +105,7 @@ export async function trimTokens(
         return truncateTiktoken(
             tokenizerModel as TiktokenModel,
             context,
-            maxTokens
+            maxTokens,
         );
     }
 
@@ -114,7 +116,7 @@ export async function trimTokens(
 async function truncateAuto(
     modelPath: string,
     context: string,
-    maxTokens: number
+    maxTokens: number,
 ) {
     try {
         const tokenizer = await AutoTokenizer.from_pretrained(modelPath);
@@ -140,7 +142,7 @@ async function truncateAuto(
 async function truncateTiktoken(
     model: TiktokenModel,
     context: string,
-    maxTokens: number
+    maxTokens: number,
 ) {
     try {
         const encoding = encodingForModel(model);
@@ -170,12 +172,12 @@ async function truncateTiktoken(
  * @returns System Prompt
  */
 async function getOnChainEternalAISystemPrompt(
-    runtime: IAgentRuntime
+    runtime: IAgentRuntime,
 ): Promise<string> | undefined {
     const agentId = runtime.getSetting("ETERNALAI_AGENT_ID");
     const providerUrl = runtime.getSetting("ETERNALAI_RPC_URL");
     const contractAddress = runtime.getSetting(
-        "ETERNALAI_AGENT_CONTRACT_ADDRESS"
+        "ETERNALAI_AGENT_CONTRACT_ADDRESS",
     );
     if (agentId && providerUrl && contractAddress) {
         // get on-chain system-prompt
@@ -233,14 +235,14 @@ async function getOnChainEternalAISystemPrompt(
  */
 async function fetchEternalAISystemPrompt(
     runtime: IAgentRuntime,
-    content: string
+    content: string,
 ): Promise<string> | undefined {
     const IPFS = "ipfs://";
     const containsSubstring: boolean = content.includes(IPFS);
     if (containsSubstring) {
         const lightHouse = content.replace(
             IPFS,
-            "https://gateway.lighthouse.storage/ipfs/"
+            "https://gateway.lighthouse.storage/ipfs/",
         );
         elizaLogger.info("fetch lightHouse", lightHouse);
         const responseLH = await fetch(lightHouse, {
@@ -253,7 +255,7 @@ async function fetchEternalAISystemPrompt(
         } else {
             const gcs = content.replace(
                 IPFS,
-                "https://cdn.eternalai.org/upload/"
+                "https://cdn.eternalai.org/upload/",
             );
             elizaLogger.info("fetch gcs", gcs);
             const responseGCS = await fetch(gcs, {
@@ -280,7 +282,7 @@ async function fetchEternalAISystemPrompt(
  */
 function getCloudflareGatewayBaseURL(
     runtime: IAgentRuntime,
-    provider: string
+    provider: string,
 ): string | undefined {
     const isCloudflareEnabled =
         runtime.getSetting("CLOUDFLARE_GW_ENABLED") === "true";
@@ -301,14 +303,14 @@ function getCloudflareGatewayBaseURL(
 
     if (!cloudflareAccountId) {
         elizaLogger.warn(
-            "Cloudflare Gateway is enabled but CLOUDFLARE_AI_ACCOUNT_ID is not set"
+            "Cloudflare Gateway is enabled but CLOUDFLARE_AI_ACCOUNT_ID is not set",
         );
         return undefined;
     }
 
     if (!cloudflareGatewayId) {
         elizaLogger.warn(
-            "Cloudflare Gateway is enabled but CLOUDFLARE_AI_GATEWAY_ID is not set"
+            "Cloudflare Gateway is enabled but CLOUDFLARE_AI_GATEWAY_ID is not set",
         );
         return undefined;
     }
@@ -378,14 +380,14 @@ export async function generateText({
     if (verifiableInference && runtime.verifiableInferenceAdapter) {
         elizaLogger.log(
             "Using verifiable inference adapter:",
-            runtime.verifiableInferenceAdapter
+            runtime.verifiableInferenceAdapter,
         );
         try {
             const result: VerifiableInferenceResult =
                 await runtime.verifiableInferenceAdapter.generateText(
                     context,
                     modelClass,
-                    verifiableInferenceOptions
+                    verifiableInferenceOptions,
                 );
             elizaLogger.log("Verifiable inference result:", result);
             // Verify the proof
@@ -409,10 +411,10 @@ export async function generateText({
         runtimeSettings: {
             CLOUDFLARE_GW_ENABLED: runtime.getSetting("CLOUDFLARE_GW_ENABLED"),
             CLOUDFLARE_AI_ACCOUNT_ID: runtime.getSetting(
-                "CLOUDFLARE_AI_ACCOUNT_ID"
+                "CLOUDFLARE_AI_ACCOUNT_ID",
             ),
             CLOUDFLARE_AI_GATEWAY_ID: runtime.getSetting(
-                "CLOUDFLARE_AI_GATEWAY_ID"
+                "CLOUDFLARE_AI_GATEWAY_ID",
             ),
         },
     });
@@ -511,7 +513,7 @@ export async function generateText({
 
     try {
         elizaLogger.debug(
-            `Trimming context to max length of ${max_context_length} tokens.`
+            `Trimming context to max length of ${max_context_length} tokens.`,
         );
 
         context = await trimTokens(context, max_context_length, runtime);
@@ -520,7 +522,7 @@ export async function generateText({
 
         const _stop = stop || modelSettings.stop;
         elizaLogger.debug(
-            `Using provider: ${provider}, model: ${model}, temperature: ${temperature}, max response length: ${max_response_length}`
+            `Using provider: ${provider}, model: ${model}, temperature: ${temperature}, max response length: ${max_response_length}`,
         );
 
         switch (provider) {
@@ -535,7 +537,7 @@ export async function generateText({
             case ModelProviderName.NINETEEN_AI:
             case ModelProviderName.AKASH_CHAT_API: {
                 elizaLogger.debug(
-                    "Initializing OpenAI model with Cloudflare check"
+                    "Initializing OpenAI model with Cloudflare check",
                 );
                 const baseURL =
                     getCloudflareGatewayBaseURL(runtime, "openai") || endpoint;
@@ -576,7 +578,7 @@ export async function generateText({
                     baseURL: endpoint,
                     fetch: async (
                         input: RequestInfo | URL,
-                        init?: RequestInit
+                        init?: RequestInit,
                     ): Promise<Response> => {
                         const url =
                             typeof input === "string"
@@ -596,19 +598,19 @@ export async function generateText({
 
                         if (
                             parseBooleanFromText(
-                                runtime.getSetting("ETERNALAI_LOG")
+                                runtime.getSetting("ETERNALAI_LOG"),
                             )
                         ) {
                             elizaLogger.info(
                                 "Request data: ",
-                                JSON.stringify(options, null, 2)
+                                JSON.stringify(options, null, 2),
                             );
                             const clonedResponse = fetching.clone();
                             try {
                                 clonedResponse.json().then((data) => {
                                     elizaLogger.info(
                                         "Response data: ",
-                                        JSON.stringify(data, null, 2)
+                                        JSON.stringify(data, null, 2),
                                     );
                                 });
                             } catch (e) {
@@ -628,13 +630,13 @@ export async function generateText({
                         await getOnChainEternalAISystemPrompt(runtime);
                     if (!on_chain_system_prompt) {
                         elizaLogger.error(
-                            new Error("invalid on_chain_system_prompt")
+                            new Error("invalid on_chain_system_prompt"),
                         );
                     } else {
                         system_prompt = on_chain_system_prompt;
                         elizaLogger.info(
                             "new on-chain system prompt",
-                            system_prompt
+                            system_prompt,
                         );
                     }
                 } catch (e) {
@@ -707,7 +709,7 @@ export async function generateText({
 
             case ModelProviderName.ANTHROPIC: {
                 elizaLogger.debug(
-                    "Initializing Anthropic model with Cloudflare check"
+                    "Initializing Anthropic model with Cloudflare check",
                 );
                 const baseURL =
                     getCloudflareGatewayBaseURL(runtime, "anthropic") ||
@@ -768,7 +770,7 @@ export async function generateText({
 
                 response = anthropicResponse;
                 elizaLogger.debug(
-                    "Received response from Claude Vertex model."
+                    "Received response from Claude Vertex model.",
                 );
                 break;
             }
@@ -807,7 +809,7 @@ export async function generateText({
 
             case ModelProviderName.GROQ: {
                 elizaLogger.debug(
-                    "Initializing Groq model with Cloudflare check"
+                    "Initializing Groq model with Cloudflare check",
                 );
                 const baseURL = getCloudflareGatewayBaseURL(runtime, "groq");
                 elizaLogger.debug("Groq baseURL result:", { baseURL });
@@ -841,11 +843,11 @@ export async function generateText({
 
             case ModelProviderName.LLAMALOCAL: {
                 elizaLogger.debug(
-                    "Using local Llama model for text completion."
+                    "Using local Llama model for text completion.",
                 );
                 const textGenerationService =
                     runtime.getService<ITextGenerationService>(
-                        ServiceType.TEXT_GENERATION
+                        ServiceType.TEXT_GENERATION,
                     );
 
                 if (!textGenerationService) {
@@ -858,7 +860,7 @@ export async function generateText({
                     _stop,
                     frequency_penalty,
                     presence_penalty,
-                    max_response_length
+                    max_response_length,
                 );
                 elizaLogger.debug("Received response from local Llama model.");
                 break;
@@ -1074,7 +1076,7 @@ export async function generateText({
                 elizaLogger.debug("Initializing Galadriel model.");
                 const headers = {};
                 const fineTuneApiKey = runtime.getSetting(
-                    "GALADRIEL_FINE_TUNE_API_KEY"
+                    "GALADRIEL_FINE_TUNE_API_KEY",
                 );
                 if (fineTuneApiKey) {
                     headers["Fine-Tune-Authentication"] = fineTuneApiKey;
@@ -1192,15 +1194,61 @@ export async function generateText({
             }
 
             case ModelProviderName.DEEPSEEK: {
+                let initialReasoning = ""; //
+                const customFetch = async (
+                    input: RequestInfo | URL,
+                    init?: RequestInit,
+                ) => {
+                    const response = await runtime.fetch(input, init);
+                    const data = await response.json();
+                    // Capture reasoning from first call
+                    if (
+                        !initialReasoning &&
+                        data.choices?.[0]?.message?.reasoning_content
+                    ) {
+                        initialReasoning =
+                            data.choices[0].message.reasoning_content;
+                    }
+
+                    elizaLogger.debug("Extracted reasoning:", {
+                        value: initialReasoning,
+                        type: typeof initialReasoning,
+                        length: initialReasoning?.length,
+                        isEmpty: initialReasoning === "",
+                        isNull: initialReasoning === null,
+                        isUndefined: initialReasoning === undefined,
+                    });
+
+                    // Deep merge the metadata
+                    data.experimental_providerMetadata = {
+                        ...(data.experimental_providerMetadata || {}),
+                        deepseek: { reasoning_content: initialReasoning },
+                        openai:
+                            data.experimental_providerMetadata?.openai || {},
+                    };
+                    // Store reasoning in metadata
+                    // data.experimental_providerMetadata = {
+                    //     ...data.experimental_providerMetadata,
+                    //     deepseek: { reasoning_content: reasoning },
+                    // };
+                    elizaLogger.debug("Raw DeepSeek response:", data);
+
+                    return new Response(JSON.stringify(data));
+                };
                 elizaLogger.debug("Initializing Deepseek model.");
                 const serverUrl = models[provider].endpoint;
-                const deepseek = createOpenAI({
+                const deepseek = createDeepSeek({
                     apiKey,
                     baseURL: serverUrl,
-                    fetch: runtime.fetch,
+                    // fetch: runtime.fetch,
+                    fetch: customFetch,
                 });
 
-                const { text: deepseekResponse } = await aiGenerateText({
+                const {
+                    text: deepseekResponse,
+                    experimental_providerMetadata,
+                    response: dsResponse,
+                } = await aiGenerateText({
                     model: deepseek.languageModel(model),
                     prompt: context,
                     temperature: temperature,
@@ -1209,7 +1257,12 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
-                    onStepFinish: onStepFinish,
+                    onStepFinish: (step) => {
+                        elizaLogger.debug("Step data:", {
+                            raw: step.response,
+                            rawStep: step,
+                        });
+                    }, //
                     maxSteps: maxSteps,
                     maxTokens: max_response_length,
                     frequencyPenalty: frequency_penalty,
@@ -1217,8 +1270,36 @@ export async function generateText({
                     experimental_telemetry: experimental_telemetry,
                 });
 
-                response = deepseekResponse;
+                // response = deepseekResponse;
+
+                elizaLogger.debug("Full Response details:", {
+                    providerMetadata: experimental_providerMetadata,
+                    messages: dsResponse.messages,
+                    raw: dsResponse,
+                    rawKeys: Object.keys(dsResponse),
+                });
+
+                elizaLogger.debug("experimental_providerMetadata:", {
+                    type: typeof experimental_providerMetadata,
+                    keys: experimental_providerMetadata
+                        ? Object.keys(experimental_providerMetadata)
+                        : null,
+                    value: experimental_providerMetadata,
+                    reasoning: experimental_providerMetadata?.reasoning_content,
+                });
+
+                // const reasoning =
+                //     experimental_providerMetadata?.reasoning_content;
+                elizaLogger.debug("Reasoning:", initialReasoning);
                 elizaLogger.debug("Received response from Deepseek model.");
+
+                response = `${initialReasoning ? `Reasoning:\n${initialReasoning}\n\n` : ""}${deepseekResponse}`;
+                elizaLogger.debug("Final response construction:", {
+                    reasoningCheck: !!initialReasoning,
+                    reasoningValue: initialReasoning,
+                    responseLength: response.length,
+                });
+
                 break;
             }
 
@@ -1261,7 +1342,7 @@ export async function generateText({
                 if (!fetchResponse.ok) {
                     const errorText = await fetchResponse.text();
                     throw new Error(
-                        `Livepeer request failed (${fetchResponse.status}): ${errorText}`
+                        `Livepeer request failed (${fetchResponse.status}): ${errorText}`,
                     );
                 }
 
@@ -1273,10 +1354,10 @@ export async function generateText({
 
                 response = json.choices[0].message.content.replace(
                     /<\|start_header_id\|>assistant<\|end_header_id\|>\n\n/,
-                    ""
+                    "",
                 );
                 elizaLogger.debug(
-                    "Successfully received response from Livepeer model"
+                    "Successfully received response from Livepeer model",
                 );
                 break;
             }
@@ -1323,7 +1404,7 @@ export async function generateShouldRespond({
         try {
             elizaLogger.debug(
                 "Attempting to generate text with context:",
-                context
+                context,
             );
             const response = await generateText({
                 runtime,
@@ -1346,7 +1427,7 @@ export async function generateShouldRespond({
                 error.message.includes("queueTextCompletion")
             ) {
                 elizaLogger.error(
-                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')"
+                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')",
                 );
             }
         }
@@ -1367,7 +1448,7 @@ export async function generateShouldRespond({
 export async function splitChunks(
     content: string,
     chunkSize = 512,
-    bleed = 20
+    bleed = 20,
 ): Promise<string[]> {
     elizaLogger.debug(`[splitChunks] Starting text split`);
 
@@ -1413,7 +1494,7 @@ export async function generateTrueOrFalse({
     let retryDelay = 1000;
     const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
     const stop = Array.from(
-        new Set([...(modelSettings.stop || []), ["\n"]])
+        new Set([...(modelSettings.stop || []), ["\n"]]),
     ) as string[];
 
     while (true) {
@@ -1584,34 +1665,64 @@ export async function generateMessageResponse({
 }): Promise<Content> {
     const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
     const max_context_length = modelSettings.maxInputTokens;
-
     context = await trimTokens(context, max_context_length, runtime);
-    elizaLogger.debug("Context:", context);
-    let retryLength = 1000; // exponential backoff
+    let retryLength = 1000;
+
     while (true) {
         try {
-            elizaLogger.log("Generating message response..");
-
-            const response = await generateText({
+            const rawResponse = await generateText({
                 runtime,
                 context,
                 modelClass,
             });
 
-            // try parsing the response as JSON, if null then try again
-            const parsedContent = parseJSONObjectFromText(response) as Content;
+            elizaLogger.debug("Raw response before parsing:", {
+                responseLength: rawResponse?.length,
+                hasReasoningPrefix: rawResponse?.startsWith("Reasoning:"),
+                fullResponse: rawResponse,
+            });
+
+            // Extract reasoning before JSON parsing
+            const reasoningMatch = rawResponse.match(
+                /Reasoning:\n([\s\S]*?)\n\n```json/,
+            );
+            elizaLogger.debug("Reasoning extraction:", {
+                hasMatch: !!reasoningMatch,
+                reasoning: reasoningMatch?.[1]?.trim(),
+            });
+
+            const parsedContent = parseJSONObjectFromText(
+                rawResponse,
+            ) as Content;
+            elizaLogger.debug("Parsed content result:", {
+                success: !!parsedContent,
+                content: parsedContent,
+                keys: parsedContent ? Object.keys(parsedContent) : null,
+            });
+
             if (!parsedContent) {
-                elizaLogger.debug("parsedContent is null, retrying");
+                elizaLogger.debug("No parsed content, retrying");
                 continue;
             }
 
+            // Add reasoning to content if found
+            if (reasoningMatch?.[1]) {
+                if (!parsedContent.reasoning) {
+                    parsedContent.reasoning = reasoningMatch[1].trim();
+                }
+                elizaLogger.debug("Added reasoning to content:", {
+                    reasoningLength:
+                        typeof parsedContent.reasoning === "string"
+                            ? parsedContent.reasoning.length
+                            : undefined,
+                    finalContent: parsedContent,
+                });
+            }
             return parsedContent;
         } catch (error) {
-            elizaLogger.error("ERROR:", error);
-            // wait for 2 seconds
+            elizaLogger.error("Error:", { error, type: typeof error });
             retryLength *= 2;
             await new Promise((resolve) => setTimeout(resolve, retryLength));
-            elizaLogger.debug("Retrying...");
         }
     }
 }
@@ -1633,7 +1744,7 @@ export const generateImage = async (
         safeMode?: boolean;
         cfgScale?: number;
     },
-    runtime: IAgentRuntime
+    runtime: IAgentRuntime,
 ): Promise<{
     success: boolean;
     data?: string[];
@@ -1703,12 +1814,12 @@ export const generateImage = async (
                         deadline: 60,
                         priority: 1,
                     }),
-                }
+                },
             );
 
             if (!response.ok) {
                 throw new Error(
-                    `Heurist image generation failed: ${response.statusText}`
+                    `Heurist image generation failed: ${response.statusText}`,
                 );
             }
 
@@ -1752,7 +1863,7 @@ export const generateImage = async (
                     const imageResponse = await fetch(image.url);
                     if (!imageResponse.ok) {
                         throw new Error(
-                            `Failed to fetch image: ${imageResponse.statusText}`
+                            `Failed to fetch image: ${imageResponse.statusText}`,
                         );
                     }
 
@@ -1763,7 +1874,7 @@ export const generateImage = async (
 
                     // Return with proper MIME type
                     return `data:image/jpeg;base64,${base64}`;
-                })
+                }),
             );
 
             if (base64s.length === 0) {
@@ -1788,7 +1899,7 @@ export const generateImage = async (
                     runtime.getSetting("FAL_AI_ENABLE_SAFETY_CHECKER") ===
                     "true",
                 safety_tolerance: Number(
-                    runtime.getSetting("FAL_AI_SAFETY_TOLERANCE") || "2"
+                    runtime.getSetting("FAL_AI_SAFETY_TOLERANCE") || "2",
                 ),
                 output_format: "png" as const,
                 seed: data.seed ?? 6252023,
@@ -1847,7 +1958,7 @@ export const generateImage = async (
                         style_preset: data.stylePreset,
                         hide_watermark: data.hideWatermark,
                     }),
-                }
+                },
             );
 
             const result = await response.json();
@@ -1859,7 +1970,7 @@ export const generateImage = async (
             const base64s = result.images.map((base64String) => {
                 if (!base64String) {
                     throw new Error(
-                        "Empty base64 string in Venice AI response"
+                        "Empty base64 string in Venice AI response",
                     );
                 }
                 return `data:image/png;base64,${base64String}`;
@@ -1886,7 +1997,7 @@ export const generateImage = async (
                         steps: data.numIterations,
                         cfg_scale: data.guidanceScale || 3,
                     }),
-                }
+                },
             );
 
             const result = await response.json();
@@ -1898,7 +2009,7 @@ export const generateImage = async (
             const base64s = result.images.map((base64String) => {
                 if (!base64String) {
                     throw new Error(
-                        "Empty base64 string in Nineteen AI response"
+                        "Empty base64 string in Nineteen AI response",
                     );
                 }
                 return `data:image/png;base64,${base64String}`;
@@ -1930,7 +2041,7 @@ export const generateImage = async (
                             width: data.width || 1024,
                             height: data.height || 1024,
                         }),
-                    }
+                    },
                 );
                 const result = await response.json();
                 if (!result.images?.length) {
@@ -1948,7 +2059,7 @@ export const generateImage = async (
                         const imageResponse = await fetch(imageUrl);
                         if (!imageResponse.ok) {
                             throw new Error(
-                                `Failed to fetch image: ${imageResponse.statusText}`
+                                `Failed to fetch image: ${imageResponse.statusText}`,
                             );
                         }
                         const blob = await imageResponse.blob();
@@ -1956,7 +2067,7 @@ export const generateImage = async (
                         const base64 =
                             Buffer.from(arrayBuffer).toString("base64");
                         return `data:image/jpeg;base64,${base64}`;
-                    })
+                    }),
                 );
                 return {
                     success: true,
@@ -1990,7 +2101,7 @@ export const generateImage = async (
                 response_format: "b64_json",
             });
             const base64s = response.data.map(
-                (image) => `data:image/png;base64,${image.b64_json}`
+                (image) => `data:image/png;base64,${image.b64_json}`,
             );
             return { success: true, data: base64s };
         }
@@ -2002,7 +2113,7 @@ export const generateImage = async (
 
 export const generateCaption = async (
     data: { imageUrl: string },
-    runtime: IAgentRuntime
+    runtime: IAgentRuntime,
 ): Promise<{
     title: string;
     description: string;
@@ -2010,7 +2121,7 @@ export const generateCaption = async (
     const { imageUrl } = data;
     const imageDescriptionService =
         runtime.getService<IImageDescriptionService>(
-            ServiceType.IMAGE_DESCRIPTION
+            ServiceType.IMAGE_DESCRIPTION,
         );
 
     if (!imageDescriptionService) {
@@ -2157,7 +2268,7 @@ interface ProviderOptions {
  * @returns {Promise<any[]>} - A promise that resolves to an array of generated objects.
  */
 export async function handleProvider(
-    options: ProviderOptions
+    options: ProviderOptions,
 ): Promise<GenerateObjectResult<unknown>> {
     const {
         provider,
@@ -2176,35 +2287,43 @@ export async function handleProvider(
         case ModelProviderName.LLAMACLOUD:
         case ModelProviderName.TOGETHER:
         case ModelProviderName.NANOGPT:
-        case ModelProviderName.AKASH_CHAT_API:
+        case ModelProviderName.AKASH_CHAT_API: {
             return await handleOpenAI(options);
+        }
         case ModelProviderName.ANTHROPIC:
-        case ModelProviderName.CLAUDE_VERTEX:
+        case ModelProviderName.CLAUDE_VERTEX: {
             return await handleAnthropic(options);
-        case ModelProviderName.GROK:
+        }
+        case ModelProviderName.GROK: {
             return await handleGrok(options);
-        case ModelProviderName.GROQ:
+        }
+        case ModelProviderName.GROQ: {
             return await handleGroq(options);
-        case ModelProviderName.LLAMALOCAL:
-            return await generateObjectDeprecated({
-                runtime,
-                context,
-                modelClass,
-            });
-        case ModelProviderName.GOOGLE:
+        }
+        case ModelProviderName.LLAMALOCAL: {
+            return await generateObjectDeprecated(options);
+        }
+        case ModelProviderName.GOOGLE: {
             return await handleGoogle(options);
-        case ModelProviderName.MISTRAL:
+        }
+        case ModelProviderName.MISTRAL: {
             return await handleMistral(options);
-        case ModelProviderName.REDPILL:
+        }
+        case ModelProviderName.REDPILL: {
             return await handleRedPill(options);
-        case ModelProviderName.OPENROUTER:
+        }
+        case ModelProviderName.OPENROUTER: {
             return await handleOpenRouter(options);
-        case ModelProviderName.OLLAMA:
+        }
+        case ModelProviderName.OLLAMA: {
             return await handleOllama(options);
-        case ModelProviderName.DEEPSEEK:
+        }
+        case ModelProviderName.DEEPSEEK: {
             return await handleDeepSeek(options);
-        case ModelProviderName.LIVEPEER:
+        }
+        case ModelProviderName.LIVEPEER: {
             return await handleLivepeer(options);
+        }
         default: {
             const errorMessage = `Unsupported provider: ${provider}`;
             elizaLogger.error(errorMessage);
@@ -2504,7 +2623,7 @@ async function handleLivepeer({
     console.log("Livepeer provider api key:", apiKey);
     if (!apiKey) {
         throw new Error(
-            "Livepeer provider requires LIVEPEER_GATEWAY_URL to be configured"
+            "Livepeer provider requires LIVEPEER_GATEWAY_URL to be configured",
         );
     }
 
@@ -2551,7 +2670,7 @@ export async function generateTweetActions({
             });
             console.debug(
                 "Received response from generateText for tweet actions:",
-                response
+                response,
             );
             const { actions } = parseActionResponseFromText(response.trim());
             if (actions) {
@@ -2567,7 +2686,7 @@ export async function generateTweetActions({
                 error.message.includes("queueTextCompletion")
             ) {
                 elizaLogger.error(
-                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')"
+                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')",
                 );
             }
         }

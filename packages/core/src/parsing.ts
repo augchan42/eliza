@@ -1,5 +1,11 @@
 import type { ActionResponse } from "./types.ts";
+import elizaLogger from "./logger.ts";
 const jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
+
+// export const messageCompletionFooter = `\nResponse format should be formatted in a JSON block like this:
+// \`\`\`json
+// { "user": "{{agentName}}", "text": "string", "action": "string" }
+// \`\`\``;
 
 export const messageCompletionFooter = `\nResponse format should be formatted in a JSON block like this:
 \`\`\`json
@@ -12,7 +18,7 @@ If {{agentName}} is talking too much, you can choose [IGNORE]
 Your response must include one of the options.`;
 
 export const parseShouldRespondFromText = (
-    text: string
+    text: string,
 ): "RESPOND" | "IGNORE" | "STOP" | null => {
     const match = text
         .split("\n")[0]
@@ -129,32 +135,64 @@ export function parseJsonArrayFromText(text: string) {
  * @returns An object parsed from the JSON string if successful; otherwise, null or the result of parsing an array.
  */
 export function parseJSONObjectFromText(
-    text: string
+    text: string,
 ): Record<string, any> | null {
-    let jsonData = null;
+    elizaLogger.debug("Parsing JSON from text:", {
+        textLength: text?.length,
+        textStart: text?.substring(0, 100) + "...",
+        hasJsonBlock: text?.includes("```json"),
+        fullText: text,
+    });
 
+    let jsonData = null;
     const jsonBlockMatch = text.match(jsonBlockPattern);
+
+    elizaLogger.debug("JSON block match result:", {
+        hasMatch: !!jsonBlockMatch,
+        matchGroups: jsonBlockMatch?.length,
+        matchContent: jsonBlockMatch ? jsonBlockMatch[1] : null,
+    });
 
     if (jsonBlockMatch) {
         try {
             jsonData = JSON.parse(jsonBlockMatch[1]);
+            elizaLogger.debug("Parsed JSON from block:", jsonData);
         } catch (e) {
-            console.error("Error parsing JSON:", e);
+            elizaLogger.error("Error parsing JSON block:", {
+                error: e,
+                attemptedContent: jsonBlockMatch[1],
+            });
             return null;
         }
     } else {
         const objectPattern = /{[\s\S]*?}/;
         const objectMatch = text.match(objectPattern);
 
+        elizaLogger.debug("Fallback object pattern match:", {
+            hasMatch: !!objectMatch,
+            matchContent: objectMatch ? objectMatch[0] : null,
+        });
+
         if (objectMatch) {
             try {
                 jsonData = JSON.parse(objectMatch[0]);
+                elizaLogger.debug("Parsed JSON from object pattern:", jsonData);
             } catch (e) {
-                console.error("Error parsing JSON:", e);
+                elizaLogger.error("Error parsing object pattern:", {
+                    error: e,
+                    attemptedContent: objectMatch[0],
+                });
                 return null;
             }
         }
     }
+
+    elizaLogger.debug("Final parsed result:", {
+        type: typeof jsonData,
+        isNull: jsonData === null,
+        isArray: Array.isArray(jsonData),
+        keys: jsonData ? Object.keys(jsonData) : null,
+    });
 
     if (
         typeof jsonData === "object" &&
@@ -163,8 +201,10 @@ export function parseJSONObjectFromText(
     ) {
         return jsonData;
     } else if (typeof jsonData === "object" && Array.isArray(jsonData)) {
+        elizaLogger.debug("Found array, attempting array parse");
         return parseJsonArrayFromText(text);
     } else {
+        elizaLogger.debug("No valid JSON object found");
         return null;
     }
 }
@@ -172,7 +212,7 @@ export function parseJSONObjectFromText(
 export const postActionResponseFooter = `Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
 
 export const parseActionResponseFromText = (
-    text: string
+    text: string,
 ): { actions: ActionResponse } => {
     const actions: ActionResponse = {
         like: false,
@@ -211,7 +251,7 @@ export const parseActionResponseFromText = (
  */
 export function truncateToCompleteSentence(
     text: string,
-    maxLength: number
+    maxLength: number,
 ): string {
     if (text.length <= maxLength) {
         return text;

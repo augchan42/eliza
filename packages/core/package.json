@@ -63,6 +63,7 @@
     },
     "dependencies": {
         "@ai-sdk/anthropic": "0.0.56",
+        "@ai-sdk/deepseek": "^0.1.4",
         "@ai-sdk/google": "0.0.55",
         "@ai-sdk/google-vertex": "0.0.43",
         "@ai-sdk/groq": "0.0.3",
@@ -71,7 +72,7 @@
         "@fal-ai/client": "1.2.0",
         "@tavily/core": "^0.0.2",
         "@types/uuid": "10.0.0",
-        "ai": "3.4.33",
+        "ai": "4.1.6",
         "anthropic-vertex-ai": "1.0.2",
         "dotenv": "16.4.5",
         "fastembed": "1.14.1",

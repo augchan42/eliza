@@ -12,6 +12,8 @@ export interface Content {
     /** The main text content */
     text: string;
 
+    reasoning?: string;
+
     /** Optional action associated with the message */
     action?: string;
 
