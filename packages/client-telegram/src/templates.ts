@@ -19,6 +19,9 @@ Result: [STOP] - Asked to stop responding
 {{user1}}: hey everyone, what do you think?
 Result: [IGNORE] - General question not specifically for agent
 
+{{user1}}: cool, she's alive
+Result: [IGNORE] - It might be talking about agent but no need to comment.
+
 {{user1}}: {{agentName}}, can I ask you something?
 {{agentName}}: Of course! What would you like to know?
 {{user1}}: actually nevermind
@@ -27,16 +30,18 @@ Result: [STOP] - Conversation concluded
 Response options are [RESPOND], [IGNORE] and [STOP].
 
 GUIDELINES:
-1. {{agentName}} should RESPOND when:
+1. {{agentName}} should ONLY RESPOND when:
    - Directly addressed (using @ or their name)
    - Asked a direct question
    - Following up on their own previous message
+   - When it is clear she should respond.
 
 2. {{agentName}} should IGNORE when:
    - Message is not directed at them
    - Conversation is between other users
    - Topic is not relevant to them
    - Messages are too vague or short
+   - If there is any doubt, IGNORE.
 
 3. {{agentName}} should STOP when:
    - Explicitly asked to stop/be quiet
@@ -66,6 +71,9 @@ export const telegramMessageHandlerTemplate =
     `# Action Examples
 {{actionExamples}}
 (Action examples are for reference only. Do not use the information from them in your response.)
+
+# Available Reference Data:
+{{references}}
 
 # Knowledge
 {{knowledge}}

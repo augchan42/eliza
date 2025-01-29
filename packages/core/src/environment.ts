@@ -63,6 +63,13 @@ const PluginSchema = z.object({
     clients: z.array(z.any()).optional(),
 });
 
+const ReferenceEntrySchema = z.object({
+    import: z.string().regex(/^(.*\/)?[^\/]+\.(json)$/, {
+        message:
+            "Import path must optionally include directories and point to a .json",
+    }),
+});
+
 // Main Character schema
 export const CharacterSchema = z.object({
     id: z.string().uuid().optional(),
@@ -91,9 +98,10 @@ export const CharacterSchema = z.object({
                     directory: z.string(),
                     shared: z.boolean().optional(),
                 }),
-            ])
+            ]),
         )
         .optional(),
+    reference: z.record(ReferenceEntrySchema).optional(),
     clients: z.array(z.nativeEnum(Clients)),
     plugins: z.union([z.array(z.string()), z.array(PluginSchema)]),
     settings: z
@@ -164,17 +172,17 @@ export function validateCharacterConfig(json: unknown): CharacterConfig {
                     acc[path].push(err.message);
                     return acc;
                 },
-                {} as Record<string, string[]>
+                {} as Record<string, string[]>,
             );
 
             Object.entries(groupedErrors).forEach(([field, messages]) => {
                 elizaLogger.error(
-                    `Validation errors in ${field}: ${messages.join(" - ")}`
+                    `Validation errors in ${field}: ${messages.join(" - ")}`,
                 );
             });
 
             throw new Error(
-                "Character configuration validation failed. Check logs for details."
+                "Character configuration validation failed. Check logs for details.",
             );
         }
         throw error;

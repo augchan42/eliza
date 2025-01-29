@@ -368,6 +368,9 @@ export interface State {
     /** Optional formatted conversation */
     formattedConversation?: string;
 
+    referenceData?: Record<string, any>; // Raw reference data
+    references?: string;
+
     /** Optional formatted knowledge */
     knowledge?: string;
     /** Optional knowledge data */
@@ -808,6 +811,9 @@ export type Character = {
 
     /** Character traits */
     adjectives: string[];
+
+    /** Optional reference data imports */
+    reference?: Record<string, ReferenceEntry>;
 
     /** Optional knowledge base */
     knowledge?: (string | { path: string; shared?: boolean })[];
@@ -1570,6 +1576,11 @@ export interface RAGKnowledgeItem {
     similarity?: number;
     score?: number;
 }
+
+export type ReferenceEntry = {
+    import: string; // Path to the file containing constant to import
+    exportName: string;
+};
 
 export interface ActionResponse {
     like: boolean;

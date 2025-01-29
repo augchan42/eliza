@@ -56,6 +56,8 @@ import {
 import { stringToUuid } from "./uuid.ts";
 import { glob } from "glob";
 import { existsSync } from "fs";
+import { ReferenceLoader } from "./referenceLoader.ts";
+
 /**
  * Represents the runtime environment for an agent, handling message processing,
  * action registration, and interaction with external services like OpenAI and Supabase.
@@ -165,6 +167,7 @@ export class AgentRuntime implements IAgentRuntime {
 
     ragKnowledgeManager: IRAGKnowledgeManager;
 
+    private readonly referencesRoot: string;
     private readonly knowledgeRoot: string;
 
     services: Map<ServiceType, Service> = new Map();
@@ -173,6 +176,30 @@ export class AgentRuntime implements IAgentRuntime {
     clients: Record<string, any>;
 
     verifiableInferenceAdapter?: IVerifiableInferenceAdapter;
+
+    private referenceData: Record<string, any> = {};
+    private referenceLoader: ReferenceLoader;
+
+    private async loadReferences() {
+        if (!this.character.reference) return;
+
+        try {
+            elizaLogger.debug("[Reference] Starting reference loading process");
+            this.referenceData = await this.referenceLoader.loadReferences(
+                this.character.reference,
+            );
+            elizaLogger.success(
+                "[Reference] Successfully loaded all references",
+            );
+        } catch (error) {
+            elizaLogger.error(
+                "[Reference] Failed to load references:",
+                error instanceof Error ? error.message : error,
+            );
+            // Don't throw - allow the agent to continue running even if some references fail
+            this.referenceData = {};
+        }
+    }
 
     registerMemoryManager(manager: IMemoryManager): void {
         if (!manager.tableName) {
@@ -267,6 +294,17 @@ export class AgentRuntime implements IAgentRuntime {
             `[AgentRuntime] Process working directory: ${process.cwd()}`,
         );
 
+        this.referencesRoot = join(
+            process.cwd(),
+            "..",
+            "characters",
+            "reference",
+        );
+
+        elizaLogger.debug(
+            `[AgentRuntime] Process referencesRoot: ${this.referencesRoot}`,
+        );
+
         // Define the root path once
         this.knowledgeRoot = join(
             process.cwd(),
@@ -278,6 +316,8 @@ export class AgentRuntime implements IAgentRuntime {
         elizaLogger.debug(
             `[AgentRuntime] Process knowledgeRoot: ${this.knowledgeRoot}`,
         );
+
+        this.referenceLoader = new ReferenceLoader(this.referencesRoot);
 
         this.#conversationLength =
             opts.conversationLength ?? this.#conversationLength;
@@ -461,6 +501,8 @@ export class AgentRuntime implements IAgentRuntime {
                     plugin.services?.map((service) => service.initialize(this)),
                 );
         }
+
+        await this.loadReferences();
 
         if (
             this.character &&
@@ -1227,6 +1269,13 @@ export class AgentRuntime implements IAgentRuntime {
         }
     }
 
+    // When composing state, format the references to help LLM understand the data
+    private formatReferencesForPrompt(): string {
+        return this.referenceLoader.formatReferencesForPrompt(
+            this.character.reference || {},
+        );
+    }
+
     /**
      * Compose the state of the agent into an object that can be passed or used for response generation.
      * @param message The message to compose the state from.
@@ -1485,6 +1534,8 @@ Text: ${attachment.text}
                           )
                       ]
                     : "",
+            referenceData: this.referenceData, // Raw data for direct access
+            references: this.formatReferencesForPrompt(),
             knowledge: formattedKnowledge,
             knowledgeData: knowledgeData,
             ragKnowledgeData: knowledgeData,

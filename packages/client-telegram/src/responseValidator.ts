@@ -171,7 +171,7 @@ ${validationPrompt}`;
             try {
                 // Extract just the JSON part
                 const jsonPart = this.extractJSON(validationResponse);
-                const validation = JSON.parse(jsonPart) as ValidationResult;
+                validation = JSON.parse(jsonPart) as ValidationResult;
 
                 elizaLogger.debug(
                     "ResponseValidator: Parsed validation result",

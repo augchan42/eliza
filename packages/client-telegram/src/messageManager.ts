@@ -1222,27 +1222,28 @@ export class MessageManager {
         });
 
         // Get recent messages for context
-        const recentContext = _state.recentMessagesData
-            .slice(-3)
-            .map((msg) => msg.content.text)
-            .join(" ");
+        // const recentContext = _state.recentMessagesData
+        //     .slice(-3)
+        //     .map((msg) => msg.content.text)
+        //     .join(" ");
 
-        // Add validation step
-        const validatedResponse = await this.validateAndCorrectResponse(
-            response,
-            recentContext,
-        );
+        // // Add validation step
+        // const validatedResponse = await this.validateAndCorrectResponse(
+        //     response,
+        //     recentContext,
+        // );
 
-        elizaLogger.debug("Final processed response:", {
-            responseText: validatedResponse.text,
-            responseAction: validatedResponse.action,
-            reasoning: validatedResponse.reasoning,
-            additionalKeys: Object.keys(validatedResponse).filter(
-                (k) => !["text", "action", "reasoning"].includes(k),
-            ),
-        });
+        // elizaLogger.debug("Final processed response:", {
+        //     responseText: validatedResponse.text,
+        //     responseAction: validatedResponse.action,
+        //     reasoning: validatedResponse.reasoning,
+        //     additionalKeys: Object.keys(validatedResponse).filter(
+        //         (k) => !["text", "action", "reasoning"].includes(k),
+        //     ),
+        // });
 
-        return validatedResponse;
+        // return validatedResponse;
+        return response;
     }
 
     // Main handler for incoming messages
