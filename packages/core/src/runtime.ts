@@ -77,7 +77,7 @@ export class AgentRuntime implements IAgentRuntime {
      * Default count for recent messages to be kept in memory.
      * @private
      */
-    readonly #conversationLength = 32 as number;
+    readonly #conversationLength = 10 as number;
     /**
      * The ID of the agent
      */
@@ -993,6 +993,13 @@ export class AgentRuntime implements IAgentRuntime {
      * @param action The action to register.
      */
     registerAction(action: Action) {
+        // Check if action with same name already exists
+        if (this.actions.some((a) => a.name === action.name)) {
+            elizaLogger.warn(
+                `Action ${action.name} already registered. Skipping registration.`,
+            );
+            return;
+        }
         elizaLogger.success(`Registering action: ${action.name}`);
         this.actions.push(action);
     }
@@ -1398,7 +1405,7 @@ Text: ${attachment.text}
 
         const formattedCharacterMessageExamples = this.character.messageExamples
             .sort(() => 0.5 - Math.random())
-            .slice(0, 5)
+            // .slice(0, 5)
             .map((example) => {
                 const exampleNames = Array.from({ length: 5 }, () =>
                     uniqueNamesGenerator({ dictionaries: [names] }),

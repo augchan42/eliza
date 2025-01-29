@@ -4,7 +4,7 @@ import {
     type IAgentRuntime,
     type Memory,
     type State,
-    elizaLogger
+    elizaLogger,
 } from "@elizaos/core";
 import { encodingForModel, type TiktokenModel } from "js-tiktoken";
 import { WebSearchService } from "../services/webSearchService";
@@ -15,7 +15,7 @@ const DEFAULT_MODEL_ENCODING = "gpt-3.5-turbo";
 
 function getTotalTokensFromString(
     str: string,
-    encodingName: TiktokenModel = DEFAULT_MODEL_ENCODING
+    encodingName: TiktokenModel = DEFAULT_MODEL_ENCODING,
 ) {
     const encoding = encodingForModel(encodingName);
     return encoding.encode(str).length;
@@ -23,7 +23,7 @@ function getTotalTokensFromString(
 
 function MaxTokens(
     data: string,
-    maxTokens: number = DEFAULT_MAX_WEB_SEARCH_TOKENS
+    maxTokens: number = DEFAULT_MAX_WEB_SEARCH_TOKENS,
 ): string {
     if (getTotalTokensFromString(data) >= maxTokens) {
         return data.slice(0, maxTokens);
@@ -58,21 +58,58 @@ export const webSearch: Action = {
         message: Memory,
         state: State,
         options: any,
-        callback: HandlerCallback
+        callback: HandlerCallback,
     ) => {
-        elizaLogger.log("Composing state for message:", message);
+        elizaLogger.debug(
+            "[WEB_SEARCH]: Composing state for message:",
+            message,
+        );
         state = (await runtime.composeState(message)) as State;
         const userId = runtime.agentId;
-        elizaLogger.log("User ID:", userId);
+        elizaLogger.debug("[WEB_SEARCH]: User ID:", userId);
 
-        const webSearchPrompt = message.content.text;
-        elizaLogger.log("web search prompt received:", webSearchPrompt);
+        let webSearchPrompt = message.content.text;
+        elizaLogger.debug(
+            "[WEB_SEARCH]: web search prompt received:",
+            webSearchPrompt,
+        );
+
+        // Remove agent name references (case insensitive)
+        const agentName = runtime.character.name;
+        const nameRegex = new RegExp(`\\b${agentName}\\b`, "gi");
+        webSearchPrompt = webSearchPrompt.replace(nameRegex, "");
+
+        // Remove common prefixes
+        const prefixesToRemove = [
+            "tell me",
+            "what are",
+            "what is",
+            "show me",
+            "find",
+            "search for",
+            "look up",
+            "get me",
+        ];
+
+        for (const prefix of prefixesToRemove) {
+            const prefixRegex = new RegExp(`^${prefix}\\s+`, "i");
+            webSearchPrompt = webSearchPrompt.replace(prefixRegex, "");
+        }
+
+        // Clean up punctuation and multiple spaces
+        webSearchPrompt = webSearchPrompt
+            .replace(/[,.?!]$/, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        elizaLogger.debug(
+            "[WEB_SEARCH]: Cleaned web search prompt:",
+            webSearchPrompt,
+        );
 
         const webSearchService = new WebSearchService();
         await webSearchService.initialize(runtime);
-        const searchResponse = await webSearchService.search(
-            webSearchPrompt,
-        );
+        const searchResponse = await webSearchService.search(webSearchPrompt);
 
         if (searchResponse && searchResponse.results.length) {
             const responseList = searchResponse.answer
@@ -82,7 +119,7 @@ export const webSearch: Action = {
                           ? `\n\nFor more details, you can check out these resources:\n${searchResponse.results
                                 .map(
                                     (result: SearchResult, index: number) =>
-                                        `${index + 1}. [${result.title}](${result.url})`
+                                        `${index + 1}. [${result.title}](${result.url})`,
                                 )
                                 .join("\n")}`
                           : ""
@@ -93,7 +130,9 @@ export const webSearch: Action = {
                 text: MaxTokens(responseList, DEFAULT_MAX_WEB_SEARCH_TOKENS),
             });
         } else {
-            elizaLogger.error("search failed or returned no data.");
+            elizaLogger.error(
+                "[WEB_SEARCH]: search failed or returned no data.",
+            );
         }
     },
     examples: [
@@ -101,99 +140,13 @@ export const webSearch: Action = {
             {
                 user: "{{user1}}",
                 content: {
-                    text: "Find the latest news about SpaceX launches.",
+                    text: "latest news?",
                 },
             },
             {
                 user: "{{agentName}}",
                 content: {
-                    text: "Here is the latest news about SpaceX launches:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: {
-                    text: "Can you find details about the iPhone 16 release?",
-                },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here are the details I found about the iPhone 16 release:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: {
-                    text: "What is the schedule for the next FIFA World Cup?",
-                },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here is the schedule for the next FIFA World Cup:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: { text: "Check the latest stock price of Tesla." },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here is the latest stock price of Tesla I found:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: {
-                    text: "What are the current trending movies in the US?",
-                },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here are the current trending movies in the US:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: {
-                    text: "What is the latest score in the NBA finals?",
-                },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here is the latest score from the NBA finals:",
-                    action: "WEB_SEARCH",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: { text: "When is the next Apple keynote event?" },
-            },
-            {
-                user: "{{agentName}}",
-                content: {
-                    text: "Here is the information about the next Apple keynote event:",
+                    text: "Here is the latest news:",
                     action: "WEB_SEARCH",
                 },
             },

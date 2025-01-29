@@ -204,9 +204,15 @@ export class ReferenceLoader {
         description: string,
         data: any,
     ): string {
-        return `# ${name} Reference\n${description}\n${JSON.stringify(data, null, 2)}`;
-    }
+        // Use a more readable format with proper indentation
+        const formattedData = JSON.stringify(data, null, 2)
+            // Remove escaped quotes
+            .replace(/\\"/g, '"')
+            // Clean up escaped newlines
+            .replace(/\\n/g, "\n");
 
+        return `# ${name} Reference\n${description}\n${formattedData}`;
+    }
     /**
      * Get raw reference data
      * @returns Object containing all loaded reference data

@@ -756,15 +756,241 @@ export class MessageManager {
     }
 
     // Decide if the bot should respond to the message
+    // private async _shouldRespond(
+    //     message: Message,
+    //     state: State,
+    // ): Promise<boolean> {
+    //     if (
+    //         this.runtime.character.clientConfig?.telegram
+    //             ?.shouldRespondOnlyToMentions
+    //     ) {
+    //         return this._isMessageForMe(message);
+    //     }
+
+    //     // Respond if bot is mentioned
+    //     if (
+    //         "text" in message &&
+    //         message.text?.includes(`@${this.bot.botInfo?.username}`)
+    //     ) {
+    //         elizaLogger.info(`Bot mentioned`);
+    //         return true;
+    //     }
+
+    //     // Respond to private chats
+    //     if (message.chat.type === "private") {
+    //         return true;
+    //     }
+
+    //     // Don't respond to images in group chats
+    //     if (
+    //         "photo" in message ||
+    //         ("document" in message &&
+    //             message.document?.mime_type?.startsWith("image/"))
+    //     ) {
+    //         return false;
+    //     }
+
+    //     const chatId = message.chat.id.toString();
+    //     const chatState = this.interestChats[chatId];
+    //     const messageText =
+    //         "text" in message
+    //             ? message.text
+    //             : "caption" in message
+    //               ? message.caption
+    //               : "";
+
+    //     // Check if team member has direct interest first
+    //     if (
+    //         this.runtime.character.clientConfig?.telegram?.isPartOfTeam &&
+    //         !this._isTeamLeader() &&
+    //         this._isRelevantToTeamMember(messageText, chatId)
+    //     ) {
+    //         return true;
+    //     }
+
+    //     // Team-based response logic
+    //     if (this.runtime.character.clientConfig?.telegram?.isPartOfTeam) {
+    //         // Team coordination
+    //         if (this._isTeamCoordinationRequest(messageText)) {
+    //             if (this._isTeamLeader()) {
+    //                 return true;
+    //             } else {
+    //                 const randomDelay =
+    //                     Math.floor(
+    //                         Math.random() *
+    //                             (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
+    //                                 TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN),
+    //                     ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN; // 1-3 second random delay
+    //                 await new Promise((resolve) =>
+    //                     setTimeout(resolve, randomDelay),
+    //                 );
+    //                 return true;
+    //             }
+    //         }
+
+    //         if (
+    //             !this._isTeamLeader() &&
+    //             this._isRelevantToTeamMember(messageText, chatId)
+    //         ) {
+    //             // Add small delay for non-leader responses
+    //             await new Promise((resolve) =>
+    //                 setTimeout(resolve, TIMING_CONSTANTS.TEAM_MEMBER_DELAY),
+    //             ); //1.5 second delay
+
+    //             // If leader has responded in last few seconds, reduce chance of responding
+    //             if (chatState.messages?.length) {
+    //                 const recentMessages = chatState.messages.slice(
+    //                     -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
+    //                 );
+    //                 const leaderResponded = recentMessages.some(
+    //                     (m) =>
+    //                         m.userId ===
+    //                             this.runtime.character.clientConfig?.telegram
+    //                                 ?.teamLeaderId &&
+    //                         Date.now() - chatState.lastMessageSent < 3000,
+    //                 );
+
+    //                 if (leaderResponded) {
+    //                     // 50% chance to respond if leader just did
+    //                     return Math.random() > RESPONSE_CHANCES.AFTER_LEADER;
+    //                 }
+    //             }
+
+    //             return true;
+    //         }
+
+    //         // If I'm the leader but message doesn't match my keywords, add delay and check for team responses
+    //         if (
+    //             this._isTeamLeader() &&
+    //             !this._isRelevantToTeamMember(messageText, chatId)
+    //         ) {
+    //             const randomDelay =
+    //                 Math.floor(
+    //                     Math.random() *
+    //                         (TIMING_CONSTANTS.LEADER_DELAY_MAX -
+    //                             TIMING_CONSTANTS.LEADER_DELAY_MIN),
+    //                 ) + TIMING_CONSTANTS.LEADER_DELAY_MIN; // 2-4 second random delay
+    //             await new Promise((resolve) =>
+    //                 setTimeout(resolve, randomDelay),
+    //             );
+
+    //             // After delay, check if another team member has already responded
+    //             if (chatState?.messages?.length) {
+    //                 const recentResponses = chatState.messages.slice(
+    //                     -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
+    //                 );
+    //                 const otherTeamMemberResponded = recentResponses.some(
+    //                     (m) =>
+    //                         m.userId !== this.runtime.agentId &&
+    //                         this._isTeamMember(m.userId),
+    //                 );
+
+    //                 if (otherTeamMemberResponded) {
+    //                     return false;
+    //                 }
+    //             }
+    //         }
+
+    //         // Update current handler if we're mentioned
+    //         if (this._isMessageForMe(message)) {
+    //             const channelState = this.interestChats[chatId];
+    //             if (channelState) {
+    //                 channelState.currentHandler =
+    //                     this.bot.botInfo?.id.toString();
+    //                 channelState.lastMessageSent = Date.now();
+    //             }
+    //             return true;
+    //         }
+
+    //         // Don't respond if another teammate is handling the conversation
+    //         if (chatState?.currentHandler) {
+    //             if (
+    //                 chatState.currentHandler !==
+    //                     this.bot.botInfo?.id.toString() &&
+    //                 this._isTeamMember(chatState.currentHandler)
+    //             ) {
+    //                 return false;
+    //             }
+    //         }
+
+    //         // Natural conversation cadence
+    //         if (!this._isMessageForMe(message) && this.interestChats[chatId]) {
+    //             const recentMessages = this.interestChats[
+    //                 chatId
+    //             ].messages.slice(-MESSAGE_CONSTANTS.CHAT_HISTORY_COUNT);
+    //             const ourMessageCount = recentMessages.filter(
+    //                 (m) => m.userId === this.runtime.agentId,
+    //             ).length;
+
+    //             if (ourMessageCount > 2) {
+    //                 const responseChance = Math.pow(0.5, ourMessageCount - 2);
+    //                 if (Math.random() > responseChance) {
+    //                     return;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     // Check context-based response for team conversations
+    //     if (chatState?.currentHandler) {
+    //         const shouldRespondContext =
+    //             await this._shouldRespondBasedOnContext(message, chatState);
+
+    //         if (!shouldRespondContext) {
+    //             return false;
+    //         }
+    //     }
+
+    //     // Use AI to decide for text or captions
+    //     if ("text" in message || ("caption" in message && message.caption)) {
+    //         const shouldRespondContext = composeContext({
+    //             state,
+    //             template:
+    //                 this.runtime.character.templates
+    //                     ?.telegramShouldRespondTemplate ||
+    //                 this.runtime.character?.templates?.shouldRespondTemplate ||
+    //                 composeRandomUser(telegramShouldRespondTemplate, 2),
+    //         });
+
+    //         const response = await generateShouldRespond({
+    //             runtime: this.runtime,
+    //             context: shouldRespondContext,
+    //             modelClass: ModelClass.SMALL,
+    //         });
+
+    //         return response === "RESPOND";
+    //     }
+
+    //     return false;
+    // }
+
     private async _shouldRespond(
         message: Message,
         state: State,
     ): Promise<boolean> {
+        elizaLogger.debug(
+            `[shouldRespond] Starting response evaluation for message`,
+            {
+                messageType: message.chat.type,
+                chatId: message.chat.id,
+                hasText: "text" in message,
+                hasPhoto: "photo" in message,
+                isDocument: "document" in message,
+            },
+        );
+
         if (
             this.runtime.character.clientConfig?.telegram
                 ?.shouldRespondOnlyToMentions
         ) {
-            return this._isMessageForMe(message);
+            elizaLogger.debug(
+                `[shouldRespond] Bot configured to respond only to mentions`,
+            );
+            const shouldRespond = this._isMessageForMe(message);
+            elizaLogger.debug(
+                `[shouldRespond] Message for me check result: ${shouldRespond}`,
+            );
+            return shouldRespond;
         }
 
         // Respond if bot is mentioned
@@ -772,12 +998,17 @@ export class MessageManager {
             "text" in message &&
             message.text?.includes(`@${this.bot.botInfo?.username}`)
         ) {
-            elizaLogger.info(`Bot mentioned`);
+            elizaLogger.debug(
+                `[shouldRespond] Bot explicitly mentioned in message`,
+            );
             return true;
         }
 
         // Respond to private chats
         if (message.chat.type === "private") {
+            elizaLogger.debug(
+                `[shouldRespond] Message is in private chat, responding`,
+            );
             return true;
         }
 
@@ -787,11 +1018,21 @@ export class MessageManager {
             ("document" in message &&
                 message.document?.mime_type?.startsWith("image/"))
         ) {
+            elizaLogger.debug(
+                `[shouldRespond] Image in group chat, skipping response`,
+            );
             return false;
         }
 
         const chatId = message.chat.id.toString();
         const chatState = this.interestChats[chatId];
+        elizaLogger.debug(`[shouldRespond] Chat state`, {
+            chatId,
+            hasState: !!chatState,
+            currentHandler: chatState?.currentHandler,
+            messageCount: chatState?.messages?.length,
+        });
+
         const messageText =
             "text" in message
                 ? message.text
@@ -802,17 +1043,34 @@ export class MessageManager {
         // Check if team member has direct interest first
         if (
             this.runtime.character.clientConfig?.telegram?.isPartOfTeam &&
-            !this._isTeamLeader() &&
-            this._isRelevantToTeamMember(messageText, chatId)
+            !this._isTeamLeader()
         ) {
-            return true;
+            elizaLogger.debug(`[shouldRespond] Checking team member interest`, {
+                isTeamMember: true,
+                isLeader: false,
+                messageText: messageText.slice(0, 100), // Log first 100 chars
+            });
+
+            if (this._isRelevantToTeamMember(messageText, chatId)) {
+                elizaLogger.debug(
+                    `[shouldRespond] Message relevant to team member, responding`,
+                );
+                return true;
+            }
         }
 
-        // Team-based response logic
+        // Team coordination
         if (this.runtime.character.clientConfig?.telegram?.isPartOfTeam) {
-            // Team coordination
+            elizaLogger.debug(`[shouldRespond] Processing team coordination`, {
+                isTeamMember: true,
+                isLeader: this._isTeamLeader(),
+            });
+
             if (this._isTeamCoordinationRequest(messageText)) {
                 if (this._isTeamLeader()) {
+                    elizaLogger.debug(
+                        `[shouldRespond] Team leader responding to coordination request`,
+                    );
                     return true;
                 } else {
                     const randomDelay =
@@ -820,7 +1078,14 @@ export class MessageManager {
                             Math.random() *
                                 (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
                                     TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN),
-                        ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN; // 1-3 second random delay
+                        ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN;
+
+                    elizaLogger.debug(
+                        `[shouldRespond] Team member adding coordination delay`,
+                        {
+                            delay: randomDelay,
+                        },
+                    );
                     await new Promise((resolve) =>
                         setTimeout(resolve, randomDelay),
                     );
@@ -828,16 +1093,23 @@ export class MessageManager {
                 }
             }
 
+            // Additional team logic...
             if (
                 !this._isTeamLeader() &&
                 this._isRelevantToTeamMember(messageText, chatId)
             ) {
-                // Add small delay for non-leader responses
+                elizaLogger.debug(
+                    `[shouldRespond] Non-leader team member processing`,
+                    {
+                        messageRelevant: true,
+                        chatId,
+                    },
+                );
+
                 await new Promise((resolve) =>
                     setTimeout(resolve, TIMING_CONSTANTS.TEAM_MEMBER_DELAY),
-                ); //1.5 second delay
+                );
 
-                // If leader has responded in last few seconds, reduce chance of responding
                 if (chatState.messages?.length) {
                     const recentMessages = chatState.messages.slice(
                         -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
@@ -850,99 +1122,79 @@ export class MessageManager {
                             Date.now() - chatState.lastMessageSent < 3000,
                     );
 
+                    elizaLogger.debug(
+                        `[shouldRespond] Checking recent leader responses`,
+                        {
+                            leaderResponded,
+                            recentMessageCount: recentMessages.length,
+                            timeSinceLastMessage:
+                                Date.now() - chatState.lastMessageSent,
+                        },
+                    );
+
                     if (leaderResponded) {
-                        // 50% chance to respond if leader just did
-                        return Math.random() > RESPONSE_CHANCES.AFTER_LEADER;
+                        const shouldRespond =
+                            Math.random() > RESPONSE_CHANCES.AFTER_LEADER;
+                        elizaLogger.debug(
+                            `[shouldRespond] Leader recently responded`,
+                            {
+                                chance: RESPONSE_CHANCES.AFTER_LEADER,
+                                shouldRespond,
+                            },
+                        );
+                        return shouldRespond;
                     }
                 }
-
                 return true;
             }
+        }
 
-            // If I'm the leader but message doesn't match my keywords, add delay and check for team responses
-            if (
-                this._isTeamLeader() &&
-                !this._isRelevantToTeamMember(messageText, chatId)
-            ) {
-                const randomDelay =
-                    Math.floor(
-                        Math.random() *
-                            (TIMING_CONSTANTS.LEADER_DELAY_MAX -
-                                TIMING_CONSTANTS.LEADER_DELAY_MIN),
-                    ) + TIMING_CONSTANTS.LEADER_DELAY_MIN; // 2-4 second random delay
-                await new Promise((resolve) =>
-                    setTimeout(resolve, randomDelay),
+        // Natural conversation cadence
+        if (!this._isMessageForMe(message) && this.interestChats[chatId]) {
+            const recentMessages = this.interestChats[chatId].messages.slice(
+                -MESSAGE_CONSTANTS.CHAT_HISTORY_COUNT,
+            );
+            const ourMessageCount = recentMessages.filter(
+                (m) => m.userId === this.runtime.agentId,
+            ).length;
+
+            elizaLogger.debug(
+                `[shouldRespond] Evaluating conversation cadence`,
+                {
+                    recentMessageCount: recentMessages.length,
+                    ourMessageCount,
+                    chatId,
+                },
+            );
+
+            if (ourMessageCount > 2) {
+                const responseChance = Math.pow(0.5, ourMessageCount - 2);
+                const shouldRespond = Math.random() <= responseChance;
+                elizaLogger.debug(
+                    `[shouldRespond] Applying response probability`,
+                    {
+                        responseChance,
+                        shouldRespond,
+                        ourMessageCount,
+                    },
                 );
-
-                // After delay, check if another team member has already responded
-                if (chatState?.messages?.length) {
-                    const recentResponses = chatState.messages.slice(
-                        -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
-                    );
-                    const otherTeamMemberResponded = recentResponses.some(
-                        (m) =>
-                            m.userId !== this.runtime.agentId &&
-                            this._isTeamMember(m.userId),
-                    );
-
-                    if (otherTeamMemberResponded) {
-                        return false;
-                    }
-                }
-            }
-
-            // Update current handler if we're mentioned
-            if (this._isMessageForMe(message)) {
-                const channelState = this.interestChats[chatId];
-                if (channelState) {
-                    channelState.currentHandler =
-                        this.bot.botInfo?.id.toString();
-                    channelState.lastMessageSent = Date.now();
-                }
-                return true;
-            }
-
-            // Don't respond if another teammate is handling the conversation
-            if (chatState?.currentHandler) {
-                if (
-                    chatState.currentHandler !==
-                        this.bot.botInfo?.id.toString() &&
-                    this._isTeamMember(chatState.currentHandler)
-                ) {
+                if (!shouldRespond) {
                     return false;
                 }
             }
-
-            // Natural conversation cadence
-            if (!this._isMessageForMe(message) && this.interestChats[chatId]) {
-                const recentMessages = this.interestChats[
-                    chatId
-                ].messages.slice(-MESSAGE_CONSTANTS.CHAT_HISTORY_COUNT);
-                const ourMessageCount = recentMessages.filter(
-                    (m) => m.userId === this.runtime.agentId,
-                ).length;
-
-                if (ourMessageCount > 2) {
-                    const responseChance = Math.pow(0.5, ourMessageCount - 2);
-                    if (Math.random() > responseChance) {
-                        return;
-                    }
-                }
-            }
         }
 
-        // Check context-based response for team conversations
-        if (chatState?.currentHandler) {
-            const shouldRespondContext =
-                await this._shouldRespondBasedOnContext(message, chatState);
-
-            if (!shouldRespondContext) {
-                return false;
-            }
-        }
-
-        // Use AI to decide for text or captions
+        // Final context check
         if ("text" in message || ("caption" in message && message.caption)) {
+            elizaLogger.debug(
+                `[shouldRespond] Making final context-based decision`,
+                {
+                    hasText: "text" in message,
+                    hasCaption: "caption" in message,
+                    messageLength: messageText.length,
+                },
+            );
+
             const shouldRespondContext = composeContext({
                 state,
                 template:
@@ -958,9 +1210,17 @@ export class MessageManager {
                 modelClass: ModelClass.SMALL,
             });
 
+            elizaLogger.debug(`[shouldRespond] Final decision`, {
+                decision: response,
+                shouldRespond: response === "RESPOND",
+            });
+
             return response === "RESPOND";
         }
 
+        elizaLogger.debug(
+            `[shouldRespond] No text/caption content, defaulting to false`,
+        );
         return false;
     }
 
@@ -1627,8 +1887,8 @@ export class MessageManager {
                         ? "telegram"
                         : this.runtime.character?.templates
                                 ?.messageHandlerTemplate
-                          ? "default"
-                          : "fallback",
+                          ? "character_default"
+                          : "telegram_default",
                 });
 
                 const responseContent = await this._generateResponse(

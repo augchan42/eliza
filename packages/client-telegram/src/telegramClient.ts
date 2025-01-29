@@ -67,6 +67,10 @@ export class TelegramClient {
             return true;
         }
 
+        if (ctx.chat.type === "private") {
+            return true; // Always allow DMs
+        }
+
         const allowedGroups = config.allowedGroupIds || [];
         const currentGroupId = ctx.chat.id.toString();
 
