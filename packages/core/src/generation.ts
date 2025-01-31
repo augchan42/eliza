@@ -1169,26 +1169,55 @@ export async function generateText({
 
             case ModelProviderName.NVIDIA: {
                 elizaLogger.debug("Initializing NVIDIA model.");
-                const nvidia = createOpenAI({
+
+                // const nvidia = createOpenAI({
+                //     apiKey: apiKey,
+                //     baseURL: endpoint,
+                // });
+
+                const nvidia = new OpenAI({
                     apiKey: apiKey,
                     baseURL: endpoint,
                 });
 
-                const { text: nvidiaResponse } = await aiGenerateText({
-                    model: nvidia.languageModel(model),
-                    prompt: context,
-                    system:
-                        runtime.character.system ??
-                        settings.SYSTEM_PROMPT ??
-                        undefined,
-                    tools: tools,
-                    onStepFinish: onStepFinish,
+                // const { text: nvidiaResponse } = await aiGenerateText({
+                //     model: nvidia.languageModel(model),
+                //     prompt: context,
+                //     system:
+                //         runtime.character.system ??
+                //         settings.SYSTEM_PROMPT ??
+                //         undefined,
+                //     tools: tools,
+                //     onStepFinish: onStepFinish,
+                //     temperature: temperature,
+                //     maxSteps: maxSteps,
+                //     maxTokens: max_response_length,
+                // });
+
+                const completion = await nvidia.chat.completions.create({
+                    model: model,
+                    messages: [
+                        // If there's a system message
+                        ...(runtime.character.system
+                            ? [
+                                  {
+                                      role: "system" as const,
+                                      content: runtime.character.system,
+                                  },
+                              ]
+                            : []),
+                        // User message
+                        {
+                            role: "user" as const,
+                            content: context,
+                        },
+                    ],
                     temperature: temperature,
-                    maxSteps: maxSteps,
-                    maxTokens: max_response_length,
+                    max_tokens: max_response_length,
+                    stream: false, // If you want streaming
                 });
 
-                response = nvidiaResponse;
+                response = completion.choices[0].message.content;
                 elizaLogger.debug("Received response from NVIDIA model.");
                 break;
             }
