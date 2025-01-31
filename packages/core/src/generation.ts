@@ -374,6 +374,7 @@ export async function generateText({
         modelProvider: runtime.modelProvider,
         model: modelClass,
         verifiableInference,
+        apiKey: runtime.token,
     });
     elizaLogger.log("Using provider:", runtime.modelProvider);
     // If verifiable inference is requested and adapter is provided, use it
