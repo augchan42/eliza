@@ -873,7 +873,7 @@ export const models: Models = {
                     settings.SMALL_NVIDIA_MODEL || "meta/llama-3.2-3b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 4096,
                 temperature: 0.6,
             },
             [ModelClass.MEDIUM]: {
@@ -882,7 +882,7 @@ export const models: Models = {
                     "meta/llama-3.3-70b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 4096,
                 temperature: 0.6,
             },
             [ModelClass.LARGE]: {
@@ -891,7 +891,7 @@ export const models: Models = {
                     "meta/llama-3.1-405b-instruct",
                 stop: [],
                 maxInputTokens: 128000,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 4096,
                 temperature: 0.6,
             },
         },
