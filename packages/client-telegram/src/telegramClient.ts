@@ -50,6 +50,9 @@ export class TelegramClient {
             "✨ Telegram bot successfully launched and is running!",
         );
 
+        await this.registerCommands();
+        elizaLogger.log("✨ Bot commands registered successfully");
+
         const botInfo = await this.bot.telegram.getMe();
         this.bot.botInfo = botInfo;
         elizaLogger.success(`Bot username: @${botInfo.username}`);
@@ -92,7 +95,10 @@ export class TelegramClient {
     }
 
     private setupMessageHandlers(): void {
-        elizaLogger.log("Setting up message handler...");
+        elizaLogger.log("Setting up message and command handlers...");
+
+        // Setup command handlers
+        this.setupCommandHandlers();
 
         this.bot.on(message("new_chat_members"), async (ctx) => {
             try {
@@ -208,5 +214,67 @@ export class TelegramClient {
         //await
         this.bot.stop();
         elizaLogger.log("Telegram bot stopped");
+    }
+
+    private async registerCommands(): Promise<void> {
+        try {
+            await this.bot.telegram.setMyCommands([
+                { command: "start", description: "Start the bot" },
+                { command: "help", description: "Show help information" },
+                { command: "settings", description: "Manage your settings" },
+                // Add more commands as needed
+            ]);
+            elizaLogger.log("✅ Bot commands registered successfully");
+        } catch (error) {
+            elizaLogger.error("❌ Failed to register bot commands:", error);
+        }
+    }
+
+    private setupCommandHandlers(): void {
+        // Start command
+        this.bot.command("start", async (ctx) => {
+            try {
+                if (!(await this.isGroupAuthorized(ctx))) return;
+
+                await ctx.reply(
+                    "👋 Hello! I am your assistant. How can I help you today?",
+                );
+            } catch (error) {
+                elizaLogger.error("❌ Error handling start command:", error);
+            }
+        });
+
+        // Help command
+        this.bot.command("help", async (ctx) => {
+            try {
+                if (!(await this.isGroupAuthorized(ctx))) return;
+
+                const helpText = `
+🤖 Available Commands:
+/start - Start the bot
+/help - Show this help message
+Asking about 'weather' or 'news' will shortcut normal LLM processing and call
+out to Tavily websearch and openweather API.
+Pix has been enhanced with I-Ching, Trigram, and other assorted occult and
+retro computing knowledge in her short term memory.
+`;
+
+                await ctx.reply(helpText);
+            } catch (error) {
+                elizaLogger.error("❌ Error handling help command:", error);
+            }
+        });
+
+        // Settings command
+        this.bot.command("settings", async (ctx) => {
+            try {
+                if (!(await this.isGroupAuthorized(ctx))) return;
+
+                // Implement your settings logic here
+                await ctx.reply("⚙️ Settings functionality coming soon!");
+            } catch (error) {
+                elizaLogger.error("❌ Error handling settings command:", error);
+            }
+        });
     }
 }

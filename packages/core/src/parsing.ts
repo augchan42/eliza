@@ -7,6 +7,12 @@ const jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
 // { "user": "{{agentName}}", "text": "string", "action": "string" }
 // \`\`\``;
 
+export const formattingInstruction = `
+When providing responses, use explicit newlines (\\n) to separate statements.
+Each major concept should be on its own line.
+Double newlines (\\n\\n) should separate thematic sections.
+`;
+
 export const messageCompletionFooter = `\nResponse format should be formatted in a JSON block like this:
 \`\`\`json
 { "user": "{{agentName}}", "text": "string", "action": "string" }

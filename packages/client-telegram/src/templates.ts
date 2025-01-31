@@ -1,4 +1,8 @@
-import { messageCompletionFooter, shouldRespondFooter } from "@elizaos/core";
+import {
+    messageCompletionFooter,
+    shouldRespondFooter,
+    formattingInstruction,
+} from "@elizaos/core";
 
 export const telegramShouldRespondTemplate =
     `
@@ -105,7 +109,9 @@ Current Post:
 Thread of Tweets You Are Replying To:
 
 {{formattedConversation}}
-` + messageCompletionFooter;
+` +
+    messageCompletionFooter +
+    formattingInstruction;
 
 export const telegramAutoPostTemplate =
     `# Action Examples

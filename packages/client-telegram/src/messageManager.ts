@@ -84,6 +84,13 @@ export class MessageManager {
 
     private responseValidator: ResponseValidator;
 
+    // Define plugin keyword mappings
+    private readonly PLUGIN_KEYWORDS = {
+        weather: ["weather", "temperature", "forecast", "humidity", "rain"],
+        news: ["news", "headlines", "latest", "search"],
+        // Add other plugins and their keywords here
+    } as const;
+
     constructor(bot: Telegraf<Context>, runtime: IAgentRuntime) {
         this.bot = bot;
         this.runtime = runtime;
@@ -979,6 +986,28 @@ export class MessageManager {
             },
         );
 
+        const messageText =
+            "text" in message
+                ? message.text
+                : "caption" in message
+                  ? message.caption
+                  : "";
+
+        // Check for plugin keywords
+        for (const [plugin, keywords] of Object.entries(this.PLUGIN_KEYWORDS)) {
+            if (
+                keywords.some((keyword) =>
+                    messageText.toLowerCase().includes(keyword),
+                )
+            ) {
+                elizaLogger.debug(
+                    `[shouldRespond] ${plugin} query detected, setting plugin flag`,
+                );
+                state.pluginQuery = plugin;
+                return true; // Allow processing to continue for plugin handling
+            }
+        }
+
         if (
             this.runtime.character.clientConfig?.telegram
                 ?.shouldRespondOnlyToMentions
@@ -1032,13 +1061,6 @@ export class MessageManager {
             currentHandler: chatState?.currentHandler,
             messageCount: chatState?.messages?.length,
         });
-
-        const messageText =
-            "text" in message
-                ? message.text
-                : "caption" in message
-                  ? message.caption
-                  : "";
 
         // Check if team member has direct interest first
         if (
@@ -1442,6 +1464,30 @@ export class MessageManager {
         _state: State,
         context: string,
     ): Promise<Content> {
+        // Skip LLM response for plugin queries
+        // Handle plugin queries
+        if (_state.pluginQuery === "weather") {
+            elizaLogger.debug("[generateResponse] Processing weather query");
+            // Create a response object for the weather query
+            const response: Content = {
+                text: "Let me check the weather for you...",
+                action: "GET_CURRENT_WEATHER",
+                source: "telegram",
+            };
+            return response;
+        }
+
+        if (_state.pluginQuery === "news") {
+            elizaLogger.debug("[generateResponse] Processing news query");
+            // Create a response object for the weather query
+            const response: Content = {
+                text: "Let me check the news for you...",
+                action: "WEB_SEARCH",
+                source: "telegram",
+            };
+            return response;
+        }
+
         const { userId, roomId } = message;
 
         elizaLogger.debug("Generating response for message:", {
