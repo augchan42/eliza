@@ -1180,6 +1180,8 @@ export async function generateText({
                     baseURL: endpoint,
                 });
 
+                elizaLogger.debug("apiKey: ", apiKey);
+                elizaLogger.debug("baseURL: ", endpoint);
                 // const { text: nvidiaResponse } = await aiGenerateText({
                 //     model: nvidia.languageModel(model),
                 //     prompt: context,
@@ -1197,15 +1199,6 @@ export async function generateText({
                 const completion = await nvidia.chat.completions.create({
                     model: model,
                     messages: [
-                        // If there's a system message
-                        ...(runtime.character.system
-                            ? [
-                                  {
-                                      role: "system" as const,
-                                      content: runtime.character.system,
-                                  },
-                              ]
-                            : []),
                         // User message
                         {
                             role: "user" as const,
@@ -1213,6 +1206,7 @@ export async function generateText({
                         },
                     ],
                     temperature: temperature,
+                    top_p: 0.7,
                     max_tokens: max_response_length,
                     stream: false, // If you want streaming
                 });
