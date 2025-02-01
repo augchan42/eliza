@@ -5,6 +5,7 @@ import {
     elizaLogger,
     ServiceType,
     composeRandomUser,
+    getTemplate,
 } from "@elizaos/core";
 import { getEmbeddingZeroVector } from "@elizaos/core";
 import {
@@ -36,6 +37,7 @@ import {
 import { ResponseValidator } from "./responseValidator";
 
 import fs from "fs";
+import { templateRegistry } from "@elizaos/core";
 
 enum MediaType {
     PHOTO = "photo",
@@ -241,12 +243,14 @@ export class MessageManager {
                         agentName: this.runtime.character.name,
                     });
 
+                    const templateToUse =
+                        this.runtime.character.templates
+                            ?.telegramAutoPostTemplate ||
+                        telegramAutoPostTemplate;
+
                     const context = composeContext({
                         state,
-                        template:
-                            this.runtime.character.templates
-                                ?.telegramAutoPostTemplate ||
-                            telegramAutoPostTemplate,
+                        template: getTemplate(templateToUse),
                     });
 
                     const responseContent = await this._generateResponse(
@@ -1217,13 +1221,25 @@ export class MessageManager {
                 },
             );
 
+            const templateToUse =
+                this.runtime.character.templates
+                    ?.telegramShouldRespondTemplate ||
+                this.runtime.character?.templates?.shouldRespondTemplate ||
+                telegramShouldRespondTemplate;
+
+            // Handle the special case where we need to compose random users
+            const baseTemplate =
+                typeof templateToUse === "string"
+                    ? getTemplate(templateToUse)
+                    : templateToUse({ state });
+            const templateWithRandomUsers =
+                templateToUse === telegramShouldRespondTemplate
+                    ? composeRandomUser(baseTemplate, 2)
+                    : baseTemplate;
+
             const shouldRespondContext = composeContext({
                 state,
-                template:
-                    this.runtime.character.templates
-                        ?.telegramShouldRespondTemplate ||
-                    this.runtime.character?.templates?.shouldRespondTemplate ||
-                    composeRandomUser(telegramShouldRespondTemplate, 2),
+                template: templateWithRandomUsers,
             });
 
             const response = await generateShouldRespond({
@@ -1916,15 +1932,39 @@ export class MessageManager {
                     },
                 );
 
+                // Get the template path/name from the configuration
+                const templateToUse =
+                    this.runtime.character.templates
+                        ?.telegramMessageHandlerTemplate ||
+                    this.runtime.character?.templates?.messageHandlerTemplate ||
+                    telegramMessageHandlerTemplate;
+
+                // Get the actual template content from the registry
+                const templateContent =
+                    typeof templateToUse === "string"
+                        ? getTemplate(templateToUse)
+                        : templateToUse({ state });
+
+                elizaLogger.debug("[Context Generation] Template selection:", {
+                    selectedTemplate: templateToUse,
+                    hasContent: !!templateContent,
+                    contentLength: templateContent?.length,
+                });
+
                 const context = composeContext({
                     state,
-                    template:
-                        this.runtime.character.templates
-                            ?.telegramMessageHandlerTemplate ||
-                        this.runtime.character?.templates
-                            ?.messageHandlerTemplate ||
-                        telegramMessageHandlerTemplate,
+                    template: templateContent,
                 });
+
+                // const context = composeContext({
+                //     state,
+                //     template:
+                //         this.runtime.character.templates
+                //             ?.telegramMessageHandlerTemplate ||
+                //         this.runtime.character?.templates
+                //             ?.messageHandlerTemplate ||
+                //         telegramMessageHandlerTemplate,
+                // });
 
                 elizaLogger.debug("[Response Generation] Created context", {
                     contextLength: context.length,

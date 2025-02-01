@@ -1,6 +1,126 @@
 import handlebars from "handlebars";
 import type { State, TemplateType } from "./types.ts";
 import { names, uniqueNamesGenerator } from "unique-names-generator";
+import elizaLogger from "./logger.ts";
+import fs from "fs/promises";
+import { join } from "path";
+
+/**
+ * Checks if the template content looks like a file path
+ */
+function isFilePath(str: string): boolean {
+    // Only treat as filepath if it ends with .template extension
+    // or starts with ./ or / (absolute/relative path indicators)
+    return (
+        str.endsWith(".template") || str.startsWith("./") || str.startsWith("/")
+    );
+}
+
+/**
+ * Resolves template path relative to project root
+ */
+function resolveTemplatePath(templatePath: string): string {
+    const cwd = process.cwd();
+    elizaLogger.info(
+        `[Resolve Template Path] Current working directory: ${cwd}`,
+    );
+
+    const fullPath = join(cwd, "..", "characters", templatePath);
+    elizaLogger.info(
+        `[Resolve Template Path] Resolved template path: ${fullPath}`,
+    );
+
+    return fullPath;
+}
+
+// Template cache to store loaded templates
+export const templateRegistry: Map<string, string> = new Map();
+
+/**
+ * Initialize templates by loading them into registry.
+ * Call this at startup time.
+ */
+export async function initializeTemplates(templates: Record<string, string>) {
+    elizaLogger.debug("[Template Init] Starting template initialization:", {
+        templateCount: Object.keys(templates).length,
+        templateNames: Object.keys(templates),
+    });
+
+    for (const [name, content] of Object.entries(templates)) {
+        try {
+            // If it looks like a file path, load the file
+            if (isFilePath(content)) {
+                const resolvedPath = resolveTemplatePath(content);
+                elizaLogger.debug(`[Template Init] Loading template file:`, {
+                    templateName: name,
+                    path: resolvedPath,
+                });
+
+                const fileContent = await fs.readFile(resolvedPath, {
+                    encoding: "utf8",
+                });
+
+                // Store under both the name and the path for backward compatibility
+                templateRegistry.set(name, fileContent);
+                templateRegistry.set(content, fileContent); // Also store under the path
+
+                elizaLogger.debug(`[Template Init] Template loaded:`, {
+                    templateName: name,
+                    contentLength: fileContent.length,
+                    registrySize: templateRegistry.size,
+                });
+            } else {
+                // Store direct content
+                templateRegistry.set(name, content);
+                elizaLogger.debug(`[Template Init] Direct content stored:`, {
+                    templateName: name,
+                    contentLength: content.length,
+                });
+            }
+        } catch (error) {
+            elizaLogger.error(
+                `[Template Init] Error loading template ${name}:`,
+                error,
+            );
+            if (error.code === "ENOENT" && content.includes("/")) {
+                try {
+                    const altPath = join(process.cwd(), "..", content);
+                    const fileContent = await fs.readFile(altPath, {
+                        encoding: "utf8",
+                    });
+                    templateRegistry.set(name, fileContent);
+                    templateRegistry.set(content, fileContent); // Also store under the path
+                    continue;
+                } catch (altError) {
+                    elizaLogger.error(
+                        `[Template Init] Failed to load alternate path:`,
+                        altError,
+                    );
+                }
+            }
+            throw error;
+        }
+    }
+
+    elizaLogger.debug("[Template Init] Final registry state:", {
+        registrySize: templateRegistry.size,
+        registeredKeys: Array.from(templateRegistry.keys()),
+    });
+}
+/**
+ * Get template content from registry or return original if not found
+ */
+export function getTemplate(template: string): string {
+    const registryContent = templateRegistry.get(template);
+    elizaLogger.debug("[Template Registry] Getting template:", {
+        templateInput: template,
+        foundInRegistry: !!registryContent,
+        registrySize: templateRegistry.size,
+        isTemplateString: typeof template === "string",
+        firstChars: template.substring(0, 100), // First 100 chars for debugging
+    });
+    return registryContent ?? template;
+}
 
 /**
  * Composes a context string by replacing placeholders in a template with corresponding values from the state.
@@ -42,9 +162,13 @@ export const composeContext = ({
     state: State;
     template: TemplateType;
     templatingEngine?: "handlebars";
-}) => {
-    const templateStr =
+}): string => {
+    // Handle function templates
+    let templateStr =
         typeof template === "function" ? template({ state }) : template;
+
+    // Get from registry if it exists
+    templateStr = getTemplate(templateStr);
 
     if (templatingEngine === "handlebars") {
         const templateFunction = handlebars.compile(templateStr);
@@ -52,11 +176,10 @@ export const composeContext = ({
     }
 
     // @ts-expect-error match isn't working as expected
-    const out = templateStr.replace(/{{\w+}}/g, (match) => {
+    return templateStr.replace(/{{\w+}}/g, (match) => {
         const key = match.replace(/{{|}}/g, "");
         return state[key] ?? "";
     });
-    return out;
 };
 
 /**
@@ -104,7 +227,7 @@ export const addHeader = (header: string, body: string) => {
  */
 export const composeRandomUser = (template: string, length: number) => {
     const exampleNames = Array.from({ length }, () =>
-        uniqueNamesGenerator({ dictionaries: [names] })
+        uniqueNamesGenerator({ dictionaries: [names] }),
     );
     let result = template;
     for (let i = 0; i < exampleNames.length; i++) {
