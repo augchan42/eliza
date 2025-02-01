@@ -122,6 +122,12 @@ About {{agentName}}:
 {{bio}}
 {{lore}}
 
+# Available Reference Data:
+{{references}}
+
+# Knowledge
+{{knowledge}}
+
 Examples of {{agentName}}'s dialog and actions:
 {{characterMessageExamples}}
 
@@ -132,7 +138,7 @@ Examples of {{agentName}}'s dialog and actions:
 
 # Instructions: Write a natural, engaging message to restart community conversation. Focus on:
 - Community engagement
-- Educational topics
+- Educational topics referencing knowledge as needed
 - General discusions
 - Support queries
 - Keep message warm and inviting
@@ -149,7 +155,9 @@ Examples of {{agentName}}'s dialog and actions:
 - DO NOT REPEAT THE SAME thing that you just said from your recent chat history, start the message different each time, and be organic, non reptitive.
 
 # Instructions: Write the next message for {{agentName}}. Include the "NONE" action only, as the only valid action for auto-posts is "NONE".
-` + messageCompletionFooter;
+` +
+    messageCompletionFooter +
+    formattingInstruction;
 
 export const telegramPinnedMessageTemplate =
     `# Action Examples
@@ -159,6 +167,12 @@ NONE: Respond but perform no additional action. This is the default if the agent
 About {{agentName}}:
 {{bio}}
 {{lore}}
+
+# Available Reference Data:
+{{references}}
+
+# Knowledge
+{{knowledge}}
 
 Examples of {{agentName}}'s dialog and actions:
 {{characterMessageExamples}}
@@ -182,4 +196,6 @@ Examples of {{agentName}}'s dialog and actions:
 - Use 1-2 emojis maximum
 
 # Instructions: Write the next message for {{agentName}}. Include an action, if appropriate. The only valid action for pinned message highlights is "NONE".
-` + messageCompletionFooter;
+` +
+    messageCompletionFooter +
+    formattingInstruction;

@@ -374,7 +374,6 @@ export async function generateText({
         modelProvider: runtime.modelProvider,
         model: modelClass,
         verifiableInference,
-        apiKey: runtime.token,
     });
     elizaLogger.log("Using provider:", runtime.modelProvider);
     // If verifiable inference is requested and adapter is provided, use it
@@ -1181,8 +1180,6 @@ export async function generateText({
                     baseURL: endpoint,
                 });
 
-                elizaLogger.debug("apiKey: ", apiKey);
-                elizaLogger.debug("baseURL: ", endpoint);
                 // const { text: nvidiaResponse } = await aiGenerateText({
                 //     model: nvidia.languageModel(model),
                 //     prompt: context,

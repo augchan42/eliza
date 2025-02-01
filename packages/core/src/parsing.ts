@@ -8,7 +8,7 @@ const jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
 // \`\`\``;
 
 export const formattingInstruction = `
-When providing responses, use explicit newlines (\\n) to separate statements.
+When posting or responding, use explicit newlines (\\n) to separate statements.
 Each major concept should be on its own line.
 Double newlines (\\n\\n) should separate thematic sections.
 `;
