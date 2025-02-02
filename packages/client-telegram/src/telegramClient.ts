@@ -255,8 +255,6 @@ export class TelegramClient {
 /help - Show this help message
 Asking about 'weather' or 'news' will shortcut normal LLM processing and call
 out to Tavily websearch and openweather API.
-Pix has been enhanced with I-Ching, Trigram, and other assorted occult and
-retro computing knowledge in her short term memory.
 `;
 
                 await ctx.reply(helpText);
