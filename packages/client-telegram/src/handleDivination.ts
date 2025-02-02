@@ -61,7 +61,7 @@ export async function handleDivinationCommand(
             modelClass: ModelClass.LARGE,
         });
 
-        let responseText = `[SIGNAL INTERCEPT]\n${response}\n`;
+        let responseText = `${response}\n`;
 
         await ctx.reply(responseText);
     } catch (error) {
