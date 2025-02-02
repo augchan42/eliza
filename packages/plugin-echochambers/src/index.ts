@@ -1,4 +1,9 @@
-import { elizaLogger, type Client, type IAgentRuntime, type Plugin } from "@elizaos/core";
+import {
+    elizaLogger,
+    type Client,
+    type IAgentRuntime,
+    type Plugin,
+} from "@elizaos/core";
 import { EchoChamberClient } from "./echoChamberClient";
 import { InteractionClient } from "./interactions";
 import type { EchoChamberConfig } from "./types";
@@ -15,7 +20,7 @@ export const EchoChamberClientInterface: Client = {
 
             if (!apiKey || !apiUrl) {
                 throw new Error(
-                    "ECHOCHAMBERS_API_KEY/ECHOCHAMBERS_API_URL is required"
+                    "ECHOCHAMBERS_API_KEY/ECHOCHAMBERS_API_URL is required",
                 );
             }
 
@@ -43,7 +48,7 @@ export const EchoChamberClientInterface: Client = {
             await interactionClient.start();
 
             elizaLogger.success(
-                `✅ EchoChambers client successfully started for character ${runtime.character.name}`
+                `✅ EchoChambers client successfully started for character ${runtime.character.name}`,
             );
 
             return { client, interactionClient };
@@ -61,9 +66,8 @@ export const EchoChamberClientInterface: Client = {
             const clients = (runtime as any).clients?.filter(
                 (c: any) =>
                     c instanceof EchoChamberClient ||
-                    c instanceof InteractionClient
+                    c instanceof InteractionClient,
             );
-
             for (const client of clients) {
                 await client.stop();
             }

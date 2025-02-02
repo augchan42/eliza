@@ -4,6 +4,7 @@ import { type IAgentRuntime, elizaLogger } from "@elizaos/core";
 import { MessageManager } from "./messageManager.ts";
 import { getOrCreateRecommenderInBe } from "./getOrCreateRecommenderInBe.ts";
 import { handleDivinationCommand } from "./handleDivination.ts";
+import { RateLimiter } from "./rateLimiter";
 
 export class TelegramClient {
     private bot: Telegraf<Context>;
@@ -13,6 +14,7 @@ export class TelegramClient {
     private backendToken;
     private tgTrader;
     private options;
+    private rateLimiter: RateLimiter;
 
     constructor(runtime: IAgentRuntime, botToken: string) {
         elizaLogger.log("📱 Constructing new TelegramClient...");
@@ -30,6 +32,10 @@ export class TelegramClient {
         this.backend = runtime.getSetting("BACKEND_URL");
         this.backendToken = runtime.getSetting("BACKEND_TOKEN");
         this.tgTrader = runtime.getSetting("TG_TRADER"); // boolean To Be added to the settings
+
+        // Initialize rate limiter (1 request per user per minute)
+        this.rateLimiter = new RateLimiter(5 * 60 * 1000); // 5 minutes
+
         elizaLogger.log("✅ TelegramClient constructor completed");
     }
 
@@ -279,10 +285,27 @@ out to Tavily websearch and openweather API.
             }
         });
 
-        // Divination command
+        // Divination command with rate limiting
         this.bot.command("scan", async (ctx) => {
             try {
                 if (!(await this.isGroupAuthorized(ctx))) return;
+
+                const userId = ctx.from?.id.toString();
+                if (!userId) {
+                    await ctx.reply("Cannot identify user.");
+                    return;
+                }
+
+                if (!this.rateLimiter.canMakeRequest(userId)) {
+                    const timeLeft =
+                        this.rateLimiter.getTimeUntilNextRequest(userId);
+                    await ctx.reply(
+                        `⏳ Please wait ${Math.ceil(timeLeft / 1000)} seconds before requesting another scan.`,
+                    );
+                    return;
+                }
+
+                this.rateLimiter.recordRequest(userId);
                 await handleDivinationCommand(ctx, this.runtime);
             } catch (error) {
                 elizaLogger.error("❌ Error handling scan command:", error);
