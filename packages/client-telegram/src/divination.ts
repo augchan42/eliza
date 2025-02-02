@@ -153,7 +153,7 @@ mkt: {sentiment} {emoji}
 {clean cut insights}
 
 - through mirrored eyes
-@8bitoracle
+8bitoracle.ai + irai.co
 
 # SIGNAL INTERCEPT Rules
 
