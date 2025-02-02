@@ -3,6 +3,7 @@ import { message } from "telegraf/filters";
 import { type IAgentRuntime, elizaLogger } from "@elizaos/core";
 import { MessageManager } from "./messageManager.ts";
 import { getOrCreateRecommenderInBe } from "./getOrCreateRecommenderInBe.ts";
+import { handleDivinationCommand } from "./handleDivination.ts";
 
 export class TelegramClient {
     private bot: Telegraf<Context>;
@@ -222,7 +223,10 @@ export class TelegramClient {
                 { command: "start", description: "Start the bot" },
                 { command: "help", description: "Show help information" },
                 { command: "settings", description: "Manage your settings" },
-                // Add more commands as needed
+                {
+                    command: "scan",
+                    description: "Scan crypto market with I-Ching reading",
+                },
             ]);
             elizaLogger.log("✅ Bot commands registered successfully");
         } catch (error) {
@@ -251,8 +255,8 @@ export class TelegramClient {
 
                 const helpText = `
 🤖 Available Commands:
-/start - Start the bot
 /help - Show this help message
+/scan - Scan crypto market and sentiment, courtesy of irai.co and 8bitoracle.ai
 Asking about 'weather' or 'news' will shortcut normal LLM processing and call
 out to Tavily websearch and openweather API.
 `;
@@ -272,6 +276,16 @@ out to Tavily websearch and openweather API.
                 await ctx.reply("⚙️ Settings functionality coming soon!");
             } catch (error) {
                 elizaLogger.error("❌ Error handling settings command:", error);
+            }
+        });
+
+        // Divination command
+        this.bot.command("scan", async (ctx) => {
+            try {
+                if (!(await this.isGroupAuthorized(ctx))) return;
+                await handleDivinationCommand(ctx, this.runtime);
+            } catch (error) {
+                elizaLogger.error("❌ Error handling scan command:", error);
             }
         });
     }
