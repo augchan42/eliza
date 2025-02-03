@@ -37,7 +37,7 @@ import {
 import { ResponseValidator } from "./responseValidator";
 
 import fs from "fs";
-import { templateRegistry } from "@elizaos/core";
+import { HexagramGenerateResponse } from "./divination";
 
 enum MediaType {
     PHOTO = "photo",
@@ -179,17 +179,17 @@ export class MessageManager {
     private _initializeAutoPost(): void {
         // Give the bot a moment to fully initialize
         setTimeout(() => {
-            // Monitor with random intervals between 2-6 hours
-            // Monitor with random intervals between 2-6 hours
+            // For testing: Random intervals between 30-90 seconds
             this.autoPostInterval = setInterval(
                 () => {
                     this._checkChannelActivity();
                 },
                 Math.floor(
-                    Math.random() * (4 * 60 * 60 * 1000) + 2 * 60 * 60 * 1000,
+                    Math.random() * (4 * 60 * 60 * 1000) + 2 * 60 * 60 * 1000, // 2-6 hours
+                    // Math.random() * 60000 + 30000, // 30-90 seconds
                 ),
             );
-        }, 5000);
+        }, 5000); // Reduced initial delay to 3 seconds
     }
 
     private async _checkChannelActivity(): Promise<void> {
@@ -206,10 +206,10 @@ export class MessageManager {
             const timeSinceLastAutoPost =
                 now - (this.autoPostConfig.lastAutoPost || 0);
 
-            // Add some randomness to the inactivity threshold (±30 minutes)
             const randomThreshold =
                 this.autoPostConfig.inactivityThreshold +
-                (Math.random() * 1800000 - 900000);
+                (Math.random() * 1800000 - 900000); //(±30 minutes)
+            // (Math.random() * 60000 - 30000); // ±30 seconds instead of ±30 minutes
 
             // Check if we should post
             if (
@@ -225,6 +225,65 @@ export class MessageManager {
                             "-" +
                             this.runtime.agentId,
                     );
+
+                    // Get I Ching reading
+                    let oracleReading = "";
+                    let data: HexagramGenerateResponse = null;
+                    try {
+                        const response = await fetch(
+                            "https://8bitoracle.ai/api/generate/hexagram?includeText=true",
+                        );
+                        data = await response.json();
+
+                        if (data?.interpretation?.currentHexagram) {
+                            const hexagram =
+                                data.interpretation.currentHexagram;
+                            const transformedHexagram =
+                                data.interpretation.transformedHexagram;
+
+                            // Format current hexagram details
+                            oracleReading = `
+Current Hexagram ${hexagram.number}: ${hexagram.name.chinese} (${hexagram.name.pinyin}) - ${hexagram.meaning}
+Symbol: ${hexagram.unicode}
+Upper Trigram: ${hexagram.upperTrigram.english} (${hexagram.upperTrigram.chinese})
+Lower Trigram: ${hexagram.lowerTrigram.english} (${hexagram.lowerTrigram.chinese})`;
+
+                            // Add transformed hexagram if there are changes
+                            if (
+                                data.interpretation.changes.length > 0 &&
+                                transformedHexagram
+                            ) {
+                                oracleReading += `\n\nTransforms into:
+Hexagram ${transformedHexagram.number}: ${transformedHexagram.name.chinese} (${transformedHexagram.name.pinyin}) - ${transformedHexagram.meaning}
+Symbol: ${transformedHexagram.unicode};`;
+                            }
+
+                            oracleReading += `\n\nJudgment: ${hexagram.judgment || "None"}
+
+Image: ${hexagram.image || "None"}
+
+Lines:
+${
+    hexagram.lines
+        ?.map(
+            (line) =>
+                `Line ${line.number}${line.changed ? " (Changing)" : ""}: ${line.text}`,
+        )
+        .join("\n") || "No line texts available"
+}`;
+
+                            elizaLogger.debug(
+                                "[AutoPost Telegram] Got I Ching reading:",
+                                oracleReading,
+                            );
+                        }
+                    } catch (oracleError) {
+                        elizaLogger.warn(
+                            "[AutoPost Telegram] Error getting I Ching reading:",
+                            oracleError,
+                        );
+                    }
+
                     const memory = {
                         id: stringToUuid(`autopost-${Date.now()}`),
                         userId: this.runtime.agentId,
@@ -233,6 +292,9 @@ export class MessageManager {
                         content: {
                             text: "AUTO_POST_ENGAGEMENT",
                             source: "telegram",
+                            metadata: {
+                                oracleReading: oracleReading || undefined,
+                            },
                         },
                         embedding: getEmbeddingZeroVector(),
                         createdAt: Date.now(),
@@ -243,6 +305,15 @@ export class MessageManager {
                         agentName: this.runtime.character.name,
                     });
 
+                    // Update the state with oracle context in a format matching the template
+                    if (oracleReading) {
+                        // Add oracle reading to state before composing context
+                        state = {
+                            ...state,
+                            oracleReading: oracleReading || "", // This will be available as {{oracleReading}} in templates
+                        };
+                    }
+
                     const templateToUse =
                         this.runtime.character.templates
                             ?.telegramAutoPostTemplate ||
@@ -251,6 +322,7 @@ export class MessageManager {
                     const context = composeContext({
                         state,
                         template: getTemplate(templateToUse),
+                        templatingEngine: "handlebars", // Using handlebars for more complex template processing
                     });
 
                     const responseContent = await this._generateResponse(
@@ -260,7 +332,7 @@ export class MessageManager {
                     );
                     if (!responseContent?.text) return;
 
-                    console.log(
+                    elizaLogger.info(
                         `[Auto Post Telegram] Recent Messages: ${responseContent}`,
                     );
                     // Send message directly using telegram bot
@@ -303,7 +375,11 @@ export class MessageManager {
                     state = await this.runtime.updateRecentMessageState(state);
                     await this.runtime.evaluate(memory, state, true);
                 } catch (error) {
-                    elizaLogger.warn("[AutoPost Telegram] Error:", error);
+                    elizaLogger.warn(
+                        "[AutoPost Telegram] Error:",
+                        error instanceof Error ? error.message : String(error),
+                        error, // Log the full error object as additional context
+                    );
                 }
             } else {
                 elizaLogger.warn(
@@ -1484,6 +1560,7 @@ export class MessageManager {
         _state: State,
         context: string,
     ): Promise<Content> {
+        const cleanContext = context.replace(/&quot;/g, "");
         // Skip LLM response for plugin queries
         // Handle plugin queries
         if (_state.pluginQuery === "weather") {
@@ -1513,12 +1590,12 @@ export class MessageManager {
         elizaLogger.debug("Generating response for message:", {
             messageId: message.id,
             messageContent: message.content,
-            context,
+            context: cleanContext,
         });
 
         const response = await generateMessageResponse({
             runtime: this.runtime,
-            context,
+            context: cleanContext,
             modelClass: ModelClass.LARGE,
         });
 
@@ -1537,7 +1614,7 @@ export class MessageManager {
         await this.runtime.databaseAdapter.log({
             body: {
                 message,
-                context,
+                cleanContext,
                 response,
                 responseType: typeof response,
                 hasReasoning: !!response.reasoning,
