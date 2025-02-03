@@ -1,21 +1,30 @@
 import { type IAgentRuntime, elizaLogger } from "@elizaos/core";
 
 export async function validateEchoChamberConfig(
-    runtime: IAgentRuntime
-): Promise<void> {
+    runtime: IAgentRuntime,
+): Promise<{
+    apiUrl: string;
+    apiKey: string;
+    username: string;
+    rooms: string[];
+    pollInterval: number;
+    conversationStarterInterval: number;
+}> {
+    // Required settings - check character card first, then environment
     const apiUrl = runtime.getSetting("ECHOCHAMBERS_API_URL");
     const apiKey = runtime.getSetting("ECHOCHAMBERS_API_KEY");
 
+    // Validate required settings
     if (!apiUrl) {
         elizaLogger.error(
-            "ECHOCHAMBERS_API_URL is required. Please set it in your environment variables."
+            "ECHOCHAMBERS_API_URL is required. Please set it in your character card or environment variables.",
         );
         throw new Error("ECHOCHAMBERS_API_URL is required");
     }
 
     if (!apiKey) {
         elizaLogger.error(
-            "ECHOCHAMBERS_API_KEY is required. Please set it in your environment variables."
+            "ECHOCHAMBERS_API_KEY is required. Please set it in your character card or environment variables.",
         );
         throw new Error("ECHOCHAMBERS_API_KEY is required");
     }
@@ -25,27 +34,42 @@ export async function validateEchoChamberConfig(
         new URL(apiUrl);
     } catch {
         elizaLogger.error(
-            `Invalid ECHOCHAMBERS_API_URL format: ${apiUrl}. Please provide a valid URL.`
+            `Invalid ECHOCHAMBERS_API_URL format: ${apiUrl}. Please provide a valid URL.`,
         );
         throw new Error("Invalid ECHOCHAMBERS_API_URL format");
     }
 
-    // Optional settings with defaults
+    // Optional settings with defaults - check character card first, then environment
     const username =
-        runtime.getSetting("ECHOCHAMBERS_USERNAME") ||
+        runtime.getSetting("ECHOCHAMBERS_USERNAME") ??
         `agent-${runtime.agentId}`;
-    // Change from DEFAULT_ROOM to ROOMS
-    const rooms = runtime.getSetting("ECHOCHAMBERS_ROOMS")?.split(",").map(r => r.trim()) || ["general"];
+
+    const rooms = runtime
+        .getSetting("ECHOCHAMBERS_ROOMS")
+        ?.split(",")
+        .map((r) => r.trim()) ?? ["general"];
 
     const pollInterval = Number(
-        runtime.getSetting("ECHOCHAMBERS_POLL_INTERVAL") || 120
+        runtime.getSetting("ECHOCHAMBERS_POLL_INTERVAL") ?? 120,
     );
 
     if (isNaN(pollInterval) || pollInterval < 1) {
         elizaLogger.error(
-            "ECHOCHAMBERS_POLL_INTERVAL must be a positive number in seconds"
+            "ECHOCHAMBERS_POLL_INTERVAL must be a positive number in seconds",
         );
         throw new Error("Invalid ECHOCHAMBERS_POLL_INTERVAL");
+    }
+
+    const conversationStarterInterval =
+        Number(
+            runtime.getSetting("ECHOCHAMBERS_CONVERSATION_STARTER_INTERVAL"),
+        ) ?? 120;
+
+    if (isNaN(conversationStarterInterval) || conversationStarterInterval < 1) {
+        elizaLogger.error(
+            "ECHOCHAMBERS_CONVERSATION_STARTER_INTERVAL must be a positive number in seconds",
+        );
+        throw new Error("Invalid ECHOCHAMBERS_CONVERSATION_STARTER_INTERVAL");
     }
 
     elizaLogger.log("EchoChambers configuration validated successfully");
@@ -53,4 +77,16 @@ export async function validateEchoChamberConfig(
     elizaLogger.log(`Username: ${username}`);
     elizaLogger.log(`Watching Rooms: ${rooms.join(", ")}`);
     elizaLogger.log(`Poll Interval: ${pollInterval}s`);
+    elizaLogger.log(
+        `Conversation Starter Interval: ${conversationStarterInterval}s`,
+    );
+
+    return {
+        apiUrl,
+        apiKey,
+        username,
+        rooms,
+        pollInterval,
+        conversationStarterInterval,
+    };
 }

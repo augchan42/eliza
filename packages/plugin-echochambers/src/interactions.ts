@@ -101,7 +101,7 @@ Consider:
 
 function createConversationStarterTemplate(
     currentRoom: string,
-    roomTopic: string
+    roomTopic: string,
 ) {
     return `
 # Room Context:
@@ -143,13 +143,13 @@ export class InteractionClient {
 
     async start() {
         const pollInterval = Number(
-            this.runtime.getSetting("ECHOCHAMBERS_POLL_INTERVAL") || 60
+            this.runtime.getSetting("ECHOCHAMBERS_POLL_INTERVAL") || 60,
         );
 
         const conversationStarterInterval = Number(
             this.runtime.getSetting(
-                "ECHOCHAMBERS_CONVERSATION_STARTER_INTERVAL"
-            ) || 300
+                "ECHOCHAMBERS_CONVERSATION_STARTER_INTERVAL",
+            ) || 300,
         );
 
         // Reactive message handling loop
@@ -157,7 +157,7 @@ export class InteractionClient {
             this.handleInteractions();
             this.pollInterval = setTimeout(
                 handleInteractionsLoop,
-                pollInterval * 1000
+                pollInterval * 1000,
             );
         };
 
@@ -166,7 +166,7 @@ export class InteractionClient {
             this.checkForDeadRooms();
             this.conversationStarterInterval = setTimeout(
                 conversationStarterLoop,
-                conversationStarterInterval * 1000
+                conversationStarterInterval * 1000,
             );
         };
 
@@ -188,11 +188,11 @@ export class InteractionClient {
 
     private async buildMessageThread(
         message: ChatMessage,
-        messages: ChatMessage[]
+        messages: ChatMessage[],
     ): Promise<ChatMessage[]> {
         const thread: ChatMessage[] = [];
         const maxThreadLength = Number(
-            this.runtime.getSetting("ECHOCHAMBERS_MAX_MESSAGES") || 10
+            this.runtime.getSetting("ECHOCHAMBERS_MAX_MESSAGES") || 10,
         );
 
         // Start with the current message
@@ -204,7 +204,7 @@ export class InteractionClient {
             .sort(
                 (a, b) =>
                     new Date(b.timestamp).getTime() -
-                    new Date(a.timestamp).getTime()
+                    new Date(a.timestamp).getTime(),
             );
 
         // Add recent messages to provide context
@@ -220,12 +220,15 @@ export class InteractionClient {
 
     private shouldProcessMessage(
         message: ChatMessage,
-        room: { topic: string }
+        room: { topic: string },
     ): boolean {
         const modelInfo = this.client.getModelInfo();
 
         // Don't process own messages
         if (message.sender.username === modelInfo.username) {
+            elizaLogger.debug(
+                `Skipping own message from ${modelInfo.username}`,
+            );
             return false;
         }
 
@@ -233,29 +236,59 @@ export class InteractionClient {
         const lastChecked =
             this.lastCheckedTimestamps.get(message.roomId) || "0";
         if (message.timestamp <= lastChecked) {
+            elizaLogger.debug(
+                `Skipping already processed message: ${message.id}`,
+            );
             return false;
         }
 
         // Check rate limiting for responses
         const lastResponseTime =
             this.lastResponseTimes.get(message.roomId) || 0;
-        const minTimeBetweenResponses = 30000; // 30 seconds
-        if (Date.now() - lastResponseTime < minTimeBetweenResponses) {
+        const minTimeBetweenResponses = 15000; // 15 seconds
+        const timeSinceLastResponse = Date.now() - lastResponseTime;
+        if (timeSinceLastResponse < minTimeBetweenResponses) {
+            elizaLogger.debug(
+                `Rate limited: Last response was ${timeSinceLastResponse / 1000}s ago (minimum: ${minTimeBetweenResponses / 1000}s)`,
+            );
             return false;
         }
 
-        // Check if message mentions the agent
+        // More lenient relevance check
         const isMentioned = message.content
             .toLowerCase()
             .includes(`${modelInfo.username.toLowerCase()}`);
 
-        // Check if message is relevant to room topic
-        const isRelevantToTopic =
-            room.topic &&
-            message.content.toLowerCase().includes(room.topic.toLowerCase());
+        // Split topic into keywords and check if any match
+        const topicKeywords = room.topic.toLowerCase().split(/\s+/);
+        const isRelevantToTopic = topicKeywords.some(
+            (keyword) =>
+                keyword.length > 3 && // Only check keywords longer than 3 chars
+                message.content.toLowerCase().includes(keyword),
+        );
 
-        // Always process if mentioned, otherwise check relevance
-        return isMentioned || isRelevantToTopic;
+        // Add random chance to respond even if not directly relevant
+        const randomChance = Math.random() < 0.3; // 30% chance
+
+        elizaLogger.debug(`Message processing checks:`, {
+            username: modelInfo.username,
+            messageId: message.id,
+            isMentioned,
+            isRelevantToTopic,
+            randomChance,
+            topicKeywords: topicKeywords.filter((k) => k.length > 3),
+            matchedKeywords: topicKeywords.filter(
+                (k) =>
+                    k.length > 3 && message.content.toLowerCase().includes(k),
+            ),
+        });
+
+        const shouldProcess = isMentioned || isRelevantToTopic || randomChance;
+        elizaLogger.debug(
+            `${shouldProcess ? "Will process" : "Skipping"} message ${message.id}`,
+        );
+
+        return shouldProcess;
     }
 
     private async handleInteractions() {
@@ -281,7 +314,7 @@ export class InteractionClient {
                     .sort(
                         (a, b) =>
                             new Date(b.timestamp).getTime() -
-                            new Date(a.timestamp).getTime()
+                            new Date(a.timestamp).getTime(),
                     );
 
                 if (latestMessages.length > 0) {
@@ -303,7 +336,7 @@ export class InteractionClient {
                     ) {
                         this.lastCheckedTimestamps.set(
                             room.id,
-                            latestMessage.timestamp
+                            latestMessage.timestamp,
                         );
                     }
                 }
@@ -313,7 +346,7 @@ export class InteractionClient {
         } catch (error) {
             elizaLogger.error(
                 "Error handling EchoChambers interactions:",
-                error
+                error,
             );
         }
     }
@@ -338,13 +371,13 @@ export class InteractionClient {
                 roomId,
                 message.sender.username,
                 message.sender.username,
-                "echochambers"
+                "echochambers",
             );
 
             // Build message thread for context
             const thread = await this.buildMessageThread(
                 message,
-                this.messageThreads.get(message.roomId) || []
+                this.messageThreads.get(message.roomId) || [],
             );
 
             // Create memory object
@@ -368,11 +401,11 @@ export class InteractionClient {
 
             // Check if we've already processed this message
             const existing = await this.runtime.messageManager.getMemoryById(
-                memory.id
+                memory.id,
             );
             if (existing) {
                 elizaLogger.log(
-                    `Already processed message ${message.id}, skipping`
+                    `Already processed message ${message.id}, skipping`,
                 );
                 return;
             }
@@ -384,12 +417,34 @@ export class InteractionClient {
             let state = await this.runtime.composeState(memory);
             state = await this.runtime.updateRecentMessageState(state);
 
+            // Log the state after composition
+            elizaLogger.debug("Composed state:", {
+                bio: state.bio,
+                lore: state.lore,
+                knowledge: state.knowledge,
+                recentMessages: state.recentMessages,
+                formattedConversation: state.formattedConversation,
+            });
+
             // Decide whether to respond
+            const shouldRespondTemplate =
+                this.runtime.character.templates?.shouldRespondTemplate ||
+                createShouldRespondTemplate(message.roomId, roomTopic);
+
+            elizaLogger.debug("Using shouldRespond template:", {
+                usingCustom:
+                    !!this.runtime.character.templates?.shouldRespondTemplate,
+                template: shouldRespondTemplate,
+            });
+
             const shouldRespondContext = composeContext({
                 state,
-                template:
-                    this.runtime.character.templates?.shouldRespondTemplate ||
-                    createShouldRespondTemplate(message.roomId, roomTopic),
+                template: shouldRespondTemplate,
+            });
+
+            // Log the final context for should respond
+            elizaLogger.debug("Should respond context:", {
+                context: shouldRespondContext,
             });
 
             const shouldRespond = await generateShouldRespond({
@@ -400,17 +455,30 @@ export class InteractionClient {
 
             if (shouldRespond !== "RESPOND") {
                 elizaLogger.log(
-                    `Not responding to message ${message.id}: ${shouldRespond}`
+                    `${message?.sender?.username} Not responding to message ${message.id}: ${shouldRespond}`,
                 );
                 return;
             }
 
             // Generate response
+            const messageTemplate =
+                this.runtime.character.templates?.messageHandlerTemplate ||
+                createMessageTemplate(message.roomId, roomTopic);
+
+            elizaLogger.debug("Using messageHandlerTemplate:", {
+                usingCustom:
+                    !!this.runtime.character.templates?.messageHandlerTemplate,
+                template: messageTemplate,
+            });
+
             const responseContext = composeContext({
                 state,
-                template:
-                    this.runtime.character.templates?.messageHandlerTemplate ||
-                    createMessageTemplate(message.roomId, roomTopic),
+                template: messageTemplate,
+            });
+
+            // Log the final context for message response
+            elizaLogger.debug("Response context:", {
+                context: responseContext,
             });
 
             const response = await generateMessageResponse({
@@ -428,7 +496,7 @@ export class InteractionClient {
             const callback: HandlerCallback = async (content: Content) => {
                 const sentMessage = await this.client.sendMessage(
                     message.roomId,
-                    content.text
+                    content.text,
                 );
 
                 // Update last response time
@@ -472,7 +540,7 @@ export class InteractionClient {
                 memory,
                 responseMessages,
                 state,
-                callback
+                callback,
             );
             await this.runtime.evaluate(memory, state, true);
         } catch (error) {
@@ -489,13 +557,13 @@ export class InteractionClient {
             const watchedRooms = this.client.getWatchedRooms();
             elizaLogger.debug(
                 "Starting dead room check. Watched rooms:",
-                watchedRooms
+                watchedRooms,
             );
 
             const rooms = await this.client.listRooms();
             elizaLogger.debug(
                 "Available rooms:",
-                rooms.map((r) => ({ id: r.id, name: r.name }))
+                rooms.map((r) => ({ id: r.id, name: r.name })),
             );
 
             for (const roomId of watchedRooms) {
@@ -518,28 +586,28 @@ export class InteractionClient {
                     // Random check with logging
                     const randomCheck = Math.random();
                     elizaLogger.debug(
-                        `Random check for ${room.name}: ${randomCheck}`
+                        `Random check for ${room.name}: ${randomCheck}`,
                     );
 
-                    if (randomCheck > 0.8) {
+                    if (randomCheck > 0.0) {
                         elizaLogger.debug(
-                            `Checking conversation state for ${room.name}`
+                            `Checking conversation state for ${room.name}`,
                         );
 
                         const shouldInitiate =
                             await this.client.shouldInitiateConversation(room);
                         elizaLogger.debug(
                             `Should initiate conversation in ${room.name}:`,
-                            shouldInitiate
+                            shouldInitiate,
                         );
 
                         if (shouldInitiate) {
                             elizaLogger.debug(
-                                `Starting conversation initiation in ${room.name}`
+                                `Starting conversation initiation in ${room.name}`,
                             );
                             await this.initiateConversation(room);
                             elizaLogger.debug(
-                                `Completed conversation initiation in ${room.name}`
+                                `Completed conversation initiation in ${room.name}`,
                             );
                         }
                     }
@@ -554,7 +622,7 @@ export class InteractionClient {
         } catch (error: any) {
             elizaLogger.error(
                 "Error in checkForDeadRooms:",
-                error?.message || error || "Unknown error"
+                error?.message || error || "Unknown error",
             );
             elizaLogger.debug("Full error details:", {
                 error,
@@ -590,10 +658,10 @@ export class InteractionClient {
                 state,
                 template: createConversationStarterTemplate(
                     room.name,
-                    room.topic
+                    room.topic,
                 ),
             });
-            elizaLogger.debug("Created conversation context");
+            elizaLogger.debug("Created conversation context: ", context);
 
             const content = await generateMessageResponse({
                 runtime: this.runtime,
@@ -609,7 +677,7 @@ export class InteractionClient {
                 elizaLogger.debug(`Sending message to ${room.name}`);
                 await this.client.sendMessage(room.id, content.text);
                 elizaLogger.info(
-                    `Started conversation in ${room.name} (Topic: ${room.topic})`
+                    `Started conversation in ${room.name} (Topic: ${room.topic})`,
                 );
             }
         } catch (error: any) {
@@ -618,7 +686,7 @@ export class InteractionClient {
                 {
                     error: error?.message || error,
                     stack: error?.stack,
-                }
+                },
             );
             throw error; // Re-throw to be caught by parent
         }

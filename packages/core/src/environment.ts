@@ -157,7 +157,24 @@ export const CharacterSchema = z.object({
 // Type inference
 export type CharacterConfig = z.infer<typeof CharacterSchema>;
 
-// Validation function
+export class CharacterConfigValidationError extends Error {
+    public errors: Record<string, string[]>;
+
+    constructor(errors: Record<string, string[]>) {
+        const message =
+            "Character configuration validation failed:\n" +
+            Object.entries(errors)
+                .map(
+                    ([field, messages]) => `  ${field}: ${messages.join(", ")}`,
+                )
+                .join("\n");
+
+        super(message);
+        this.name = "CharacterConfigValidationError";
+        this.errors = errors;
+    }
+}
+
 export function validateCharacterConfig(json: unknown): CharacterConfig {
     try {
         return CharacterSchema.parse(json);
@@ -175,15 +192,15 @@ export function validateCharacterConfig(json: unknown): CharacterConfig {
                 {} as Record<string, string[]>,
             );
 
+            // Log the errors
             Object.entries(groupedErrors).forEach(([field, messages]) => {
                 elizaLogger.error(
                     `Validation errors in ${field}: ${messages.join(" - ")}`,
                 );
             });
 
-            throw new Error(
-                "Character configuration validation failed. Check logs for details.",
-            );
+            // Throw custom error with detailed information
+            throw new CharacterConfigValidationError(groupedErrors);
         }
         throw error;
     }

@@ -12,29 +12,12 @@ import { validateEchoChamberConfig } from "./environment";
 export const EchoChamberClientInterface: Client = {
     async start(runtime: IAgentRuntime) {
         try {
-            // Validate configuration before starting
-            await validateEchoChamberConfig(runtime);
-
-            const apiUrl = runtime.getSetting("ECHOCHAMBERS_API_URL");
-            const apiKey = runtime.getSetting("ECHOCHAMBERS_API_KEY");
-
-            if (!apiKey || !apiUrl) {
-                throw new Error(
-                    "ECHOCHAMBERS_API_KEY/ECHOCHAMBERS_API_URL is required",
-                );
-            }
+            // Get validated configuration
+            const validatedConfig = await validateEchoChamberConfig(runtime);
 
             const config: EchoChamberConfig = {
-                apiUrl,
-                apiKey,
-                username:
-                    runtime.getSetting("ECHOCHAMBERS_USERNAME") ||
-                    `agent-${runtime.agentId}`,
+                ...validatedConfig,
                 model: runtime.modelProvider,
-                rooms: runtime
-                    .getSetting("ECHOCHAMBERS_ROOMS")
-                    ?.split(",")
-                    .map((r) => r.trim()) || ["general"],
             };
 
             elizaLogger.log("Starting EchoChambers client...");

@@ -77,7 +77,7 @@ export class EchoChamberClient {
 
     private async retryOperation<T>(
         operation: () => Promise<T>,
-        retries: number = MAX_RETRIES
+        retries: number = MAX_RETRIES,
     ): Promise<T> {
         for (let i = 0; i < retries; i++) {
             try {
@@ -102,10 +102,10 @@ export class EchoChamberClient {
             }
 
             elizaLogger.success(
-                `✅ EchoChamber client started for ${this.modelInfo.username}`
+                `✅ EchoChamber client started for ${this.modelInfo.username}`,
             );
             elizaLogger.info(
-                `Watching rooms: ${Array.from(this.watchedRooms).join(", ")}`
+                `Watching rooms: ${Array.from(this.watchedRooms).join(", ")}`,
             );
         } catch (error) {
             elizaLogger.error("❌ Failed to start EchoChamber client:", error);
@@ -143,7 +143,7 @@ export class EchoChamberClient {
             const response = await fetch(`${this.apiUrl}/${roomId}/history`);
             if (!response.ok) {
                 throw new Error(
-                    `Failed to get room history: ${response.statusText}`
+                    `Failed to get room history: ${response.statusText}`,
                 );
             }
 
@@ -154,7 +154,7 @@ export class EchoChamberClient {
 
     public async sendMessage(
         roomId: string,
-        content: string
+        content: string,
     ): Promise<ChatMessage> {
         return this.retryOperation(async () => {
             const response = await fetch(`${this.apiUrl}/${roomId}/message`, {
@@ -168,7 +168,7 @@ export class EchoChamberClient {
 
             if (!response.ok) {
                 throw new Error(
-                    `Failed to send message: ${response.statusText}`
+                    `Failed to send message: ${response.statusText}`,
                 );
             }
 
@@ -180,35 +180,51 @@ export class EchoChamberClient {
     public async shouldInitiateConversation(room: ChatRoom): Promise<boolean> {
         try {
             const history = await this.getRoomHistory(room.id);
-            if (!history?.length) return true; // Empty room is good to start
+            elizaLogger.debug(
+                `Room ${room.name} history:`,
+                history?.length || 0,
+                "messages",
+            );
+
+            if (!history?.length) {
+                elizaLogger.debug(`Room ${room.name} is empty, can initiate`);
+                return true;
+            }
 
             const recentMessages = history
                 .filter((msg) => msg != null) // Filter out null messages
                 .sort(
                     (a, b) =>
                         new Date(b.timestamp).getTime() -
-                        new Date(a.timestamp).getTime()
+                        new Date(a.timestamp).getTime(),
                 );
 
             if (!recentMessages.length) return true; // No valid messages
 
             const lastMessageTime = new Date(
-                recentMessages[0].timestamp
+                recentMessages[0].timestamp,
             ).getTime();
             const timeSinceLastMessage = Date.now() - lastMessageTime;
 
             const quietPeriodSeconds = Number(
-                this.runtime.getSetting("ECHOCHAMBERS_QUIET_PERIOD") || 300 // 5 minutes in seconds
+                this.runtime.getSetting("ECHOCHAMBERS_QUIET_PERIOD") || 300, // 5 minutes in seconds
             );
             const quietPeriod = quietPeriodSeconds * 1000; // Convert to milliseconds
 
+            elizaLogger.debug(
+                `Room ${room.name} quiet period: ${quietPeriodSeconds}s, time since last message: ${timeSinceLastMessage / 1000}s`,
+            );
+
             if (timeSinceLastMessage < quietPeriod) {
                 elizaLogger.debug(
-                    `Room ${room.name} active recently, skipping`
+                    `Room ${room.name} active recently, skipping`,
                 );
                 return false;
             }
 
+            elizaLogger.debug(
+                `Room ${room.name} quiet long enough, can initiate`,
+            );
             return true;
         } catch (error) {
             elizaLogger.error(`Error checking conversation state: ${error}`);

@@ -264,10 +264,12 @@ export class MessageManager {
                         `[Auto Post Telegram] Recent Messages: ${responseContent}`,
                     );
                     // Send message directly using telegram bot
+                    const messageText = responseContent.reasoning
+                        ? `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`
+                        : responseContent.text.trim();
+
                     const messages = await Promise.all(
-                        this.splitMessage(
-                            `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`,
-                        ).map((chunk) =>
+                        this.splitMessage(messageText).map((chunk) =>
                             this.bot.telegram.sendMessage(
                                 this.autoPostConfig.mainChannelId,
                                 chunk,
@@ -399,10 +401,12 @@ export class MessageManager {
             if (!responseContent?.text) return;
 
             // Send message using telegram bot
+            const messageText = responseContent.reasoning
+                ? `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`
+                : responseContent.text.trim();
+
             const messages = await Promise.all(
-                this.splitMessage(
-                    `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`,
-                ).map((chunk) =>
+                this.splitMessage(messageText).map((chunk) =>
                     this.bot.telegram.sendMessage(mainChannel, chunk),
                 ),
             );

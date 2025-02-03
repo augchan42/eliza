@@ -26,6 +26,8 @@ export interface EchoChamberConfig {
     apiKey: string; // Required API key for authenticated endpoints
     rooms: string[]; // list of rooms to listen on startup
     username?: string; // Optional custom username (defaults to agent-{agentId})
+    pollInterval: number; // Interval in seconds between room checks
+    conversationStarterInterval: number;
     model?: string; // Optional model name (defaults to runtime.modelProvider)
 }
 
