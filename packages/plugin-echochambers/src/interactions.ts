@@ -245,7 +245,7 @@ export class InteractionClient {
         // Check rate limiting for responses
         const lastResponseTime =
             this.lastResponseTimes.get(message.roomId) || 0;
-        const minTimeBetweenResponses = 15000; // 15 seconds
+        const minTimeBetweenResponses = 60000; // 60 seconds
         const timeSinceLastResponse = Date.now() - lastResponseTime;
         if (timeSinceLastResponse < minTimeBetweenResponses) {
             elizaLogger.debug(
@@ -268,7 +268,7 @@ export class InteractionClient {
         );
 
         // Add random chance to respond even if not directly relevant
-        const randomChance = Math.random() < 0.3; // 30% chance
+        const randomChance = Math.random() < 1; // 100% chance
 
         elizaLogger.debug(`Message processing checks:`, {
             username: modelInfo.username,
