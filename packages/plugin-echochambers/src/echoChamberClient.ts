@@ -152,6 +152,22 @@ export class EchoChamberClient {
         });
     }
 
+    public async getRoomParticipants(roomId: string): Promise<string[]> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/participants`,
+            );
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to get room participants: ${response.statusText}`,
+                );
+            }
+
+            const data = (await response.json()) as { participants: string[] };
+            return data.participants;
+        });
+    }
+
     public async sendMessage(
         roomId: string,
         content: string,
@@ -230,5 +246,182 @@ export class EchoChamberClient {
             elizaLogger.error(`Error checking conversation state: ${error}`);
             return false;
         }
+    }
+
+    public async joinRoom(roomId: string): Promise<void> {
+        return this.retryOperation(async () => {
+            const response = await fetch(`${this.apiUrl}/${roomId}/join`, {
+                method: "POST",
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({
+                    modelInfo: this.modelInfo, // Changed from sender to modelInfo
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to join room: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            elizaLogger.success(`Successfully joined room: ${roomId}`);
+            return data;
+        });
+    }
+
+    public async createStoryState(roomId: string, state: any): Promise<void> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/state`,
+                {
+                    method: "POST",
+                    headers: this.getAuthHeaders(),
+                    body: JSON.stringify(state),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to create story state: ${response.statusText}`,
+                );
+            }
+
+            return response.json();
+        });
+    }
+
+    public async getStoryState(roomId: string): Promise<any> {
+        elizaLogger.debug("[CLIENT] Getting story state for room:", {
+            roomId,
+            url: `${this.apiUrl}/${roomId}/story/state`,
+        });
+
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/state`,
+                {
+                    headers: this.getAuthHeaders(),
+                },
+            );
+
+            if (!response.ok) {
+                elizaLogger.error("[CLIENT] Failed to get story state:", {
+                    roomId,
+                    status: response.status,
+                    statusText: response.statusText,
+                });
+                throw new Error(
+                    `Failed to get story state: ${response.statusText}`,
+                );
+            }
+
+            const data = await response.json();
+            elizaLogger.debug("[CLIENT] Retrieved story state:", {
+                roomId,
+                hasState: !!data.state,
+            });
+            return data.state;
+        });
+    }
+
+    public async updateStoryState(roomId: string, state: any): Promise<void> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/state`,
+                {
+                    method: "PATCH",
+                    headers: this.getAuthHeaders(),
+                    body: JSON.stringify(state),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to update story state: ${response.statusText}`,
+                );
+            }
+
+            return response.json();
+        });
+    }
+
+    public async createStoryPlot(roomId: string, plot: any): Promise<any> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/plot`,
+                {
+                    method: "POST",
+                    headers: this.getAuthHeaders(),
+                    body: JSON.stringify(plot),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to create story plot: ${response.statusText}`,
+                );
+            }
+
+            const data = await response.json();
+            return data.plot;
+        });
+    }
+
+    public async getStoryPlot(roomId: string): Promise<any> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/plot`,
+                {
+                    headers: this.getAuthHeaders(),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to get story plot: ${response.statusText}`,
+                );
+            }
+
+            const data = await response.json();
+            return data.plot;
+        });
+    }
+
+    public async updateStoryPlot(roomId: string, plot: any): Promise<void> {
+        return this.retryOperation(async () => {
+            const response = await fetch(
+                `${this.apiUrl}/${roomId}/story/plot`,
+                {
+                    method: "PATCH",
+                    headers: this.getAuthHeaders(),
+                    body: JSON.stringify(plot),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to update story plot: ${response.statusText}`,
+                );
+            }
+
+            return response.json();
+        });
+    }
+
+    public async getRecentMessages(
+        roomId: string,
+        limit: number,
+    ): Promise<ChatMessage[]> {
+        elizaLogger.debug("[getRecentMessages] Fetching messages:", {
+            roomId,
+            limit,
+        });
+        const history = await this.getRoomHistory(roomId);
+        return history
+            .sort(
+                (a, b) =>
+                    new Date(b.timestamp).getTime() -
+                    new Date(a.timestamp).getTime(),
+            )
+            .slice(0, limit);
     }
 }

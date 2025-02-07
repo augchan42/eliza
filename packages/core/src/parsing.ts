@@ -1,6 +1,6 @@
 import type { ActionResponse } from "./types.ts";
 import elizaLogger from "./logger.ts";
-const jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
+const jsonBlockPattern = /```(?:json)?\s*([\s\S]*?)\s*```/;
 
 // export const messageCompletionFooter = `\nResponse format should be formatted in a JSON block like this:
 // \`\`\`json
@@ -13,10 +13,23 @@ Each major concept should be on its own line.
 Double newlines (\\n\\n) should separate thematic sections.
 `;
 
-export const messageCompletionFooter = `\nResponse format should be formatted in a JSON block like this:
+export const messageCompletionFooter = `
+Response format must be a valid JSON block with properly escaped characters:
+
 \`\`\`json
-{ "user": "{{agentName}}", "text": "string", "action": "string" }
-\`\`\``;
+{
+  "user": "{{agentName}}",
+  "text": "That's a great idea! I'm thinking we should try it.",
+  "action": "Demonstrates enthusiasm and agreement"
+}
+\`\`\`
+
+Note:
+- Use double quotes (") for JSON properties
+- Use regular apostrophes (') within text - they will be automatically escaped
+- Keep text natural and readable - don't manually escape characters
+- Format as a proper JSON code block with \`\`\`json markers
+`;
 
 export const shouldRespondFooter = `The available options are [RESPOND], [IGNORE], or [STOP]. Choose the most appropriate option.
 If {{agentName}} is talking too much, you can choose [IGNORE]
@@ -75,142 +88,173 @@ export const parseBooleanFromText = (text: string) => {
 export const stringArrayFooter = `Respond with a JSON array containing the values in a JSON block formatted for markdown with this structure:
 \`\`\`json
 [
-  'value',
-  'value'
+  "value",
+  "value"
 ]
 \`\`\`
 
 Your response must include the JSON block.`;
 
-/**
- * Parses a JSON array from a given text. The function looks for a JSON block wrapped in triple backticks
- * with `json` language identifier, and if not found, it searches for an array pattern within the text.
- * It then attempts to parse the JSON string into a JavaScript object. If parsing is successful and the result
- * is an array, it returns the array; otherwise, it returns null.
- *
- * @param text - The input text from which to extract and parse the JSON array.
- * @returns An array parsed from the JSON string if successful; otherwise, null.
- */
+function normalizeJsonContent(jsonContent: string): string {
+    try {
+        // 1. Pre-clean any markdown or text debris
+        let normalized = jsonContent
+            .replace(/^[\s\S]*?```(?:json)?\s*/, "") // Remove everything before code block
+            .replace(/\s*```[\s\S]*$/, "") // Remove everything after code block
+            .replace(/[\u2018\u2019]/g, "'") // Normalize smart quotes
+            .replace(/[\u201C\u201D]/g, '"'); // Normalize smart quotes
+
+        // 2. Find valid JSON structure
+        const startIndex = normalized.search(/[{\[]/);
+        const endIndex =
+            normalized.length -
+            normalized.split("").reverse().join("").search(/[}\]]/);
+
+        if (startIndex === -1 || endIndex === -1) {
+            throw new Error("No valid JSON structure found");
+        }
+
+        // 3. Extract just the JSON structure
+        normalized = normalized.slice(startIndex, endIndex);
+
+        // 4. Validate matching brackets/braces
+        const stack = [];
+        const pairs = { "{": "}", "[": "]" };
+        for (const char of normalized) {
+            if ("{[".includes(char)) stack.push(char);
+            if ("}]".includes(char)) {
+                const last = stack.pop();
+                if (pairs[last!] !== char)
+                    throw new Error("Mismatched brackets/braces");
+            }
+        }
+        if (stack.length) throw new Error("Unclosed brackets/braces");
+
+        // 5. Handle string values with consistent escaping while preserving whitespace
+        let inString = false;
+        let result = "";
+        let i = 0;
+
+        while (i < normalized.length) {
+            const char = normalized[i];
+
+            if (char === '"' && normalized[i - 1] !== "\\") {
+                inString = !inString;
+            }
+
+            if (!inString) {
+                // Outside strings - remove whitespace
+                if (!/\s/.test(char)) {
+                    result += char;
+                }
+            } else {
+                // Inside strings - preserve whitespace and escape properly
+                result += char;
+            }
+
+            i++;
+        }
+
+        // 6. Handle escaping within string values
+        return result.replace(
+            /"([^"]*?)"/g,
+            (match, content) =>
+                `"${
+                    content
+                        .replace(/\\"/g, '"') // Unescape any already escaped quotes
+                        .replace(/"/g, '\\"') // Re-escape quotes
+                        .replace(/\\/g, "\\\\") // Escape backslashes
+                        .replace(/\r/g, "\\r") // Escape carriage returns
+                        .replace(/\t/g, "\\t") // Escape tabs
+                        .replace(/[\x00-\x1F\x7F-\x9F]/g, "") // Remove control characters
+                }"`,
+        );
+    } catch (error) {
+        elizaLogger.error("[normalizeJsonContent] Failed to normalize:", {
+            input: jsonContent,
+            error: error.message,
+        });
+        throw error;
+    }
+}
+
+function normalizeAndParseJson(jsonContent: string): any {
+    elizaLogger.debug("[normalizeAndParseJson] Processing content:", {
+        length: jsonContent.length,
+        snippet: jsonContent.substring(0, 50),
+    });
+
+    const normalizedJson = normalizeJsonContent(jsonContent);
+
+    try {
+        return JSON.parse(normalizedJson);
+    } catch (e) {
+        elizaLogger.error("[normalizeAndParseJson] Parse error:", {
+            input: jsonContent,
+            normalized: normalizedJson,
+            error: e.message,
+        });
+        throw e;
+    }
+}
+
 export function parseJsonArrayFromText(text: string) {
     let jsonData = null;
 
-    // First try to parse with the original JSON format
+    elizaLogger.debug(
+        "[parseJsonArrayFromText] Attempting to parse JSON array from:",
+        {
+            text: text.substring(0, 200),
+            length: text.length,
+        },
+    );
+
+    // First try to find JSON block
     const jsonBlockMatch = text.match(jsonBlockPattern);
-
     if (jsonBlockMatch) {
-        try {
-            // Replace single quotes with double quotes before parsing
-            const normalizedJson = jsonBlockMatch[1].replace(/'/g, '"');
-            jsonData = JSON.parse(normalizedJson);
-        } catch (e) {
-            console.error("Error parsing JSON:", e);
-        }
-    }
-
-    // If that fails, try to find an array pattern
-    if (!jsonData) {
-        const arrayPattern = /\[\s*['"][^'"]*['"]\s*\]/;
+        jsonData = normalizeAndParseJson(jsonBlockMatch[1]);
+    } else {
+        // Fallback to finding array pattern
+        const arrayPattern = /\[[\s\S]*?\]/;
         const arrayMatch = text.match(arrayPattern);
 
         if (arrayMatch) {
             try {
-                // Replace single quotes with double quotes before parsing
-                const normalizedJson = arrayMatch[0].replace(/'/g, '"');
+                const normalizedJson = normalizeJsonContent(arrayMatch[0]);
+                elizaLogger.debug("Normalized array:", normalizedJson);
                 jsonData = JSON.parse(normalizedJson);
             } catch (e) {
-                console.error("Error parsing JSON:", e);
+                elizaLogger.error("Error parsing array:", {
+                    error: e.message,
+                    json: arrayMatch[0],
+                });
             }
         }
     }
 
-    if (Array.isArray(jsonData)) {
-        return jsonData;
-    }
-
-    return null;
+    return Array.isArray(jsonData) ? jsonData : null;
 }
 
-/**
- * Parses a JSON object from a given text. The function looks for a JSON block wrapped in triple backticks
- * with `json` language identifier, and if not found, it searches for an object pattern within the text.
- * It then attempts to parse the JSON string into a JavaScript object. If parsing is successful and the result
- * is an object (but not an array), it returns the object; otherwise, it tries to parse an array if the result
- * is an array, or returns null if parsing is unsuccessful or the result is neither an object nor an array.
- *
- * @param text - The input text from which to extract and parse the JSON object.
- * @returns An object parsed from the JSON string if successful; otherwise, null or the result of parsing an array.
- */
-export function parseJSONObjectFromText(
-    text: string,
-): Record<string, any> | null {
-    elizaLogger.debug("Parsing JSON from text:", {
+export function parseJSONObjectFromText(text: string): any {
+    elizaLogger.debug("[parseJSONObjectFromText] Parsing JSON from text:", {
         textLength: text?.length,
-        textStart: text?.substring(0, 100) + "...",
-        hasJsonBlock: text?.includes("```json"),
-        fullText: text,
+        textStart: text?.substring(0, 100),
+        hasJsonBlock: /```json\s*\n/.test(text),
     });
 
-    let jsonData = null;
-    const jsonBlockMatch = text.match(jsonBlockPattern);
-
-    elizaLogger.debug("JSON block match result:", {
-        hasMatch: !!jsonBlockMatch,
-        matchGroups: jsonBlockMatch?.length,
-        matchContent: jsonBlockMatch ? jsonBlockMatch[1] : null,
-    });
-
-    if (jsonBlockMatch) {
-        try {
-            jsonData = JSON.parse(jsonBlockMatch[1]);
-            elizaLogger.debug("Parsed JSON from block:", jsonData);
-        } catch (e) {
-            elizaLogger.error("Error parsing JSON block:", {
-                error: e,
-                attemptedContent: jsonBlockMatch[1],
-            });
-            return null;
-        }
-    } else {
-        const objectPattern = /{[\s\S]*?}/;
-        const objectMatch = text.match(objectPattern);
-
-        elizaLogger.debug("Fallback object pattern match:", {
-            hasMatch: !!objectMatch,
-            matchContent: objectMatch ? objectMatch[0] : null,
-        });
-
-        if (objectMatch) {
-            try {
-                jsonData = JSON.parse(objectMatch[0]);
-                elizaLogger.debug("Parsed JSON from object pattern:", jsonData);
-            } catch (e) {
-                elizaLogger.error("Error parsing object pattern:", {
-                    error: e,
-                    attemptedContent: objectMatch[0],
-                });
-                return null;
-            }
-        }
+    const jsonMatch = text.match(jsonBlockPattern);
+    if (!jsonMatch) {
+        elizaLogger.debug("[parseJSONObjectFromText] No JSON block found");
+        return null;
     }
 
-    elizaLogger.debug("Final parsed result:", {
-        type: typeof jsonData,
-        isNull: jsonData === null,
-        isArray: Array.isArray(jsonData),
-        keys: jsonData ? Object.keys(jsonData) : null,
-    });
-
-    if (
-        typeof jsonData === "object" &&
-        jsonData !== null &&
-        !Array.isArray(jsonData)
-    ) {
-        return jsonData;
-    } else if (typeof jsonData === "object" && Array.isArray(jsonData)) {
-        elizaLogger.debug("Found array, attempting array parse");
-        return parseJsonArrayFromText(text);
-    } else {
-        elizaLogger.debug("No valid JSON object found");
+    try {
+        return normalizeAndParseJson(jsonMatch[1]);
+    } catch (e) {
+        elizaLogger.error("[parseJSONObjectFromText] Failed to parse JSON:", {
+            content: jsonMatch[1],
+            error: e.message,
+        });
         return null;
     }
 }
@@ -284,4 +328,19 @@ export function truncateToCompleteSentence(
     // Fallback: Hard truncate and add ellipsis
     const hardTruncated = text.slice(0, maxLength - 3).trim();
     return hardTruncated + "...";
+}
+
+export async function prettifyJson(json: string): Promise<string> {
+    try {
+        // First ensure it's valid JSON by parsing
+        const parsed = JSON.parse(json);
+        // Then return pretty version
+        return JSON.stringify(parsed, null, 2);
+    } catch (e) {
+        elizaLogger.error("[prettifyJson] Failed to prettify JSON:", {
+            input: json,
+            error: e.message,
+        });
+        return json; // Return original if fails
+    }
 }

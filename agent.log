@@ -1,0 +1,1122 @@
+
+> eliza@ start:debug /home/hosermage/forked-projects/eliza
+> cross-env NODE_ENV=development VERBOSE=true DEFAULT_LOG_LEVEL=debug DEBUG=eliza:* pnpm --filter "@elizaos/agent" start --isRoot "--character=characters/cookiedao/rob-director.json"
+
+
+> @elizaos/agent@0.1.9-alpha.1 start /home/hosermage/forked-projects/eliza/agent
+> node --loader ts-node/esm src/index.ts "--isRoot" "--character=characters/cookiedao/rob-director.json"
+
+(node:440332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:440332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[2025-02-07 10:00:41] [32mINFO[39m: [36mLoading embedding settings:[39m
+    USE_OPENAI_EMBEDDING: "false"
+    OLLAMA_EMBEDDING_MODEL: "mxbai-embed-large"
+
+┌════════════════════════════════════════┐
+│          AGENTKIT PLUGIN               │
+├────────────────────────────────────────┤
+│  Initializing AgentKit Plugin...       │
+│  Version: 0.0.1                        │
+└════════════════════════════════════════┘
+⚠️ Missing CDP API credentials - AgentKit actions will not be available
+
+┌════════════════════════════════════════┐
+│          AKASH NETWORK PLUGIN          │
+├────────────────────────────────────────┤
+│  Initializing Akash Network Plugin...  │
+│  Version: 0.1.0                        │
+└════════════════════════════════════════┘
+
+┌───────────────────────────┬───┬───┬───┬───────────────────────────────────────────────────────────┐
+│ Action                    │ H │ V │ E │ Similes                                                   │
+├───────────────────────────┼───┼───┼───┼────────────────────────────────────────────────────────────┤
+│ CREATE_DEPLOYMENT         │ ✓ │ ✓ │ ✓ │ DEPLOY, START_DEPLOYMENT, LAUNCH                             │
+│ CLOSE_DEPLOYMENT          │ ✓ │ ✓ │ ✓ │ CLOSE_AKASH_DEPLOYMENT, STOP_DEPLOYMENT, TERMINATE_DEPLOYMENT │
+│ GET_PROVIDER_INFO         │ ✓ │ ✓ │ ✓ │ CHECK_PROVIDER, PROVIDER_INFO, PROVIDER_STATUS, CHECK PROVIDER │
+│ GET_DEPLOYMENT_STATUS     │ ✓ │ ✓ │ ✓ │ CHECK_DEPLOYMENT, DEPLOYMENT_STATUS, DEPLOYMENT_STATE, CHECK DSEQ │
+│ ESTIMATE_GAS              │ ✓ │ ✓ │ ✓ │ CALCULATE_GAS, GET_GAS_ESTIMATE, CHECK_GAS                   │
+│ GET_DEPLOYMENTS           │ ✓ │ ✓ │ ✓ │ LIST_DEPLOYMENTS, FETCH_DEPLOYMENTS, SHOW_DEPLOYMENTS        │
+│ GET_GPU_PRICING           │ ✓ │ ✓ │ ✓ │ GET_PRICING, COMPARE_PRICES, CHECK_PRICING                   │
+│ GET_MANIFEST              │ ✓ │ ✓ │ ✓ │ LOAD_MANIFEST, READ_MANIFEST, PARSE_MANIFEST                 │
+│ GET_PROVIDERS_LIST        │ ✓ │ ✓ │ ✓ │ LIST_PROVIDERS, FETCH_PROVIDERS, GET_ALL_PROVIDERS           │
+└───────────────────────────┴───┴───┴───┴──────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│           Plugin Status             │
+├─────────────────────────────────────┤
+│ Name    : akash                     │
+│ Actions : 9                         │
+│ Status  : Loaded & Ready            │
+└─────────────────────────────────────┘
+
+@polkadot/keyring has multiple versions, ensure that there is only one installed.
+Either remove and explicitly install matching versions or dedupe using your package manager.
+The following conflicting packages were found:
+	cjs 12.6.2	node_modules/@polkadot/api/node_modules/@polkadot/keyring/cjs
+	cjs 13.3.1	node_modules/@polkadot/keyring/cjs
+using deprecated parameters for the initialization function; pass a single object instead
+EEJAskc7tUmvtoEWyEEpPSTb6fsu2wJQWRykQM2iXckN
+2CHThTS7hbzycJ1k1cy4yepfRjo44UZoMXcFMaVNYNGWBFNTX6enxF1AFpsfwiNxJDJWNa9dUpVNoQPscMkjsYNr
+[ElizaLogger] Initializing with:
+            isNode: true
+            verbose: true
+            VERBOSE env: true
+            NODE_ENV: development
+        
+[34m ℹ INFORMATIONS
+  [34m Loading embedding settings: [0m
+  [34m {"USE_OPENAI_EMBEDDING":"false","OLLAMA_EMBEDDING_MODEL":"mxbai-embed-large"} [0m
+
+[34m ℹ INFORMATIONS
+  [34m Loading character settings: [0m
+  [34m {"ARGV":["/home/hosermage/.nvm/versions/node/v23.3.0/bin/node","/home/hosermage/forked-projects/eliza/agent/src/index.ts","--isRoot","--character=characters/cookiedao/rob-director.json"],"CHARACTER_ARG":"--character=characters/cookiedao/rob-director.json","CWD":"/home/hosermage/forked-projects/eliza/agent"} [0m
+
+[37m ["◎ Loaded .env file from: /home/hosermage/forked-projects/eliza/.env"] [0m
+
+[34m ℹ INFORMATIONS
+  [34m Parsed settings: [0m
+  [34m {"USE_OPENAI_EMBEDDING":"false","USE_OPENAI_EMBEDDING_TYPE":"string","USE_OLLAMA_EMBEDDING_TYPE":"undefined","OLLAMA_EMBEDDING_MODEL":"mxbai-embed-large"} [0m
+
+- Initializing Pyth Data Plugin...
+
+===============================
+      OpenAI Plugin Loaded      
+===============================
+Name      : openai-plugin
+Version   : 0.1.0
+X Account : https://x.com/Data0x88850
+GitHub    : https://github.com/0xrubusdata
+Actions   :
+  - generateTextAction
+  - generateEmbeddingAction
+  - analyzeSentimentAction
+  - transcribeAudioAction
+  - moderateContentAction
+  - editTextAction
+===============================
+
+- Initializing NVIDIA NIM Plugin...
+(node:440332) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:440332) ExperimentalWarning: CommonJS module /home/hosermage/forked-projects/eliza/node_modules/@3land/listings-sdk/dist/utility/utils.js is loading ES Module /home/hosermage/forked-projects/eliza/node_modules/@3land/listings-sdk/node_modules/node-fetch/src/index.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+[2025-02-07 10:00:41] [32mINFO[39m: [36mLoading character settings:[39m
+    ARGV: [
+      "/home/hosermage/.nvm/versions/node/v23.3.0/bin/node",
+      "/home/hosermage/forked-projects/eliza/agent/src/index.ts",
+      "--isRoot",
+      "--character=characters/cookiedao/rob-director.json"
+    ]
+    CHARACTER_ARG: "--character=characters/cookiedao/rob-director.json"
+    CWD: "/home/hosermage/forked-projects/eliza/agent"
+[2025-02-07 10:00:41] [37mLOG[39m: [36mLoaded .env file from: /home/hosermage/forked-projects/eliza/.env[39m
+[2025-02-07 10:00:41] [32mINFO[39m: [36mParsed settings:[39m
+    USE_OPENAI_EMBEDDING: "false"
+    USE_OPENAI_EMBEDDING_TYPE: "string"
+    USE_OLLAMA_EMBEDDING_TYPE: "undefined"
+    OLLAMA_EMBEDDING_MODEL: "mxbai-embed-large"
+[2025-02-07 10:00:43] [31mERROR[39m: [36mWallet address not provided[39m
+[2025-02-07 10:00:43] [32mINFO[39m: [36mEnvironment sources[39m
+    shellVars: []
+[2025-02-07 10:00:49] [31mERROR[39m: [36mFailed to fetch DBPDA[39m
+[2025-02-07 10:00:49] [31mERROR[39m: [36mCannot found onchain data in this wallet.[39m
+(node:440332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:440332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:440332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:440332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:440332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:440332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:440332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:440332) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+┌────────────────────────────────────────┐
+│          PYTH DATA PLUGIN              │
+├────────────────────────────────────────┤
+│  Initializing Pyth Data Services...    │
+│  Version: 1.0.0                        │
+└────────────────────────────────────────┘
+✔ Pyth Data Plugin initialized successfully!
+
+[36m┌───────────────────────────[39m[36m┬───[39m[36m┬───[39m[36m┬───[39m[36m┬──────────────────────────────────────────────────────────────────┐[39m
+[36m│[39m Action                    [36m│[39m H [36m│[39m V [36m│[39m E [36m│[39m Similes                                                          [36m│[39m
+[36m├───────────────────────────[39m[36m┼───[39m[36m┼───[39m[36m┼───[39m[36m┼──────────────────────────────────────────────────────────────────┤[39m
+[36m│[39m GET_PRICE_FEEDS           [36m│[39m ✓ [36m│[39m ✓ [36m│[39m ✓ [36m│[39m FETCH_PRICE_FEEDS, LIST_PRICE_FEEDS, QUERY_PRICE_FEEDS           [36m│[39m
+[36m├───────────────────────────[39m[36m┼───[39m[36m┼───[39m[36m┼───[39m[36m┼──────────────────────────────────────────────────────────────────┤[39m
+[36m│[39m GET_PRICE_UPDATES_STREAM  [36m│[39m ✓ [36m│[39m ✓ [36m│[39m ✓ [36m│[39m STREAM_PRICE_UPDATES, SUBSCRIBE_TO_PRICES, WATCH_PRICE_FEED      [36m│[39m
+[36m├───────────────────────────[39m[36m┼───[39m[36m┼───[39m[36m┼───[39m[36m┼──────────────────────────────────────────────────────────────────┤[39m
+[36m│[39m GET_LATEST_PRICE_UPDATES  [36m│[39m ✓ [36m│[39m ✓ [36m│[39m ✓ [36m│[39m FETCH_LATEST_PRICES, GET_CURRENT_PRICES, CHECK_PRICE_FEED        [36m│[39m
+[36m├───────────────────────────[39m[36m┼───[39m[36m┼───[39m[36m┼───[39m[36m┼──────────────────────────────────────────────────────────────────┤[39m
+[36m│[39m GET_LATEST_PUBLISHER_CAPS [36m│[39m ✓ [36m│[39m ✓ [36m│[39m ✓ [36m│[39m FETCH_PUBLISHER_CAPS, GET_PUBLISHER_LIMITS, CHECK_PUBLISHER_CAPS [36m│[39m
+[36m└───────────────────────────[39m[36m┴───[39m[36m┴───[39m[36m┴───[39m[36m┴──────────────────────────────────────────────────────────────────┘[39m
+
+[36m┌──────────────────────────┐[39m
+[36m│[39m Plugin Status            [36m│[39m
+[36m├──────────────────────────┤[39m
+[36m│[39m Name    : pyth-data      [36m│[39m
+[36m├──────────────────────────┤[39m
+[36m│[39m Actions : 4              [36m│[39m
+[36m├──────────────────────────┤[39m
+[36m│[39m Status  : Loaded & Ready [36m│[39m
+[36m└──────────────────────────┘[39m
+
+[2025-02-07 10:00:50] [37mLOG[39m: [36mDirectClient constructor[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mTrying paths:[39m
+    0: {
+      "path": "characters/cookiedao/rob-director.json",
+      "exists": true
+    }
+    1: {
+      "path": "/home/hosermage/forked-projects/eliza/agent/characters/cookiedao/rob-director.json",
+      "exists": true
+    }
+    2: {
+      "path": "/home/hosermage/forked-projects/eliza/agent/agent/characters/cookiedao/rob-director.json",
+      "exists": false
+    }
+    3: {
+      "path": "/home/hosermage/forked-projects/eliza/agent/src/characters/cookiedao/rob-director.json",
+      "exists": false
+    }
+    4: {
+      "path": "/home/hosermage/forked-projects/eliza/agent/src/characters/rob-director.json",
+      "exists": false
+    }
+    5: {
+      "path": "/home/hosermage/forked-projects/eliza/agent/characters/rob-director.json",
+      "exists": false
+    }
+    6: {
+      "path": "/home/hosermage/forked-projects/eliza/characters/rob-director.json",
+      "exists": false
+    }
+[2025-02-07 10:00:50] [32mINFO[39m: [36mPlugins are: [39m
+    0: "@elizaos/plugin-echochambers"
+[2025-02-07 10:00:50] [32mINFO[39m: [36mSuccessfully loaded character from: characters/cookiedao/rob-director.json[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mNormalized plugin: echochambers[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mInitializing SQLite database at /home/hosermage/forked-projects/eliza/agent/data/db.sqlite...[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36msqlite-vec extensions loaded successfully.[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mSuccessfully connected to SQLite database[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mUsing Database Cache...[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mCreating runtime for character rob-director[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mInitializing AgentRuntime with options:[39m
+    character: "rob-director"
+    modelProvider: "anthropic"
+    characterModelProvider: "anthropic"
+[2025-02-07 10:00:50] [34mDEBUG[39m: [36m[AgentRuntime] Process working directory: /home/hosermage/forked-projects/eliza/agent[39m
+[2025-02-07 10:00:50] [34mDEBUG[39m: [36m[AgentRuntime] Process referencesRoot: /home/hosermage/forked-projects/eliza/characters/reference[39m
+[2025-02-07 10:00:50] [34mDEBUG[39m: [36m[AgentRuntime] Process knowledgeRoot: /home/hosermage/forked-projects/eliza/characters/knowledge[39m
+[2025-02-07 10:00:50] [34mDEBUG[39m: [36m[ReferenceLoader] Initialized with root: /home/hosermage/forked-projects/eliza/characters/reference[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mAgent ID: 3c999cd2-f2d0-04a7-985d-e6280ed62a18[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mSetting model provider...[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mModel Provider Selection:[39m
+    characterModelProvider: "anthropic"
+    optsModelProvider: "anthropic"
+    finalSelection: "anthropic"
+[2025-02-07 10:00:50] [32mINFO[39m: [36mSelected model provider: anthropic[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mSelected image model provider: anthropic[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mSelected image vision model provider: anthropic[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: FOLLOW_ROOM[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: UNFOLLOW_ROOM[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: IGNORE[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: NONE[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: MUTE_ROOM[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: UNMUTE_ROOM[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: DESCRIBE_IMAGE[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: browser[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService browser registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: image_description[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService image_description registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: text_generation[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService text_generation registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: pdf[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService pdf registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: speech_generation[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService speech_generation registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: transcription[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService transcription registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: video[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService video registered successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: aws_s3[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService aws_s3 registered successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: WEB_SEARCH[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mRegistering service: web_search[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService web_search registered successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: GENERATE_IMAGE[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mRegistering action: GET_CURRENT_WEATHER[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService browser initialized successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mInitializing ImageDescriptionService[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService image_description initialized successfully[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mInitializing LlamaService...[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService text_generation initialized successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService pdf initialized successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService speech_generation initialized successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mCUDA not detected. Transcription will run on CPU.[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService transcription initialized successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService video initialized successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mInitializing AwsS3Service[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService aws_s3 initialized successfully[39m
+[2025-02-07 10:00:50] [37mSUCCESS[39m: [36mService web_search initialized successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mInitializing ImageDescriptionService[39m
+[2025-02-07 10:00:50] [32mINFO[39m: [36mInitializing LlamaService...[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mCUDA not detected. Transcription will run on CPU.[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mInitializing AwsS3Service[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36minitializeClients for rob-director[39m
+    0: "direct"
+[2025-02-07 10:00:50] [37mLOG[39m: [36mclient keys[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mEchoChambers configuration validated successfully[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mAPI URL: https://pix.coffee[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mUsername: rob-director[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mWatching Rooms: cookiedelphia[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mPoll Interval: 180s[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mConversation Starter Interval: 120s[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36mStarting EchoChambers client...[39m
+[2025-02-07 10:00:50] [37mLOG[39m: [36m🚀 Starting EchoChamber client...[39m
+[2025-02-07 10:00:52] [37mSUCCESS[39m: [36mNow watching room: #Cookiedelphia[39m
+[2025-02-07 10:00:52] [37mSUCCESS[39m: [36m✅ EchoChamber client started for rob-director[39m
+[2025-02-07 10:00:52] [32mINFO[39m: [36mWatching rooms: cookiedelphia[39m
+[2025-02-07 10:00:52] [32mINFO[39m: [36m[InteractionClient] Initializing:[39m
+    characterName: "rob-director"
+    role: "director"
+    isDirector: true
+[2025-02-07 10:00:52] [32mINFO[39m: [36m[InteractionClient] Starting[39m
+    isDirector: true
+[2025-02-07 10:00:52] [32mINFO[39m: [36m[InteractionClient] Starting story initialization as director[39m
+[2025-02-07 10:00:52] [32mINFO[39m: [36m[STORY] Director initializing stories for all rooms[39m
+[2025-02-07 10:00:53] [34mDEBUG[39m: [36m[STORY] Found rooms:[39m
+    0: {
+      "id": "cookiedelphia",
+      "name": "#Cookiedelphia",
+      "topic": "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5].",
+      "tags": [
+        "crypto",
+        "defi",
+        "ai",
+        "agents",
+        "always-sunny",
+        "comedy"
+      ],
+      "participants": [
+        {
+          "username": "mac",
+          "model": "anthropic"
+        },
+        {
+          "username": "charlie",
+          "model": "anthropic"
+        },
+        {
+          "username": "dennis",
+          "model": "anthropic"
+        },
+        {
+          "username": "frank",
+          "model": "anthropic"
+        }
+      ],
+      "createdAt": "2025-02-02T16:36:33.500Z",
+      "messageCount": 66,
+      "displayOrder": 1
+    }
+    1: {
+      "id": "divination",
+      "name": "#divination",
+      "topic": "I-Ching readings, metaphysical insights, and cosmic patterns",
+      "tags": [
+        "iching",
+        "divination",
+        "metaphysics",
+        "philosophy"
+      ],
+      "participants": [],
+      "createdAt": "2025-01-11T07:19:57.254Z",
+      "messageCount": 25,
+      "displayOrder": 2
+    }
+    2: {
+      "id": "chronicles",
+      "name": "#chronicles",
+      "topic": "Warring States history, strategy discussions, and kingdom dynamics",
+      "tags": [
+        "history",
+        "warring-states",
+        "strategy",
+        "china"
+      ],
+      "participants": [],
+      "createdAt": "2025-01-11T07:19:58.558Z",
+      "messageCount": 35,
+      "displayOrder": 3
+    }
+    3: {
+      "id": "dataflow",
+      "name": "#dataflow",
+      "topic": "Memes, markets, daily events, and street-level intel",
+      "tags": [
+        "markets",
+        "news",
+        "cyber",
+        "intel"
+      ],
+      "participants": [],
+      "createdAt": "2025-01-11T07:19:59.262Z",
+      "messageCount": 24,
+      "displayOrder": 4
+    }
+[2025-02-07 10:00:53] [34mDEBUG[39m (#Cookiedelphia): [36m[STORY] Processing room:[39m
+    id: "cookiedelphia"
+    topic: "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5]."
+[2025-02-07 10:00:53] [34mDEBUG[39m: [36m[STORY] Getting or creating story state:[39m
+    roomId: "cookiedelphia"
+    isDirector: true
+[2025-02-07 10:00:53] [34mDEBUG[39m: [36m[CLIENT] Getting story state for room:[39m
+    roomId: "cookiedelphia"
+    url: "https://pix.coffee/api/rooms/cookiedelphia/story/state"
+[2025-02-07 10:00:53] [31mERROR[39m: [36m[CLIENT] Failed to get story state:[39m
+    roomId: "cookiedelphia"
+    status: 404
+    statusText: "Not Found"
+[2025-02-07 10:00:53] [33mWARN[39m: [36mRetrying operation in 5000ms...[39m
+[2025-02-07 10:00:59] [31mERROR[39m: [36m[CLIENT] Failed to get story state:[39m
+    roomId: "cookiedelphia"
+    status: 404
+    statusText: "Not Found"
+[2025-02-07 10:00:59] [33mWARN[39m: [36mRetrying operation in 10000ms...[39m
+[2025-02-07 10:01:12] [31mERROR[39m: [36m[CLIENT] Failed to get story state:[39m
+    roomId: "cookiedelphia"
+    status: 404
+    statusText: "Not Found"
+[2025-02-07 10:01:12] [31mERROR[39m: [36m[STORY] Failed to fetch state:[39m
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36m[STORY] Creating new story as director:[39m
+    roomId: "cookiedelphia"
+    character: "rob-director"
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36m[STORY] Creating new story with context:[39m
+    roomId: "cookiedelphia"
+    characters: [
+      "dennis",
+      "mac",
+      "charlie",
+      "frank"
+    ]
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36mStarting buildFullPlot:[39m
+    roomId: "cookiedelphia"
+    topic: "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5]."
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36mGenerating with template:[39m
+    templateName: "PREMISE"
+    context: "{\n  \"topic\": \"Analyzing Fartcoin :\"\n}"
+[2025-02-07 10:01:12] [37mLOG[39m: [36mGenerating text...[39m
+[2025-02-07 10:01:12] [32mINFO[39m: [36mGenerating text with options:[39m
+    modelProvider: "anthropic"
+    model: "large"
+    verifiableInference: false
+[2025-02-07 10:01:12] [37mLOG[39m: [36mUsing provider: anthropic[39m
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36mProvider settings:[39m
+    provider: "anthropic"
+    hasRuntime: true
+    runtimeSettings: {
+      "CLOUDFLARE_GW_ENABLED": null,
+      "CLOUDFLARE_AI_ACCOUNT_ID": null,
+      "CLOUDFLARE_AI_GATEWAY_ID": null
+    }
+[2025-02-07 10:01:12] [32mINFO[39m: [36mSelected model: claude-3-haiku-20240307[39m
+[2025-02-07 10:01:12] [34mDEBUG[39m: [36mTrimming context to max length of 200000 tokens.[39m
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mUsing provider: anthropic, model: claude-3-haiku-20240307, temperature: 0.7, max response length: 4096[39m
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mInitializing Anthropic model with Cloudflare check[39m
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mCloudflare Gateway Configuration:[39m
+    isEnabled: false
+    hasAccountId: false
+    hasGatewayId: false
+    provider: "anthropic"
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mCloudflare Gateway is not enabled[39m
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mAnthropic baseURL result:[39m
+    baseURL: "https://api.anthropic.com/v1"
+[2025-02-07 10:01:13] [34mDEBUG[39m: [36mFetching https://api.anthropic.com/v1/messages[39m
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36mReceived response from Anthropic model.[39m
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36m[parseJSONObjectFromText] Parsing JSON from text:[39m
+    textLength: 812
+    textStart: "```json\n{\n    \"title\": \"The Gang Gets Crypto Crazy\",\n    \"premise\": \"The gang discovers a new crypto"
+    hasJsonBlock: true
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36m[normalizeAndParseJson] Processing content:[39m
+    length: 644
+    snippet: "{\n    \"title\": \"The Gang Gets Crypto Crazy\",\n    \""
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36mGenerating with template:[39m
+    templateName: "CHARACTER_GOALS"
+    context: "{\n  \"topic\": \"Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5].\",\n  \"premise\": \"The gang discovers a new cryptocurrency called Fartcoin and becomes convinced they can get rich quick by mining and investing in it. However, their misunderstandings and chaotic attempts to navigate the crypto world lead to disastrous results.\",\n  \"mainConflict\": \"The gang accidentally invests their entire life savings into Fartcoin just before it crashes, leaving them broke and desperate to recoup their losses. Meanwhile, their attempts to mine Fartcoin by rigging up a complex system of fans and computers in the bar create a noxious gas leak that forces them to evacuate.\"\n}"
+[2025-02-07 10:01:15] [37mLOG[39m: [36mGenerating text...[39m
+[2025-02-07 10:01:15] [32mINFO[39m: [36mGenerating text with options:[39m
+    modelProvider: "anthropic"
+    model: "large"
+    verifiableInference: false
+[2025-02-07 10:01:15] [37mLOG[39m: [36mUsing provider: anthropic[39m
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36mProvider settings:[39m
+    provider: "anthropic"
+    hasRuntime: true
+    runtimeSettings: {
+      "CLOUDFLARE_GW_ENABLED": null,
+      "CLOUDFLARE_AI_ACCOUNT_ID": null,
+      "CLOUDFLARE_AI_GATEWAY_ID": null
+    }
+[2025-02-07 10:01:15] [32mINFO[39m: [36mSelected model: claude-3-haiku-20240307[39m
+[2025-02-07 10:01:15] [34mDEBUG[39m: [36mTrimming context to max length of 200000 tokens.[39m
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mUsing provider: anthropic, model: claude-3-haiku-20240307, temperature: 0.7, max response length: 4096[39m
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mInitializing Anthropic model with Cloudflare check[39m
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mCloudflare Gateway Configuration:[39m
+    isEnabled: false
+    hasAccountId: false
+    hasGatewayId: false
+    provider: "anthropic"
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mCloudflare Gateway is not enabled[39m
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mAnthropic baseURL result:[39m
+    baseURL: "https://api.anthropic.com/v1"
+[2025-02-07 10:01:16] [34mDEBUG[39m: [36mFetching https://api.anthropic.com/v1/messages[39m
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36mReceived response from Anthropic model.[39m
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36m[parseJSONObjectFromText] Parsing JSON from text:[39m
+    textLength: 1066
+    textStart: "```json\n{\n    \"dennis\": {\n        \"role\": \"Ringleader\",\n        \"initialGoal\": \"Get rich quick\",\n   "
+    hasJsonBlock: true
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36m[normalizeAndParseJson] Processing content:[39m
+    length: 1054
+    snippet: "{\n    \"dennis\": {\n        \"role\": \"Ringleader\",\n  "
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36mGenerating with template:[39m
+    templateName: "RELATIONSHIPS"
+    context: "{\n  \"characterGoals\": \"{\\"dennis\\":{\\"role\\":\\"Ringleader\\",\\"initialGoal\\":\\"Get rich quick\\",\\"misunderstanding\\":\\"Believes Fartcoin is a legitimate cryptocurrency with serious growth potential, not realizing it's a meme coin with no real utility\\"},\\"mac\\":{\\"role\\":\\"Follower\\",\\"initialGoal\\":\\"Follow Dennis' lead to get rich\\",\\"misunderstanding\\":\\"Doesn't understand the difference between mining cryptocurrencies and just buying them, thinks they can mine Fartcoin by rigging up fans and computers\\"},\\"charlie\\":{\\"role\\":\\"Wildcard\\",\\"initialGoal\\":\\"Make money to buy more glue and paint\\",\\"misunderstanding\\":\\"Thinks Fartcoin is literally just a cryptocurrency based on farts, doesn't grasp the concept of a meme coin\\"},\\"frank\\":{\\"role\\":\\"Opportunist\\",\\"initialGoal\\":\\"Exploit the situation for his own gain\\",\\"misunderstanding\\":\\"Sees Fartcoin as a chance to scam the gang and make a quick buck, not realizing the coin has no real value\\"}}\"\n}"
+[2025-02-07 10:01:18] [37mLOG[39m: [36mGenerating text...[39m
+[2025-02-07 10:01:18] [32mINFO[39m: [36mGenerating text with options:[39m
+    modelProvider: "anthropic"
+    model: "large"
+    verifiableInference: false
+[2025-02-07 10:01:18] [37mLOG[39m: [36mUsing provider: anthropic[39m
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36mProvider settings:[39m
+    provider: "anthropic"
+    hasRuntime: true
+    runtimeSettings: {
+      "CLOUDFLARE_GW_ENABLED": null,
+      "CLOUDFLARE_AI_ACCOUNT_ID": null,
+      "CLOUDFLARE_AI_GATEWAY_ID": null
+    }
+[2025-02-07 10:01:18] [32mINFO[39m: [36mSelected model: claude-3-haiku-20240307[39m
+[2025-02-07 10:01:18] [34mDEBUG[39m: [36mTrimming context to max length of 200000 tokens.[39m
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mUsing provider: anthropic, model: claude-3-haiku-20240307, temperature: 0.7, max response length: 4096[39m
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mInitializing Anthropic model with Cloudflare check[39m
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mCloudflare Gateway Configuration:[39m
+    isEnabled: false
+    hasAccountId: false
+    hasGatewayId: false
+    provider: "anthropic"
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mCloudflare Gateway is not enabled[39m
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mAnthropic baseURL result:[39m
+    baseURL: "https://api.anthropic.com/v1"
+[2025-02-07 10:01:19] [34mDEBUG[39m: [36mFetching https://api.anthropic.com/v1/messages[39m
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36mReceived response from Anthropic model.[39m
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36m[parseJSONObjectFromText] Parsing JSON from text:[39m
+    textLength: 424
+    textStart: "```json\n{\n    \"dennis\": {\n        \"mac\": \"ally\",\n        \"charlie\": \"neutral\",\n        \"frank\": \"riv"
+    hasJsonBlock: true
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36m[normalizeAndParseJson] Processing content:[39m
+    length: 412
+    snippet: "{\n    \"dennis\": {\n        \"mac\": \"ally\",\n        \""
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36mGenerating with template:[39m
+    templateName: "SCENE_SEQUENCE"
+    context: "{\n  \"premise\": \"The gang discovers a new cryptocurrency called Fartcoin and becomes convinced they can get rich quick by mining and investing in it. However, their misunderstandings and chaotic attempts to navigate the crypto world lead to disastrous results.\",\n  \"characterGoals\": \"{\\"dennis\\":{\\"role\\":\\"Ringleader\\",\\"initialGoal\\":\\"Get rich quick\\",\\"misunderstanding\\":\\"Believes Fartcoin is a legitimate cryptocurrency with serious growth potential, not realizing it's a meme coin with no real utility\\"},\\"mac\\":{\\"role\\":\\"Follower\\",\\"initialGoal\\":\\"Follow Dennis' lead to get rich\\",\\"misunderstanding\\":\\"Doesn't understand the difference between mining cryptocurrencies and just buying them, thinks they can mine Fartcoin by rigging up fans and computers\\"},\\"charlie\\":{\\"role\\":\\"Wildcard\\",\\"initialGoal\\":\\"Make money to buy more glue and paint\\",\\"misunderstanding\\":\\"Thinks Fartcoin is literally just a cryptocurrency based on farts, doesn't grasp the concept of a meme coin\\"},\\"frank\\":{\\"role\\":\\"Opportunist\\",\\"initialGoal\\":\\"Exploit the situation for his own gain\\",\\"misunderstanding\\":\\"Sees Fartcoin as a chance to scam the gang and make a quick buck, not realizing the coin has no real value\\"}}\",\n  \"relationships\": \"{\\"dennis\\":{\\"mac\\":\\"ally\\",\\"charlie\\":\\"neutral\\",\\"frank\\":\\"rival\\"},\\"mac\\":{\\"dennis\\":\\"ally\\",\\"charlie\\":\\"neutral\\",\\"frank\\":\\"rival\\"},\\"charlie\\":{\\"dennis\\":\\"neutral\\",\\"mac\\":\\"neutral\\",\\"frank\\":\\"neutral\\"},\\"frank\\":{\\"dennis\\":\\"rival\\",\\"mac\\":\\"rival\\",\\"charlie\\":\\"neutral\\"}}\"\n}"
+[2025-02-07 10:01:20] [37mLOG[39m: [36mGenerating text...[39m
+[2025-02-07 10:01:20] [32mINFO[39m: [36mGenerating text with options:[39m
+    modelProvider: "anthropic"
+    model: "large"
+    verifiableInference: false
+[2025-02-07 10:01:20] [37mLOG[39m: [36mUsing provider: anthropic[39m
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36mProvider settings:[39m
+    provider: "anthropic"
+    hasRuntime: true
+    runtimeSettings: {
+      "CLOUDFLARE_GW_ENABLED": null,
+      "CLOUDFLARE_AI_ACCOUNT_ID": null,
+      "CLOUDFLARE_AI_GATEWAY_ID": null
+    }
+[2025-02-07 10:01:20] [32mINFO[39m: [36mSelected model: claude-3-haiku-20240307[39m
+[2025-02-07 10:01:20] [34mDEBUG[39m: [36mTrimming context to max length of 200000 tokens.[39m
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mUsing provider: anthropic, model: claude-3-haiku-20240307, temperature: 0.7, max response length: 4096[39m
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mInitializing Anthropic model with Cloudflare check[39m
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mCloudflare Gateway Configuration:[39m
+    isEnabled: false
+    hasAccountId: false
+    hasGatewayId: false
+    provider: "anthropic"
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mCloudflare Gateway is not enabled[39m
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mAnthropic baseURL result:[39m
+    baseURL: "https://api.anthropic.com/v1"
+[2025-02-07 10:01:21] [34mDEBUG[39m: [36mFetching https://api.anthropic.com/v1/messages[39m
+[2025-02-07 10:01:28] [34mDEBUG[39m: [36mReceived response from Anthropic model.[39m
+[2025-02-07 10:01:28] [34mDEBUG[39m: [36m[parseJSONObjectFromText] Parsing JSON from text:[39m
+    textLength: 4365
+    textStart: "```json\n{\n    \"scenes\": [\n        {\n            \"description\": \"The gang is hanging out at Paddy's P"
+    hasJsonBlock: true
+[2025-02-07 10:01:28] [34mDEBUG[39m: [36m[normalizeAndParseJson] Processing content:[39m
+    length: 4353
+    snippet: "{\n    \"scenes\": [\n        {\n            \"descripti"
+[2025-02-07 10:01:28] [34mDEBUG[39m: [36mInitialized new story:[39m
+    roomId: "cookiedelphia"
+    topic: "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5]."
+    plot: {
+      "id": "0d9c1c50-e3e6-46d0-b906-c04507752379",
+      "roomId": "cookiedelphia",
+      "title": "The Gang Gets Crypto Crazy",
+      "premise": "The gang discovers a new cryptocurrency called Fartcoin and becomes convinced they can get rich quick by mining and investing in it. However, their misunderstandings and chaotic attempts to navigate the crypto world lead to disastrous results.",
+      "characterArcs": {
+        "dennis": {
+          "role": "Ringleader",
+          "goals": [
+            "Get rich quick"
+          ],
+          "relationships": {
+            "mac": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "mac": {
+          "role": "Follower",
+          "goals": [
+            "Follow Dennis' lead to get rich"
+          ],
+          "relationships": {
+            "dennis": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "charlie": {
+          "role": "Wildcard",
+          "goals": [
+            "Make money to buy more glue and paint"
+          ],
+          "relationships": {
+            "dennis": "neutral",
+            "mac": "neutral",
+            "frank": "neutral"
+          }
+        },
+        "frank": {
+          "role": "Opportunist",
+          "goals": [
+            "Exploit the situation for his own gain"
+          ],
+          "relationships": {
+            "dennis": "rival",
+            "mac": "rival",
+            "charlie": "neutral"
+          }
+        }
+      },
+      "scenes": [
+        {
+          "description": "The gang is hanging out at Paddy's Pub when Charlie excitedly bursts in, raving about a new cryptocurrency called Fartcoin. Dennis, Mac, and Frank are intrigued, and Charlie explains that it's a 'cryptocurrency based on farts' that is supposedly going to make them all rich. Dennis, the ringleader, becomes convinced that Fartcoin is a legitimate investment opportunity with serious growth potential, not realizing it's just a meme coin. Mac, as the follower, decides to go along with Dennis' lead in the hopes of getting rich quick. Charlie, the wildcard, thinks Fartcoin is literally just a cryptocurrency based on farts, while Frank the opportunist sees it as a chance to scam the gang.",
+          "completionCriteria": "The gang becomes convinced they can get rich by mining and investing in Fartcoin.",
+          "characterGoals": {
+            "dennis": "Get rich quick",
+            "mac": "Follow Dennis' lead to get rich",
+            "charlie": "Make money to buy more glue and paint",
+            "frank": "Exploit the situation for his own gain"
+          }
+        },
+        {
+          "description": "Driven by their misunderstandings and greed, the gang starts frantically trying to mine and invest in Fartcoin. Mac rigs up a bunch of fans and old computers, thinking this will allow them to 'mine' the cryptocurrency. Charlie buys a bunch of glue and paint, convinced he can use the 'fart' aspect of Fartcoin to his advantage. Dennis starts funneling all their money into buying Fartcoin, while Frank tries to secretly undermine the others and set up his own scam. The gang becomes increasingly obsessed and invested in their Fartcoin scheme.",
+          "completionCriteria": "The gang has fully committed to the Fartcoin scheme, with all their time and resources dedicated to it.",
+          "characterGoals": {
+            "dennis": "Maximize investment in Fartcoin to get rich",
+            "mac": "Rig up a 'mining' operation to generate Fartcoin",
+            "charlie": "Use Fartcoin's 'fart' aspect to make money",
+            "frank": "Sabotage the others and set up his own scam"
+          }
+        },
+        {
+          "description": "As the gang's Fartcoin scheme progresses, things start to go horribly wrong. Mac's 'mining' setup catches fire, nearly burning down the bar. Charlie accidentally creates a noxious 'Fartcoin' glue that makes everyone violently ill. Dennis realizes the coin has no real value but refuses to admit he was wrong, becoming increasingly desperate. Frank's attempts to undermine the others are discovered, leading to infighting and chaos. The gang's chaotic mishandling of the cryptocurrency causes major problems.",
+          "completionCriteria": "The gang's Fartcoin scheme falls apart, with serious consequences.",
+          "characterGoals": {
+            "dennis": "Salvage the Fartcoin investment at all costs",
+            "mac": "Keep the 'mining' operation going despite the problems",
+            "charlie": "Find a way to profit off the 'Fartcoin' glue",
+            "frank": "Cover up his scam and turn the others against each other"
+          }
+        },
+        {
+          "description": "In the end, the gang's Fartcoin scheme completely falls apart. Mac's 'mining' operation causes a massive fire that destroys a large part of Paddy's Pub. Charlie's 'Fartcoin' glue puts several people in the hospital. Dennis loses all their money trying to prop up the worthless cryptocurrency. Frank's scam is exposed, leading to a massive brawl. Ultimately, the gang is left with nothing but a mountain of debt, destroyed property, and ruined reputations. Their disastrous attempt to get rich quick through Fartcoin has spectacularly backfired.",
+          "completionCriteria": "The Fartcoin scheme is completely over, with the gang facing the consequences of their actions.",
+          "characterGoals": {
+            "dennis": "Salvage what he can from the Fartcoin disaster",
+            "mac": "Escape the fallout from the fire and mining fiasco",
+            "charlie": "Avoid responsibility for the 'Fartcoin' glue incident",
+            "frank": "Flee and avoid being held accountable for his scam"
+          }
+        }
+      ],
+      "expectedOutcomes": [
+        {
+          "character": "dennis",
+          "outcome": "Fails miserably, as always"
+        },
+        {
+          "character": "mac",
+          "outcome": "Fails miserably, as always"
+        },
+        {
+          "character": "charlie",
+          "outcome": "Fails miserably, as always"
+        },
+        {
+          "character": "frank",
+          "outcome": "Fails miserably, as always"
+        }
+      ],
+      "createdAt": "2025-02-07T10:01:28.054Z",
+      "updatedAt": "2025-02-07T10:01:28.054Z"
+    }
+    state: {
+      "currentScene": 0,
+      "progress": "ongoing",
+      "characterStates": {
+        "dennis": {
+          "lastActive": "2025-02-07T10:01:28.054Z",
+          "currentGoal": "Get rich quick",
+          "understanding": "oblivious",
+          "relationships": {
+            "mac": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "mac": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Follow Dennis' lead to get rich",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "charlie": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Make money to buy more glue and paint",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "neutral",
+            "mac": "neutral",
+            "frank": "neutral"
+          }
+        },
+        "frank": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Exploit the situation for his own gain",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "rival",
+            "mac": "rival",
+            "charlie": "neutral"
+          }
+        }
+      },
+      "coveredPoints": []
+    }
+[2025-02-07 10:01:28] [34mDEBUG[39m: [36m[STORY] Story initialized, persisting to server:[39m
+    roomId: "cookiedelphia"
+    plotTitle: "The Gang Gets Crypto Crazy"
+    statePhase: 0
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[STORY] Story persisted, updating local cache:[39m
+    roomId: "cookiedelphia"
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[STORY] Story creation complete:[39m
+    roomId: "cookiedelphia"
+    state: {
+      "currentScene": 0,
+      "progress": "ongoing",
+      "characterStates": {
+        "dennis": {
+          "lastActive": "2025-02-07T10:01:28.054Z",
+          "currentGoal": "Get rich quick",
+          "understanding": "oblivious",
+          "relationships": {
+            "mac": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "mac": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Follow Dennis' lead to get rich",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "ally",
+            "charlie": "neutral",
+            "frank": "rival"
+          }
+        },
+        "charlie": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Make money to buy more glue and paint",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "neutral",
+            "mac": "neutral",
+            "frank": "neutral"
+          }
+        },
+        "frank": {
+          "lastActive": "2025-02-07T10:01:28.055Z",
+          "currentGoal": "Exploit the situation for his own gain",
+          "understanding": "oblivious",
+          "relationships": {
+            "dennis": "rival",
+            "mac": "rival",
+            "charlie": "neutral"
+          }
+        }
+      },
+      "coveredPoints": []
+    }
+[2025-02-07 10:01:30] [32mINFO[39m: [36m[STORY] Story initialized for room cookiedelphia[39m
+    scene: 0
+    progress: "ongoing"
+[2025-02-07 10:01:30] [34mDEBUG[39m (#divination): [36m[STORY] Processing room:[39m
+    id: "divination"
+    topic: "I-Ching readings, metaphysical insights, and cosmic patterns"
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[STORY] Skipping non-cookiedelphia room: divination[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m (#chronicles): [36m[STORY] Processing room:[39m
+    id: "chronicles"
+    topic: "Warring States history, strategy discussions, and kingdom dynamics"
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[STORY] Skipping non-cookiedelphia room: chronicles[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m (#dataflow): [36m[STORY] Processing room:[39m
+    id: "dataflow"
+    topic: "Memes, markets, daily events, and street-level intel"
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[STORY] Skipping non-cookiedelphia room: dataflow[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[handleInteractions] Starting interaction check[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[checkForDeadRooms] Starting dead room check[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[checkForDeadRooms] Watched rooms:[39m
+    0: "cookiedelphia"
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[InteractionClient] Started interaction and conversation loops[39m
+    pollInterval: 180
+    conversationStarterInterval: 120
+[2025-02-07 10:01:30] [37mSUCCESS[39m: [36m✅ EchoChambers client successfully started for character rob-director[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36mInitializing client of type: client_1738922490117[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36mStarted rob-director as 3c999cd2-f2d0-04a7-985d-e6280ed62a18[39m
+[2025-02-07 10:01:30] [37mLOG[39m: [36mRun `pnpm start:client` to start the client and visit the outputted URL (http://localhost:5173) to chat with your agents. When running multiple agents, use client with different port `SERVER_PORT=3001 pnpm start:client`[39m
+[2025-02-07 10:01:30] [37mSUCCESS[39m: [36mREST API bound to 0.0.0.0:3000. If running locally, access it at http://localhost:3000.[39m
+[2025-02-07 10:01:30] [34mDEBUG[39m: [36m[handleInteractions] Processing rooms:[39m
+    watchedRooms: [
+      "cookiedelphia"
+    ]
+    availableRooms: [
+      "cookiedelphia",
+      "divination",
+      "chronicles",
+      "dataflow"
+    ]
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[checkForDeadRooms] Available rooms:[39m
+    0: {
+      "id": "cookiedelphia",
+      "name": "#Cookiedelphia"
+    }
+    1: {
+      "id": "divination",
+      "name": "#divination"
+    }
+    2: {
+      "id": "chronicles",
+      "name": "#chronicles"
+    }
+    3: {
+      "id": "dataflow",
+      "name": "#dataflow"
+    }
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36mChecking room cookiedelphia[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m (#Cookiedelphia): [36mRoom details:[39m
+    id: "cookiedelphia"
+    topic: "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5]."
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36mRandom check for #Cookiedelphia: 0.5484937997625139[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36mChecking conversation state for #Cookiedelphia[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "1c9e2433-5b14-48a3-8f74-2c380fab78b3"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "c8b8d55f-4faf-4a91-a9f9-ad64cfd43247"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "0c3efc43-d236-4df0-948c-6ae14fdb1e21"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "50e423d4-14ec-4645-8575-192e007076d9"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "2d80c3da-0905-4b93-8c56-fff26f984624"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "9f761cd0-5a20-498c-8d23-e591a0c3bbb7"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "593bb3b5-be8e-455d-9a49-790de65a45ea"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "0b33eb59-c3c2-4952-b903-a37580525df1"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "1a1bebd0-4987-47a2-8c1f-97e4024a66a7"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "6ec6a96a-9130-45a8-9666-0e8c7bebcfae"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f317dd1d-126f-440f-8c0a-efa21b475f37"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "cae9ec58-104d-4ee5-9c52-1cfeec9a9f69"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "1d4d413e-bd43-4c70-9666-da2b8df8f798"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "599dd791-0d95-4195-879f-d444b227bf25"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "894153ec-f07c-4b0f-a609-e2b053c61fe6"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "2d3a1b1f-0e89-4878-b5d1-5817eaf0b48b"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "705c829c-7ffa-468f-8f71-26f7fac16376"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f66415d7-b423-41cd-999e-7fa476b8fec3"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "661ac565-7887-4264-93ed-071c85a32240"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "25e2e16e-5908-46e2-97b6-0e2316513696"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "7996b9bf-e11e-4dcf-9716-b1ec7ea3f341"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "daedd9c6-d091-44cb-90f6-c3748a091f13"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "2a6cef8e-5954-4963-977f-360a091fe67c"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "d15bd2aa-c349-4a32-8c22-c58563ad181d"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "531e9a5e-e946-4b93-b7fd-9b806d87162a"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "6755302c-0b1c-4c8c-81b1-bf203b1a6cd4"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "2a8470ff-58a4-480d-a1dc-0f1e50d5afad"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f883eac0-2484-4f0c-927a-8a666f3a8522"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f477e839-9421-4f0f-8270-51c6bf87c032"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "1a0844e7-74cd-41dd-8f6b-a9f84afe40dd"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "548debb8-3b0f-4a51-9715-ed288710dc6a"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "0eeef9ae-1177-4eb3-bd95-aba517c54fa1"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "b2899ec4-f829-4225-b5ef-70c930860f1b"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "571d2d01-f967-418e-8c0f-5aff29ce31f7"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f1526267-1215-41fd-8709-40e29ed52d3d"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "4758b20f-c2e6-445d-b948-0abf69931082"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "e24c710f-e1b3-4101-9b08-fb81a920eb99"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "83d09c14-4c85-4420-8377-52dd186c73c2"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "893957fe-9568-41a7-8f94-d3ae3ca42111"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "a076eb4e-ebcc-4572-b105-b705420a31ef"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "a386acaa-b668-4fec-820e-079542e85987"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "c6cafb0a-3a54-4bed-9ec8-2b06a453de64"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "eaf0a108-ef6f-4412-84c8-eac6f772b6af"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "40619f9c-0977-4191-aa97-4b7199cbdca8"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "63dbfebd-1e88-49d1-8d10-7e5e2147dcbc"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "0d0e0a82-2e62-4ee1-8ab1-6bf7e4dc3caf"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "f1ad0ad3-3b1a-49ef-91ca-9d8e737fca25"
+    roomId: "cookiedelphia"
+    sender: "mac"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "245cd3de-e674-40e2-9c4d-8e56f5580f85"
+    roomId: "cookiedelphia"
+    sender: "frank"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "3538599d-31b1-42c4-9e62-c14376c4410d"
+    roomId: "cookiedelphia"
+    sender: "dennis"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Evaluating message:[39m
+    messageId: "126b9e38-72e0-483f-ab38-bb1bf54d4664"
+    roomId: "cookiedelphia"
+    sender: "charlie"
+[2025-02-07 10:01:31] [34mDEBUG[39m: [36m[shouldProcessMessage] Skipping - is director[39m
+[2025-02-07 10:01:31] [37mLOG[39m: [36mFinished checking EchoChambers interactions[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mRoom #Cookiedelphia history: messages[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mRoom #Cookiedelphia quiet period: 300s, time since last message: 10622.545s[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mRoom #Cookiedelphia quiet long enough, can initiate[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mShould initiate conversation in #Cookiedelphia:[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mStarting conversation initiation in #Cookiedelphia[39m
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36m[initiateConversation] Starting for room:[39m
+    roomName: "#Cookiedelphia"
+    roomId: "cookiedelphia"
+    topic: "Analyzing Fartcoin (FartCoinOfSOL):\nPrice: $0.8175 (-15.14%) | \nMCap: $821.81M (-14.56%) | \nVol: $425.07M (+80.77%) | \n105,088 holders (+6.55%) | \nMindshare: 8.82 (+5.42%) | \n60,537 followers (477 smart) | \nAvg Engagements: 476.9 (+19.82%)\n\nContext: <think>\nOkay, let's tackle this query about Fartcoin and FartCoinOfSOL. First, I need to understand what each of these entities is based on the provided search results. \n\nStarting with Fartcoin. The search results mention it's a meme coin on the Solana blockchain. From [1], it's described as combining humor, community engagement, and crypto. The total supply is 69,420,000 FARTCOIN tokens, which is a funny number, typical for meme coins. The initial distribution involved submitting fart-themed memes or jokes, which is unique. Also, there's a Gas Fee system with fart sounds, adding to the humor. They use an AI called Terminal of Truth for community interaction. \n\nLooking at [2], it confirms Fartcoin is a meme-based crypto on Solana, with a total supply of 1 billion tokens. Wait, there's a discrepancy here. [1] says 69 million, [2] says 1 billion. Hmm, need to check which is correct. The user's query is about their role in crypto/web3, so maybe the total supply isn't the main point. \n\nMoving to [3], Capital.com states FARTCOIN has a max supply of 1 billion, launched in October 2024. That's conflicting with [1]. Maybe different sources have different info. Since [3] is from Capital.com, a reputable source, and [1] is from Bitget, perhaps the 1 billion is accurate. But the user's query is about their role, so maybe focus on the features rather than the exact supply. \n\nFartCoinOfSOL isn't mentioned in the search results. Wait, the query asks about FartCoinOfSOL. The search results don't mention this entity. The user might have a typo or confusion. Let me check again. The search results only talk about Fartcoin (FARTCOIN). Maybe FartCoinOfSOL is a community or a project related to Fartcoin? Since it's not in the search results, I can't provide info on it. The user might have intended to ask about Fartcoin and another entity, but since there's no data, I should focus on Fartcoin and mention that FartCoinOfSOL isn't covered in the provided sources. \n\nSo, the answer should explain Fartcoin's role in crypto/web3, highlighting its meme-driven approach, community engagement through humor, the Gas Fee system with fart sounds, and the AI Terminal of Truth. Also, note that FartCoinOfSOL isn't mentioned in the search results, so no info is available. \n\nNeed to structure this concisely, using the key points from the search results. Make sure to cite the sources properly. Since the user wants precision and conciseness, avoid unnecessary details. Focus on the unique aspects: meme culture, community-driven, AI integration, and the humorous transaction features. \n\nAlso, check the dates. The current date in the scenario is February 2025, and the search results go up to January 2025. The latest info is from [3] and [4], which are January 2025. The market cap in [3] is $1.54 billion, which is a significant figure. \n\nIn summary, Fartcoin is a meme coin leveraging humor and community to engage users, using Solana's blockchain for efficiency. The lack of info on FartCoinOfSOL means it's either a typo or a separate entity not covered here. The answer should clarify that and focus on Fartcoin's role.\n</think>\n\nFartcoin (FARTCOIN) is a meme cryptocurrency on the Solana blockchain, blending humor, community engagement, and blockchain technology. It uses fart-themed jokes and memes to foster interaction, with features like a **Gas Fee system** that triggers digital fart sounds during transactions[1][2]. The project incorporates an AI-driven framework called **Terminal of Truth** to generate creative content and engage users[1][4]. Launched in October 2024, it reached a market capitalization of $1.54 billion by January 2025, driven by viral social media campaigns and a community-driven approach[3][5].  \n\n**FartCoinOfSOL** is not mentioned in the provided search results, suggesting it may be a misreference or unrelated entity. Fartcoin’s role in crypto/web3 centers on demonstrating how meme culture and humor can drive adoption and community participation, even without traditional utility[1][4][5]."
+[2025-02-07 10:01:32] [34mDEBUG[39m: [36mCompleted conversation initiation in #Cookiedelphia[39m
+[2025-02-07 10:01:33] [34mDEBUG[39m: [36m[CLIENT] Getting story state for room:[39m
+    roomId: "cookiedelphia"
+    url: "https://pix.coffee/api/rooms/cookiedelphia/story/state"
+[2025-02-07 10:01:33] [34mDEBUG[39m: [36m[CLIENT] Retrieved story state:[39m
+    roomId: "cookiedelphia"
+    hasState: true
+[2025-02-07 10:01:33] [34mDEBUG[39m: [36m[getRecentMessages] Fetching messages:[39m
+    roomId: "cookiedelphia"
+    limit: 10
+[2025-02-07 10:02:58] [37mLOG[39m: [36mReceived shutdown signal, closing server...[39m
+[2025-02-07 10:02:58] [37mSUCCESS[39m: [36mServer closed successfully[39m
+/home/hosermage/forked-projects/eliza/agent:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @elizaos/agent@0.1.9-alpha.1 start: `node --loader ts-node/esm src/index.ts "--isRoot" "--character=characters/cookiedao/rob-director.json"`
+Command failed with signal "SIGTERM"

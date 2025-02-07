@@ -722,6 +722,11 @@ export interface ModelConfiguration {
 
 export type TemplateType = string | ((options: { state: State }) => string);
 
+export enum AgentRole {
+    ACTOR = "actor",
+    DIRECTOR = "director",
+}
+
 /**
  * Configuration for an agent character
  */
@@ -731,6 +736,9 @@ export type Character = {
 
     /** Character name */
     name: string;
+
+    /** Agent role - actor or director */
+    role?: AgentRole;
 
     /** Optional username */
     username?: string;
@@ -867,6 +875,25 @@ export type Character = {
         };
         transcription?: TranscriptionProvider;
         ragKnowledge?: boolean;
+    };
+
+    directorConfig?: {
+        sceneParameters: {
+            maxDuration: number; // in milliseconds
+            minMessagesPerCharacter: number;
+            maxMessagesPerCharacter: number;
+            phaseTransitionTriggers: {
+                intro: number; // message counts to trigger next phase
+                development: number;
+                climax: number;
+                resolution: number;
+            };
+        };
+        moderationRules?: {
+            topicBoundaries: string[];
+            contentFilters: string[];
+            interventionTriggers: string[];
+        };
     };
 
     /** Optional client-specific config */

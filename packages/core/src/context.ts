@@ -175,10 +175,10 @@ export const composeContext = ({
         return templateFunction(state);
     }
 
-    // @ts-expect-error match isn't working as expected
-    return templateStr.replace(/{{\w+}}/g, (match) => {
-        const key = match.replace(/{{|}}/g, "");
-        return state[key] ?? "";
+    return templateStr.replace(/{{([^}]+)}}/g, (match, key) => {
+        // Handle nested properties
+        const value = key.split(".").reduce((obj, k) => obj?.[k], state);
+        return value ?? "";
     });
 };
 

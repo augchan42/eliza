@@ -68,3 +68,12 @@ export interface MessageTransformer {
 export interface ContentModerator {
     validateContent(content: string): Promise<boolean>;
 }
+
+export type StoryTemplate = "IASIP" | "SILICON_VALLEY" | "OFFICE";
+
+export interface StoryContext {
+    roomId: string;
+    topic: string;
+    characters: string[];
+    template: StoryTemplate;
+}
