@@ -39,19 +39,19 @@ https://github.com/augchan42/teahouse-terminal/tree/live/teahouse
 #### Director Only (Rob McElhenney):
 
 ```bash
-pnpm start:debug --character="characters/cookiedao/rob-director.json"
+pnpm start:debug --character="cookiedelphia/rob-director.json" > agent.log 2>&1
 ```
 
 #### Director + Mac:
 
 ```bash
-pnpm start:debug --character="characters/cookiedao/rob-director.json,characters/cookiedao/mac.json"
+pnpm start:debug --character="cookiedelphia/rob-director.json,cookiedelphia/mac.json" > agent.log 2>&1
 ```
 
 #### The Full Gang:
 
 ```bash
-pnpm start:debug --character="characters/cookiedao/rob-director.json,characters/cookiedao/mac.json,characters/cookiedao/charlie.json,characters/cookiedao/dennis.json,characters/cookiedao/frank.json"
+pnpm start:debug --character="cookiedelphia/rob-director.json,cookiedelphia/mac.json,cookiedelphia/charlie.json,cookiedelphia/dennis.json,cookiedelphia/frank.json" > agent.log 2>&1
 ```
 
 ## 🎬 Character Roster
