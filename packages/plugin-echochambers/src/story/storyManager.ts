@@ -21,6 +21,7 @@ import { ModelClass } from "@elizaos/core";
 import { STORY_PROGRESSION_TEMPLATE } from "./iasipTemplate";
 import { RoomId } from "./roomId";
 import { ChatMessage } from "../types";
+import { StoryScene } from "./types";
 
 export class StoryManager {
     // Make these static to persist across instance recreations
@@ -39,42 +40,52 @@ export class StoryManager {
         this.storyBuilder = new StoryBuilder(runtime);
     }
 
-    private async createStory(context: StoryContext): Promise<StoryState> {
-        elizaLogger.debug("[STORY] Creating new story with context:", {
+    public async createStory(
+        context: StoryContext,
+    ): Promise<StoryState | null> {
+        elizaLogger.debug("[STORY] Creating new story:", {
             roomId: context.roomId,
-            // topic: context.topic,
-            characters: context.characters,
+            topic: context.topic,
         });
 
-        const { plot, state } = await this.storyBuilder.initializeStory(
-            context.roomId,
-            context.topic,
-        );
+        try {
+            // Initialize story using StoryBuilder's method
+            const { plot, state } = await this.storyBuilder.initializeStory(
+                context.roomId,
+                context.topic,
+            );
 
-        elizaLogger.debug("[STORY] Story initialized, persisting to server:", {
-            roomId: context.roomId,
-            plotTitle: plot.title,
-            statePhase: state.currentScene,
-        });
+            if (!plot || !state) {
+                elizaLogger.error("[STORY] Failed to initialize story");
+                return null;
+            }
 
-        // Persist plot and state to server
-        await this.client.createStoryPlot(context.roomId, plot);
-        await this.client.createStoryState(context.roomId, state);
+            // Cache both plot and state
+            StoryManager.storyPlots.set(context.roomId, plot);
+            StoryManager.storyStates.set(context.roomId, state);
 
-        elizaLogger.debug("[STORY] Story persisted, updating local cache:", {
-            roomId: context.roomId,
-        });
+            // Save to server using correct client methods
+            const savedPlot = await this.client.createStoryPlot(
+                context.roomId,
+                plot,
+            );
+            await this.client.createStoryState(context.roomId, state);
 
-        StoryManager.storyPlots.set(context.roomId, plot);
-        StoryManager.storyStates.set(context.roomId, state);
+            elizaLogger.debug(
+                "[STORY] Successfully created and cached story:",
+                {
+                    roomId: context.roomId,
+                    plotId: savedPlot.id,
+                    scene: state.currentScene,
+                    progress: state.progress,
+                },
+            );
 
-        elizaLogger.debug("[STORY] Story creation complete:", {
-            roomId: context.roomId,
-            // plot,
-            state,
-        });
-
-        return state;
+            return state;
+        } catch (error) {
+            elizaLogger.error("[STORY] Error creating story:", error);
+            return null;
+        }
     }
 
     async getStoryState(roomId: RoomId): Promise<StoryState | null> {
@@ -99,29 +110,39 @@ export class StoryManager {
         return StoryManager.storyStates.get(cacheKey) || null;
     }
 
-    private async getStoryPlot(roomId: string): Promise<StoryPlot | null> {
-        // Check static cache first
+    public async getStoryPlot(roomId: string): Promise<StoryPlot | null> {
+        // Check cache first
         const cachedPlot = StoryManager.storyPlots.get(roomId);
         if (cachedPlot) {
+            elizaLogger.debug("[STORY] Found plot in cache:", {
+                roomId,
+                plotId: cachedPlot.id,
+            });
             return cachedPlot;
         }
 
-        // Only fetch if not in cache
         elizaLogger.debug("[STORY] Plot not in cache, fetching from server:", {
             roomId,
         });
 
         try {
-            const serverPlot = await this.client.getStoryPlot(roomId);
-            if (serverPlot) {
-                StoryManager.storyPlots.set(roomId, serverPlot);
-                return serverPlot;
+            const plot = await this.client.getStoryPlot(roomId);
+            if (plot) {
+                // Cache the plot after fetching
+                StoryManager.storyPlots.set(roomId, plot);
+                elizaLogger.debug("[STORY] Cached plot from server:", {
+                    roomId,
+                    plotId: plot.id,
+                });
             }
+            return plot;
         } catch (error) {
-            elizaLogger.error("[STORY] Failed to fetch plot:", error);
+            elizaLogger.error("[STORY] Error fetching plot:", {
+                roomId,
+                error,
+            });
+            return null;
         }
-
-        return null;
     }
 
     async getOrCreateStoryState(
@@ -178,9 +199,20 @@ export class StoryManager {
             return null;
         }
 
-        const action = await this.determineNextAction(state, plot);
+        elizaLogger.debug("[STORY] Evaluating progression:", {
+            currentScene: state.currentScene,
+            progress: state.progress,
+        });
+
+        // Check if we should progress
+        const shouldProgress = await this.shouldProgressScene(context);
+        elizaLogger.debug("[STORY] Progress check result:", { shouldProgress });
+
+        const action = shouldProgress
+            ? StoryAction.ADVANCE
+            : StoryAction.CONTINUE;
         const nextScene =
-            state.currentScene < Scene.ENDING
+            shouldProgress && state.currentScene < Scene.ENDING
                 ? state.currentScene + 1
                 : undefined;
 
@@ -191,40 +223,6 @@ export class StoryManager {
                 characterPrompts: this.generateCharacterPrompts(state, plot),
             },
         };
-    }
-
-    private determineNextAction(
-        state: StoryState,
-        plot: StoryPlot,
-    ): StoryAction {
-        try {
-            const currentScene = plot.scenes[state.currentScene];
-
-            if (!currentScene) {
-                elizaLogger.warn(
-                    "[STORY] No current scene found, defaulting to continue",
-                );
-                return StoryAction.CONTINUE;
-            }
-
-            // Check if we're at the final scene
-            if (
-                state.currentScene === Scene.ENDING &&
-                state.progress === Progress.READY_TO_ADVANCE
-            ) {
-                return StoryAction.CONCLUDE;
-            }
-
-            // Check if ready to advance to next scene
-            if (state.progress === Progress.READY_TO_ADVANCE) {
-                return StoryAction.ADVANCE;
-            }
-
-            return StoryAction.CONTINUE;
-        } catch (error) {
-            elizaLogger.error("[STORY] Error determining next action:", error);
-            return StoryAction.CONTINUE;
-        }
     }
 
     private generateCharacterPrompts(state: StoryState, plot: StoryPlot) {
@@ -253,7 +251,7 @@ export class StoryManager {
     private generateSuggestion(
         character: string,
         charState: StoryState["characterStates"][string],
-        currentScene: StoryPlot["scenes"][number],
+        currentScene: StoryScene,
     ): string {
         const basePrompt = `Try to ${currentScene.characterGoals[character]}`;
         const relationshipHint = Object.entries(charState.relationships)
@@ -393,27 +391,80 @@ export class StoryManager {
         const state = await this.getStoryState(
             RoomId.fromString(context.roomId),
         );
-        if (!state) return false;
+        if (!state) {
+            elizaLogger.debug("[STORY] No state found for progression check");
+            return false;
+        }
 
         // Get recent messages to check for scene completion
         const recentMessages = await this.client.getRecentMessages(
             context.roomId,
             10,
         );
+        elizaLogger.debug("[STORY] Checking recent messages for progression:", {
+            messageCount: recentMessages.length,
+            messages: recentMessages.map((m) => ({
+                content: m.content.substring(0, 50),
+                sender: m.sender,
+            })),
+        });
 
-        // Check if current scene goals have been met
         const plot = await this.getStoryPlot(context.roomId);
-        if (!plot || state.currentScene >= plot.scenes.length) return false;
+        if (!plot || state.currentScene >= Object.keys(plot.scenes).length) {
+            elizaLogger.debug(
+                "[STORY] Invalid plot or scene state for progression",
+            );
+            return false;
+        }
 
         const currentScene = plot.scenes[state.currentScene];
+        elizaLogger.debug("[STORY] Current scene details:", {
+            sceneIndex: state.currentScene,
+            description: currentScene.description,
+            completionCriteria: currentScene.completionCriteria,
+        });
 
-        // Check if completion criteria has been met through recent messages
         const completionMet = this.checkCompletionCriteria(
             currentScene.completionCriteria,
             recentMessages,
         );
+        elizaLogger.debug("[STORY] Scene completion check:", { completionMet });
+
+        if (completionMet) {
+            // Update state to ready for advancement
+            const updatedState: StoryState = {
+                ...state,
+                progress: Progress.READY_TO_ADVANCE,
+            };
+            await this.saveStoryState(
+                RoomId.fromString(context.roomId),
+                updatedState,
+            );
+            elizaLogger.info("[STORY] Scene ready for advancement");
+        }
 
         return completionMet;
+    }
+
+    private checkCompletionCriteria(
+        criteria: string,
+        messages: ChatMessage[],
+    ): boolean {
+        const keywords = criteria.toLowerCase().split(/\W+/).filter(Boolean);
+        const messageText = messages
+            .map((m) => m.content.toLowerCase())
+            .join(" ");
+
+        elizaLogger.debug("[STORY] Checking completion criteria:", {
+            keywords,
+            messageTextPreview: messageText.substring(0, 100),
+            keywordMatches: keywords.map((k) => ({
+                keyword: k,
+                found: messageText.includes(k),
+            })),
+        });
+
+        return keywords.every((keyword) => messageText.includes(keyword));
     }
 
     async progressScene(roomId: string): Promise<void> {
@@ -427,7 +478,7 @@ export class StoryManager {
         const nextScene = state.currentScene + 1;
 
         // Check if story should conclude
-        if (nextScene >= plot.scenes.length) {
+        if (nextScene >= Object.keys(plot.scenes).length) {
             await this.concludeStory(roomId);
             return;
         }
@@ -474,28 +525,57 @@ export class StoryManager {
         return updatedStates;
     }
 
-    private checkCompletionCriteria(
-        criteria: string,
-        messages: ChatMessage[],
-    ): boolean {
-        // Simple keyword matching for completion criteria
-        const keywords = criteria.toLowerCase().split(/\W+/).filter(Boolean);
-        const messageText = messages
-            .map((m) => m.content.toLowerCase())
-            .join(" ");
-
-        // Check if all keywords appear in recent messages
-        return keywords.every((keyword) => messageText.includes(keyword));
-    }
-
     private async concludeStory(roomId: string): Promise<void> {
-        // Implementation of concludeStory method
+        try {
+            const state = await this.getStoryState(RoomId.fromString(roomId));
+            if (!state) return;
+
+            const concludedState: StoryState = {
+                ...state,
+                progress: Progress.CONCLUDED,
+            };
+
+            await this.saveStoryState(
+                RoomId.fromString(roomId),
+                concludedState,
+            );
+            this.activeStories.delete(roomId);
+
+            elizaLogger.info("[STORY] Story concluded:", {
+                roomId,
+                finalScene: state.currentScene,
+            });
+
+            // Announce conclusion
+            await this.client.sendMessage(
+                roomId,
+                "🎬 The End - Another classic episode concludes!",
+            );
+        } catch (error) {
+            elizaLogger.error("[STORY] Error concluding story:", error);
+            throw error;
+        }
     }
 
     private async saveStoryState(
         roomId: RoomId,
         state: StoryState,
     ): Promise<void> {
-        // Implementation of saveStoryState method
+        try {
+            // Update cache
+            StoryManager.storyStates.set(roomId.forStory(), state);
+
+            // Save to server
+            await this.client.updateStoryState(roomId.forStory(), state);
+
+            elizaLogger.debug("[STORY] Successfully saved state:", {
+                roomId: roomId.forStory(),
+                scene: state.currentScene,
+                progress: state.progress,
+            });
+        } catch (error) {
+            elizaLogger.error("[STORY] Error saving state:", error);
+            throw error;
+        }
     }
 }

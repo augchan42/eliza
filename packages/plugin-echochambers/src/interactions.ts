@@ -31,9 +31,18 @@ function createMessageTemplate(currentRoom: string, roomTopic: string) {
 {{knowledge}}
 
 # Story Context:
-Current Scene: {{storyState.currentScene}}
-Your Current Goal: {{characterPrompts.currentGoal}}
+Scene {{storyState.currentScene + 1}}/4: {{currentSceneDescription}}
 Story Progress: {{storyState.progress}}
+Your Understanding: {{characterState.understanding}}
+
+# Your Current Role:
+Goal: {{characterPrompts.goal}}
+Suggested Action: {{characterPrompts.suggestion}}
+
+# Your Relationships:
+{{#each characterState.relationships}}
+- {{@key}}: {{this}} {{#if this === "ally"}}(work together){{else if this === "rival"}}(oppose them){{/if}}
+{{/each}}
 
 Current Room: ${currentRoom}
 Room Topic: ${roomTopic}
@@ -71,10 +80,18 @@ function createShouldRespondTemplate(currentRoom: string, roomTopic: string) {
 {{knowledge}}
 
 # Story Context:
-Current Scene: {{storyState.currentScene}}
-Your Current Goal: {{characterPrompts.currentGoal}}
-Your Relationships:
-{{characterPrompts.relationships}}
+Scene {{storyState.currentScene + 1}}/4: {{currentSceneDescription}}
+Story Progress: {{storyState.progress}}
+Your Understanding: {{characterState.understanding}}
+
+# Your Current Role:
+Goal: {{characterPrompts.goal}}
+Suggested Action: {{characterPrompts.suggestion}}
+
+# Your Relationships:
+{{#each characterState.relationships}}
+- {{@key}}: {{this}} {{#if this === "ally"}}(work together){{else if this === "rival"}}(oppose them){{/if}}
+{{/each}}
 
 Current Room: ${currentRoom}
 Room Topic: ${roomTopic}
@@ -459,7 +476,7 @@ export class InteractionClient {
             );
 
             // Add random chance to respond even if not directly relevant
-            const randomChance = Math.random() < 1; // 100% chance
+            const randomChance = Math.random() < 50; // 50% chance
 
             elizaLogger.debug("[shouldProcessMessage] Processing checks:", {
                 username: modelInfo.username,
@@ -918,7 +935,7 @@ export class InteractionClient {
                         `Random check for ${room.name}: ${randomCheck}`,
                     );
 
-                    if (randomCheck > 0.0) {
+                    if (randomCheck > 0.5) {
                         elizaLogger.debug(
                             `Checking conversation state for ${room.name}`,
                         );

@@ -74,6 +74,7 @@ export interface StoryState {
         }
     >;
     coveredPoints: string[];
+    template: StoryTemplate;
 }
 
 // Simplify directive structure
@@ -120,11 +121,7 @@ export interface StoryPlot {
             relationships: Record<string, Relationship>;
         }
     >;
-    scenes: Array<{
-        description: string;
-        completionCriteria: string;
-        characterGoals: Record<string, string>;
-    }>;
+    scenes: Record<Scene, StoryScene>; // Changed from Array to Record
     expectedOutcomes: Array<{
         character: string;
         outcome: string;
@@ -133,7 +130,11 @@ export interface StoryPlot {
     updatedAt: string;
 }
 
-export type StoryTemplate = "IASIP" | "SILICON_VALLEY" | "OFFICE";
+export enum StoryTemplate {
+    IASIP = "IASIP",
+    SILICON_VALLEY = "SILICON_VALLEY",
+    OFFICE = "OFFICE",
+}
 
 export interface StoryContext {
     roomId: string;
@@ -152,10 +153,17 @@ export enum Scene {
     ENDING = 3, // Everything falls apart
 }
 
+export interface StoryScene {
+    description: string;
+    completionCriteria: string;
+    characterGoals: Record<string, string>;
+}
+
 // Simple progress tracking
 export enum Progress {
     ONGOING = "ongoing",
     READY_TO_ADVANCE = "ready_to_advance",
+    CONCLUDED = "concluded",
 }
 
 // Character states

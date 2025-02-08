@@ -4,6 +4,9 @@ import {
     Progress,
     Understanding,
     Relationship,
+    StoryTemplate,
+    Scene,
+    StoryScene,
 } from "./types";
 import { IAgentRuntime } from "@elizaos/core";
 import {
@@ -87,8 +90,8 @@ Create 4 scenes showing how this scheme falls apart:
 
 Format as JSON:
 {
-    "scenes": [
-        {
+    "scenes": {
+        "0": {
             "description": "string",  // Detailed description of what happens
             "completionCriteria": "string",  // When to move to next scene
             "characterGoals": {
@@ -97,9 +100,17 @@ Format as JSON:
                 "charlie": "string",
                 "frank": "string"
             }
+        },
+        "1": {
+            // Same structure as above"
+        },
+        "2": {
+            // Same structure
+        },
+        "3": {
+            // Same structure
         }
-        // 3 more scenes
-    ]
+    }
 }
 ` + messageCompletionFooter;
 
@@ -243,11 +254,20 @@ export class StoryBuilder {
                     characterGoals,
                     relationships,
                 ),
-                scenes: scenes.scenes.map((s: any) => ({
-                    description: s.description,
-                    completionCriteria: s.completionCriteria,
-                    characterGoals: s.characterGoals,
-                })),
+                scenes: Object.entries(scenes.scenes).reduce(
+                    (acc, [sceneIndex, s]: [string, any]) => ({
+                        ...acc,
+                        [sceneIndex]: {
+                            description: s.description,
+                            completionCriteria: s.completionCriteria,
+                            characterGoals: s.characterGoals,
+                            phase: s.phase,
+                            beatKey: s.beatKey,
+                            tensionLevel: s.tensionLevel,
+                        },
+                    }),
+                    {} as Record<Scene, StoryScene>,
+                ),
                 expectedOutcomes: Object.entries(characterGoals).map(
                     ([char, goals]: [string, any]) => ({
                         character: char,
@@ -293,6 +313,7 @@ export class StoryBuilder {
             progress: Progress.ONGOING,
             characterStates: {},
             coveredPoints: [],
+            template: StoryTemplate.IASIP,
         };
 
         // Initialize character states
