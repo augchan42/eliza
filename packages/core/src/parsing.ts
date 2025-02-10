@@ -95,6 +95,10 @@ export const stringArrayFooter = `Respond with a JSON array containing the value
 
 Your response must include the JSON block.`;
 
+function normalizeJsonNewlines(str: string): string {
+    return JSON.stringify(str).slice(1, -1);
+}
+
 function normalizeJsonContent(jsonContent: string): string {
     try {
         // 1. Extract JSON block content
@@ -103,29 +107,12 @@ function normalizeJsonContent(jsonContent: string): string {
             .replace(/\s*```[\s\S]*$/, "")
             .trim();
 
-        // 2. Handle newlines and escaping before JSON parsing
-        normalized = normalized
-            .replace(/\\n/g, "\n") // Convert \n to actual newlines
-            .replace(/[\u2018\u2019]/g, "'") // Normalize smart quotes
-            .replace(/[\u201C\u201D]/g, '"'); // Normalize smart quotes
-
-        // 3. Find and extract valid JSON structure
-        const startIndex = normalized.search(/[{\[]/);
-        const endIndex =
-            normalized.length -
-            normalized.split("").reverse().join("").search(/[}\]]/);
-
-        if (startIndex === -1 || endIndex === -1) {
-            throw new Error("No valid JSON structure found");
-        }
-
-        normalized = normalized.slice(startIndex, endIndex);
-
-        // 4. Parse and re-stringify to ensure valid JSON with proper escaping
+        // 2. Parse JSON and normalize newlines in string values
         const parsed = JSON.parse(normalized);
-        return JSON.stringify(parsed)
-            .replace(/\\n/g, "\n") // Convert escaped newlines back to actual newlines
-            .replace(/\n/g, "\\n"); // Then convert all newlines to escaped form
+        if (typeof parsed.text === "string") {
+            parsed.text = normalizeJsonNewlines(parsed.text);
+        }
+        return JSON.stringify(parsed);
     } catch (error) {
         elizaLogger.error("[normalizeJsonContent] Failed to normalize:", {
             input: jsonContent,
