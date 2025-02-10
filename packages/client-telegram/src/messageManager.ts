@@ -245,8 +245,8 @@ export class MessageManager {
                             oracleReading = `
 Current Hexagram ${hexagram.number}: ${hexagram.name.chinese} (${hexagram.name.pinyin}) - ${hexagram.meaning}
 Symbol: ${hexagram.unicode}
-Upper Trigram: ${hexagram.upperTrigram.english} (${hexagram.upperTrigram.chinese})
-Lower Trigram: ${hexagram.lowerTrigram.english} (${hexagram.lowerTrigram.chinese})`;
+Upper Trigram: ${hexagram.upperTrigram.figure} ${hexagram.upperTrigram.english} (${hexagram.upperTrigram.chinese})
+Lower Trigram: ${hexagram.lowerTrigram.figure} ${hexagram.lowerTrigram.english} (${hexagram.lowerTrigram.chinese})`;
 
                             // Add transformed hexagram if there are changes
                             if (
