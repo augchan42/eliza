@@ -97,14 +97,19 @@ Your response must include the JSON block.`;
 
 function normalizeJsonContent(jsonContent: string): string {
     try {
-        // 1. Pre-clean any markdown or text debris
+        // 1. Extract JSON block content
         let normalized = jsonContent
-            .replace(/^[\s\S]*?```(?:json)?\s*/, "") // Remove everything before code block
-            .replace(/\s*```[\s\S]*$/, "") // Remove everything after code block
+            .replace(/^[\s\S]*?```(?:json)?\s*/, "")
+            .replace(/\s*```[\s\S]*$/, "")
+            .trim();
+
+        // 2. Handle newlines and escaping before JSON parsing
+        normalized = normalized
+            .replace(/\\n/g, "\n") // Convert \n to actual newlines
             .replace(/[\u2018\u2019]/g, "'") // Normalize smart quotes
             .replace(/[\u201C\u201D]/g, '"'); // Normalize smart quotes
 
-        // 2. Find valid JSON structure
+        // 3. Find and extract valid JSON structure
         const startIndex = normalized.search(/[{\[]/);
         const endIndex =
             normalized.length -
@@ -114,61 +119,13 @@ function normalizeJsonContent(jsonContent: string): string {
             throw new Error("No valid JSON structure found");
         }
 
-        // 3. Extract just the JSON structure
         normalized = normalized.slice(startIndex, endIndex);
 
-        // 4. Validate matching brackets/braces
-        const stack = [];
-        const pairs = { "{": "}", "[": "]" };
-        for (const char of normalized) {
-            if ("{[".includes(char)) stack.push(char);
-            if ("}]".includes(char)) {
-                const last = stack.pop();
-                if (pairs[last!] !== char)
-                    throw new Error("Mismatched brackets/braces");
-            }
-        }
-        if (stack.length) throw new Error("Unclosed brackets/braces");
-
-        // 5. Handle string values with consistent escaping while preserving whitespace
-        let inString = false;
-        let result = "";
-        let i = 0;
-
-        while (i < normalized.length) {
-            const char = normalized[i];
-
-            if (char === '"' && normalized[i - 1] !== "\\") {
-                inString = !inString;
-            }
-
-            if (!inString) {
-                // Outside strings - remove whitespace
-                if (!/\s/.test(char)) {
-                    result += char;
-                }
-            } else {
-                // Inside strings - preserve whitespace and escape properly
-                result += char;
-            }
-
-            i++;
-        }
-
-        // 6. Handle escaping within string values
-        return result.replace(
-            /"([^"]*?)"/g,
-            (match, content) =>
-                `"${
-                    content
-                        .replace(/\\"/g, '"') // Unescape any already escaped quotes
-                        .replace(/"/g, '\\"') // Re-escape quotes
-                        .replace(/\\/g, "\\\\") // Escape backslashes
-                        .replace(/\r/g, "\\r") // Escape carriage returns
-                        .replace(/\t/g, "\\t") // Escape tabs
-                        .replace(/[\x00-\x1F\x7F-\x9F]/g, "") // Remove control characters
-                }"`,
-        );
+        // 4. Parse and re-stringify to ensure valid JSON with proper escaping
+        const parsed = JSON.parse(normalized);
+        return JSON.stringify(parsed)
+            .replace(/\\n/g, "\n") // Convert escaped newlines back to actual newlines
+            .replace(/\n/g, "\\n"); // Then convert all newlines to escaped form
     } catch (error) {
         elizaLogger.error("[normalizeJsonContent] Failed to normalize:", {
             input: jsonContent,
