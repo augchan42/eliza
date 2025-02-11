@@ -95,10 +95,6 @@ export const stringArrayFooter = `Respond with a JSON array containing the value
 
 Your response must include the JSON block.`;
 
-function normalizeJsonNewlines(str: string): string {
-    return JSON.stringify(str).slice(1, -1);
-}
-
 function normalizeJsonContent(jsonContent: string): string {
     try {
         // 1. Extract JSON block content
@@ -107,11 +103,15 @@ function normalizeJsonContent(jsonContent: string): string {
             .replace(/\s*```[\s\S]*$/, "")
             .trim();
 
-        // 2. Parse JSON and normalize newlines in string values
+        // 2. Parse JSON
         const parsed = JSON.parse(normalized);
-        if (typeof parsed.text === "string") {
-            parsed.text = normalizeJsonNewlines(parsed.text);
+
+        // 3. Specifically handle text field newlines
+        if (parsed.text) {
+            // Just convert literal \n to actual newlines
+            parsed.text = parsed.text.replace(/\\n/g, "\n");
         }
+
         return JSON.stringify(parsed);
     } catch (error) {
         elizaLogger.error("[normalizeJsonContent] Failed to normalize:", {
