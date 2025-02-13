@@ -310,7 +310,7 @@ export class DivinationClient {
 
         try {
             const response = await fetch(
-                "https://8bitoracle.ai/api/generate/hexagram?includeText=true",
+                "https://app.8bitoracle.ai/api/generate/hexagram?includeText=true",
                 {
                     method: "GET",
                     headers: {
