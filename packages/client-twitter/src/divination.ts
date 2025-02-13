@@ -353,7 +353,7 @@ export class TwitterDivinationClient {
 
         try {
             const response = await fetch(
-                "https://8bitoracle.ai/api/generate/hexagram?includeText=false",
+                "https://app.8bitoracle.ai/api/generate/hexagram?includeText=false",
                 {
                     method: "GET",
                     headers: {
