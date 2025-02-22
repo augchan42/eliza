@@ -177,19 +177,35 @@ export class MessageManager {
     }
 
     private _initializeAutoPost(): void {
-        // Give the bot a moment to fully initialize
         setTimeout(() => {
-            // For testing: Random intervals between 30-90 seconds
+            // Get intervals from settings (in minutes)
+            const minInterval = parseInt(
+                this.runtime.getSetting("DIVINATION_INTERVAL_MIN") || "1380",
+                10,
+            ); // Default 23 hours
+            const maxInterval = parseInt(
+                this.runtime.getSetting("DIVINATION_INTERVAL_MAX") || "1500",
+                10,
+            ); // Default 25 hours
+
+            // Convert to milliseconds and ensure valid values
+            const minMs = Math.max(
+                minInterval * 60 * 1000,
+                23 * 60 * 60 * 1000,
+            ); // Minimum 23 hours
+            const maxMs = Math.max(
+                maxInterval * 60 * 1000,
+                minMs + 2 * 60 * 60 * 1000,
+            ); // At least 2 hours more than min
+
             this.autoPostInterval = setInterval(
                 () => {
+                    // Check recent message volume
                     this._checkChannelActivity();
                 },
-                Math.floor(
-                    Math.random() * (4 * 60 * 60 * 1000) + 2 * 60 * 60 * 1000, // 2-6 hours
-                    // Math.random() * 60000 + 30000, // 30-90 seconds
-                ),
+                Math.floor(Math.random() * (maxMs - minMs) + minMs),
             );
-        }, 5000); // Reduced initial delay to 3 seconds
+        }, 5000);
     }
 
     private async _checkChannelActivity(): Promise<void> {
@@ -197,194 +213,20 @@ export class MessageManager {
             return;
 
         try {
-            // Get last message time
-            const now = Date.now();
-            const lastActivityTime =
-                this.lastChannelActivity[this.autoPostConfig.mainChannelId] ||
-                0;
-            const timeSinceLastMessage = now - lastActivityTime;
-            const timeSinceLastAutoPost =
-                now - (this.autoPostConfig.lastAutoPost || 0);
-
-            const randomThreshold =
-                this.autoPostConfig.inactivityThreshold +
-                (Math.random() * 1800000 - 900000); //(±30 minutes)
-            // (Math.random() * 60000 - 30000); // ±30 seconds instead of ±30 minutes
-
-            // Check if we should post
-            if (
-                timeSinceLastMessage >
-                    this.autoPostConfig.inactivityThreshold ||
-                (randomThreshold &&
-                    timeSinceLastAutoPost >
-                        (this.autoPostConfig.minTimeBetweenPosts || 0))
-            ) {
-                try {
-                    const roomId = stringToUuid(
+            // Check recent message volume
+            const lastHourMessages =
+                await this.runtime.messageManager.getMemories({
+                    roomId: stringToUuid(
                         this.autoPostConfig.mainChannelId +
                             "-" +
                             this.runtime.agentId,
-                    );
+                    ),
+                    start: Date.now() - 60 * 60 * 1000, // Last hour
+                });
 
-                    // Get I Ching reading
-                    let oracleReading = "";
-                    let data: HexagramGenerateResponse = null;
-                    try {
-                        const response = await fetch(
-                            "https://app.8bitoracle.ai/api/generate/hexagram?includeText=true",
-                        );
-                        data = await response.json();
-
-                        if (data?.interpretation?.currentHexagram) {
-                            const hexagram =
-                                data.interpretation.currentHexagram;
-                            const transformedHexagram =
-                                data.interpretation.transformedHexagram;
-
-                            // Format current hexagram details
-                            oracleReading = `
-Current Hexagram ${hexagram.number}: ${hexagram.name.chinese} (${hexagram.name.pinyin}) - ${hexagram.meaning}
-Symbol: ${hexagram.unicode}
-Upper Trigram: ${hexagram.upperTrigram.figure} ${hexagram.upperTrigram.english} (${hexagram.upperTrigram.chinese})
-Lower Trigram: ${hexagram.lowerTrigram.figure} ${hexagram.lowerTrigram.english} (${hexagram.lowerTrigram.chinese})`;
-
-                            // Add transformed hexagram if there are changes
-                            if (
-                                data.interpretation.changes.length > 0 &&
-                                transformedHexagram
-                            ) {
-                                oracleReading += `\n\nTransforms into:
-Hexagram ${transformedHexagram.number}: ${transformedHexagram.name.chinese} (${transformedHexagram.name.pinyin}) - ${transformedHexagram.meaning}
-Symbol: ${transformedHexagram.unicode};`;
-                            }
-
-                            oracleReading += `\n\nJudgment: ${hexagram.judgment || "None"}
-
-Image: ${hexagram.image || "None"}
-
-Lines:
-${
-    hexagram.lines
-        ?.map(
-            (line) =>
-                `Line ${line.number}${line.changed ? " (Changing)" : ""}: ${line.text}`,
-        )
-        .join("\n") || "No line texts available"
-}`;
-
-                            elizaLogger.debug(
-                                "[AutoPost Telegram] Got I Ching reading:",
-                                oracleReading,
-                            );
-                        }
-                    } catch (oracleError) {
-                        elizaLogger.warn(
-                            "[AutoPost Telegram] Error getting I Ching reading:",
-                            oracleError,
-                        );
-                    }
-
-                    const memory = {
-                        id: stringToUuid(`autopost-${Date.now()}`),
-                        userId: this.runtime.agentId,
-                        agentId: this.runtime.agentId,
-                        roomId,
-                        content: {
-                            text: "AUTO_POST_ENGAGEMENT",
-                            source: "telegram",
-                            metadata: {
-                                oracleReading: oracleReading || undefined,
-                            },
-                        },
-                        embedding: getEmbeddingZeroVector(),
-                        createdAt: Date.now(),
-                    };
-
-                    let state = await this.runtime.composeState(memory, {
-                        telegramBot: this.bot,
-                        agentName: this.runtime.character.name,
-                    });
-
-                    // Update the state with oracle context in a format matching the template
-                    if (oracleReading) {
-                        // Add oracle reading to state before composing context
-                        state = {
-                            ...state,
-                            oracleReading: oracleReading || "", // This will be available as {{oracleReading}} in templates
-                        };
-                    }
-
-                    const templateToUse =
-                        this.runtime.character.templates
-                            ?.telegramAutoPostTemplate ||
-                        telegramAutoPostTemplate;
-
-                    const context = composeContext({
-                        state,
-                        template: getTemplate(templateToUse),
-                        templatingEngine: "handlebars", // Using handlebars for more complex template processing
-                    });
-
-                    const responseContent = await this._generateResponse(
-                        memory,
-                        state,
-                        context,
-                    );
-                    if (!responseContent?.text) return;
-
-                    elizaLogger.info(
-                        `[Auto Post Telegram] Recent Messages: ${responseContent}`,
-                    );
-                    // Send message directly using telegram bot
-                    const messageText = responseContent.reasoning
-                        ? `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`
-                        : responseContent.text.trim();
-
-                    const messages = await Promise.all(
-                        this.splitMessage(messageText).map((chunk) =>
-                            this.bot.telegram.sendMessage(
-                                this.autoPostConfig.mainChannelId,
-                                chunk,
-                            ),
-                        ),
-                    );
-
-                    // Create and store memories
-                    const memories = messages.map((m) => ({
-                        id: stringToUuid(
-                            m.message_id.toString() +
-                                "-" +
-                                this.runtime.agentId,
-                        ),
-                        userId: this.runtime.agentId,
-                        agentId: this.runtime.agentId,
-                        content: {
-                            ...responseContent,
-                            text: m.text,
-                        },
-                        roomId,
-                        embedding: getEmbeddingZeroVector(),
-                        createdAt: m.date * 1000,
-                    }));
-
-                    for (const m of memories) {
-                        await this.runtime.messageManager.createMemory(m);
-                    }
-
-                    this.autoPostConfig.lastAutoPost = Date.now();
-                    state = await this.runtime.updateRecentMessageState(state);
-                    await this.runtime.evaluate(memory, state, true);
-                } catch (error) {
-                    elizaLogger.warn(
-                        "[AutoPost Telegram] Error:",
-                        error instanceof Error ? error.message : String(error),
-                        error, // Log the full error object as additional context
-                    );
-                }
-            } else {
-                elizaLogger.warn(
-                    "[AutoPost Telegram] Activity within threshold. Not posting.",
-                );
+            // Only post if chat has been quiet (no messages in last hour)
+            if (!lastHourMessages?.length) {
+                this._checkChannelActivity();
             }
         } catch (error) {
             elizaLogger.warn(
@@ -847,214 +689,6 @@ ${
     }
 
     // Decide if the bot should respond to the message
-    // private async _shouldRespond(
-    //     message: Message,
-    //     state: State,
-    // ): Promise<boolean> {
-    //     if (
-    //         this.runtime.character.clientConfig?.telegram
-    //             ?.shouldRespondOnlyToMentions
-    //     ) {
-    //         return this._isMessageForMe(message);
-    //     }
-
-    //     // Respond if bot is mentioned
-    //     if (
-    //         "text" in message &&
-    //         message.text?.includes(`@${this.bot.botInfo?.username}`)
-    //     ) {
-    //         elizaLogger.info(`Bot mentioned`);
-    //         return true;
-    //     }
-
-    //     // Respond to private chats
-    //     if (message.chat.type === "private") {
-    //         return true;
-    //     }
-
-    //     // Don't respond to images in group chats
-    //     if (
-    //         "photo" in message ||
-    //         ("document" in message &&
-    //             message.document?.mime_type?.startsWith("image/"))
-    //     ) {
-    //         return false;
-    //     }
-
-    //     const chatId = message.chat.id.toString();
-    //     const chatState = this.interestChats[chatId];
-    //     const messageText =
-    //         "text" in message
-    //             ? message.text
-    //             : "caption" in message
-    //               ? message.caption
-    //               : "";
-
-    //     // Check if team member has direct interest first
-    //     if (
-    //         this.runtime.character.clientConfig?.telegram?.isPartOfTeam &&
-    //         !this._isTeamLeader() &&
-    //         this._isRelevantToTeamMember(messageText, chatId)
-    //     ) {
-    //         return true;
-    //     }
-
-    //     // Team-based response logic
-    //     if (this.runtime.character.clientConfig?.telegram?.isPartOfTeam) {
-    //         // Team coordination
-    //         if (this._isTeamCoordinationRequest(messageText)) {
-    //             if (this._isTeamLeader()) {
-    //                 return true;
-    //             } else {
-    //                 const randomDelay =
-    //                     Math.floor(
-    //                         Math.random() *
-    //                             (TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MAX -
-    //                                 TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN),
-    //                     ) + TIMING_CONSTANTS.TEAM_MEMBER_DELAY_MIN; // 1-3 second random delay
-    //                 await new Promise((resolve) =>
-    //                     setTimeout(resolve, randomDelay),
-    //                 );
-    //                 return true;
-    //             }
-    //         }
-
-    //         if (
-    //             !this._isTeamLeader() &&
-    //             this._isRelevantToTeamMember(messageText, chatId)
-    //         ) {
-    //             // Add small delay for non-leader responses
-    //             await new Promise((resolve) =>
-    //                 setTimeout(resolve, TIMING_CONSTANTS.TEAM_MEMBER_DELAY),
-    //             ); //1.5 second delay
-
-    //             // If leader has responded in last few seconds, reduce chance of responding
-    //             if (chatState.messages?.length) {
-    //                 const recentMessages = chatState.messages.slice(
-    //                     -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
-    //                 );
-    //                 const leaderResponded = recentMessages.some(
-    //                     (m) =>
-    //                         m.userId ===
-    //                             this.runtime.character.clientConfig?.telegram
-    //                                 ?.teamLeaderId &&
-    //                         Date.now() - chatState.lastMessageSent < 3000,
-    //                 );
-
-    //                 if (leaderResponded) {
-    //                     // 50% chance to respond if leader just did
-    //                     return Math.random() > RESPONSE_CHANCES.AFTER_LEADER;
-    //                 }
-    //             }
-
-    //             return true;
-    //         }
-
-    //         // If I'm the leader but message doesn't match my keywords, add delay and check for team responses
-    //         if (
-    //             this._isTeamLeader() &&
-    //             !this._isRelevantToTeamMember(messageText, chatId)
-    //         ) {
-    //             const randomDelay =
-    //                 Math.floor(
-    //                     Math.random() *
-    //                         (TIMING_CONSTANTS.LEADER_DELAY_MAX -
-    //                             TIMING_CONSTANTS.LEADER_DELAY_MIN),
-    //                 ) + TIMING_CONSTANTS.LEADER_DELAY_MIN; // 2-4 second random delay
-    //             await new Promise((resolve) =>
-    //                 setTimeout(resolve, randomDelay),
-    //             );
-
-    //             // After delay, check if another team member has already responded
-    //             if (chatState?.messages?.length) {
-    //                 const recentResponses = chatState.messages.slice(
-    //                     -MESSAGE_CONSTANTS.RECENT_MESSAGE_COUNT,
-    //                 );
-    //                 const otherTeamMemberResponded = recentResponses.some(
-    //                     (m) =>
-    //                         m.userId !== this.runtime.agentId &&
-    //                         this._isTeamMember(m.userId),
-    //                 );
-
-    //                 if (otherTeamMemberResponded) {
-    //                     return false;
-    //                 }
-    //             }
-    //         }
-
-    //         // Update current handler if we're mentioned
-    //         if (this._isMessageForMe(message)) {
-    //             const channelState = this.interestChats[chatId];
-    //             if (channelState) {
-    //                 channelState.currentHandler =
-    //                     this.bot.botInfo?.id.toString();
-    //                 channelState.lastMessageSent = Date.now();
-    //             }
-    //             return true;
-    //         }
-
-    //         // Don't respond if another teammate is handling the conversation
-    //         if (chatState?.currentHandler) {
-    //             if (
-    //                 chatState.currentHandler !==
-    //                     this.bot.botInfo?.id.toString() &&
-    //                 this._isTeamMember(chatState.currentHandler)
-    //             ) {
-    //                 return false;
-    //             }
-    //         }
-
-    //         // Natural conversation cadence
-    //         if (!this._isMessageForMe(message) && this.interestChats[chatId]) {
-    //             const recentMessages = this.interestChats[
-    //                 chatId
-    //             ].messages.slice(-MESSAGE_CONSTANTS.CHAT_HISTORY_COUNT);
-    //             const ourMessageCount = recentMessages.filter(
-    //                 (m) => m.userId === this.runtime.agentId,
-    //             ).length;
-
-    //             if (ourMessageCount > 2) {
-    //                 const responseChance = Math.pow(0.5, ourMessageCount - 2);
-    //                 if (Math.random() > responseChance) {
-    //                     return;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     // Check context-based response for team conversations
-    //     if (chatState?.currentHandler) {
-    //         const shouldRespondContext =
-    //             await this._shouldRespondBasedOnContext(message, chatState);
-
-    //         if (!shouldRespondContext) {
-    //             return false;
-    //         }
-    //     }
-
-    //     // Use AI to decide for text or captions
-    //     if ("text" in message || ("caption" in message && message.caption)) {
-    //         const shouldRespondContext = composeContext({
-    //             state,
-    //             template:
-    //                 this.runtime.character.templates
-    //                     ?.telegramShouldRespondTemplate ||
-    //                 this.runtime.character?.templates?.shouldRespondTemplate ||
-    //                 composeRandomUser(telegramShouldRespondTemplate, 2),
-    //         });
-
-    //         const response = await generateShouldRespond({
-    //             runtime: this.runtime,
-    //             context: shouldRespondContext,
-    //             modelClass: ModelClass.SMALL,
-    //         });
-
-    //         return response === "RESPOND";
-    //     }
-
-    //     return false;
-    // }
-
     private async _shouldRespond(
         message: Message,
         state: State,
