@@ -88,8 +88,8 @@ export class MessageManager {
 
     // Define plugin keyword mappings
     private readonly PLUGIN_KEYWORDS = {
-        weather: ["weather", "temperature", "forecast", "humidity", "rain"],
-        news: ["news", "headlines", "latest", "search"],
+        weather: ["weather", "", "", "", ""],
+        news: ["news", "headlines", "", ""],
         // Add other plugins and their keywords here
     } as const;
 
