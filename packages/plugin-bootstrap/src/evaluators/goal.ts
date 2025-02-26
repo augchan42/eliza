@@ -53,23 +53,61 @@ async function handler(
     runtime: IAgentRuntime,
     message: Memory,
     state: State | undefined,
-    options: { [key: string]: unknown } = { onlyInProgress: true }
+    options: { [key: string]: unknown } = { onlyInProgress: true },
 ): Promise<Goal[]> {
+    console.log("[UPDATE_GOAL] Starting goal update handler");
     state = (await runtime.composeState(message)) as State;
     const context = composeContext({
         state,
         template: runtime.character.templates?.goalsTemplate || goalsTemplate,
     });
+    console.log("[UPDATE_GOAL] Context composed, generating text...");
 
-    // Request generateText from OpenAI to analyze conversation and suggest goal updates
-    const response = await generateText({
-        runtime,
-        context,
-        modelClass: ModelClass.LARGE,
-    });
+    // Request generateText from OpenAI with timeout
+    let response: string;
+    try {
+        const timeoutPromise = new Promise<string>((_, reject) => {
+            setTimeout(
+                () =>
+                    reject(
+                        new Error("Text generation timed out after 30 seconds"),
+                    ),
+                30000,
+            );
+        });
 
-    // Parse the JSON response to extract goal updates
-    const updates = parseJsonArrayFromText(response);
+        response = await Promise.race([
+            generateText({
+                runtime,
+                context,
+                modelClass: ModelClass.LARGE,
+            }),
+            timeoutPromise,
+        ]);
+    } catch (error) {
+        console.error("[UPDATE_GOAL] Error during text generation:", error);
+        throw error;
+    }
+
+    console.log("[UPDATE_GOAL] Text generation complete, parsing response...");
+
+    // Parse the JSON response to extract goal updates with error handling
+    let updates: any[] | null;
+    try {
+        updates = parseJsonArrayFromText(response);
+        if (!updates) {
+            console.error(
+                "[UPDATE_GOAL] Failed to parse JSON response:",
+                response,
+            );
+            throw new Error("Failed to parse goal updates from model response");
+        }
+    } catch (error) {
+        console.error("[UPDATE_GOAL] Error parsing JSON response:", error);
+        throw error;
+    }
+
+    console.log("[UPDATE_GOAL] JSON parsed, fetching goals...");
 
     // get goals
     const goalsData = await getGoals({
@@ -77,6 +115,7 @@ async function handler(
         roomId: message.roomId,
         onlyInProgress: options.onlyInProgress as boolean,
     });
+    console.log("[UPDATE_GOAL] Goals fetched, applying updates...");
 
     // Apply the updates to the goals
     const updatedGoals = goalsData
@@ -90,7 +129,7 @@ async function handler(
                     for (const objective of objectives) {
                         const updatedObjective = update.objectives.find(
                             (o: Objective) =>
-                                o.description === objective.description
+                                o.description === objective.description,
                         );
                         if (updatedObjective) {
                             objective.completed = updatedObjective.completed;
@@ -107,11 +146,12 @@ async function handler(
                     ],
                 }; // Merging the update into the existing goal
             } else {
-                console.warn("**** ID NOT FOUND");
+                console.warn("[UPDATE_GOAL] **** ID NOT FOUND");
             }
             return null; // No update for this goal
         })
         .filter(Boolean);
+    console.log("[UPDATE_GOAL] Updates applied, saving to database...");
 
     // Update goals in the database
     for (const goal of updatedGoals) {
@@ -120,6 +160,7 @@ async function handler(
         if (goal.id) delete goal.id;
         await runtime.databaseAdapter.updateGoal({ ...goal, id });
     }
+    console.log("[UPDATE_GOAL] Database updates complete");
 
     return updatedGoals; // Return updated goals for further processing or logging
 }
@@ -134,7 +175,7 @@ export const goalEvaluator: Evaluator = {
     ],
     validate: async (
         runtime: IAgentRuntime,
-        message: Memory
+        message: Memory,
     ): Promise<boolean> => {
         // Check if there are active goals that could potentially be updated
         const goals = await getGoals({
