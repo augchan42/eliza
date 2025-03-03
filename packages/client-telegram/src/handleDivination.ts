@@ -128,6 +128,9 @@ export async function handleDivinationCommand(
 
                 let responseText = parsedResponse.text;
 
+                // Convert escaped newlines to actual newlines
+                responseText = responseText.replace(/\\n/g, '\n');
+
                 // Add warning if some data sources failed
                 if (!marketSentiment || !newsEvents || !oracleReading) {
                     responseText += "\n⚠️ Note: Some data sources were unavailable. Reading may be incomplete.";
