@@ -187,9 +187,40 @@ Past: "flatlined", "bled out"
 Present: "running", "cutting"
 Future: "targeting", "hunting"
 
-` +
-    messageCompletionFooter +
-    formattingInstruction;
+# FRAMEWORK RESPONSE FORMAT
+Your entire response must be wrapped in this JSON structure with proper escaping:
+
+\`\`\`json
+{
+  "user": "Pix",
+  "text": "Your divination reading goes here as a single line with \\\\n for newlines",
+  "action": "DIVINATION"
+}
+\`\`\`
+
+CRITICAL JSON FORMATTING REQUIREMENTS:
+1. Do NOT wrap the divination content itself in a JSON block
+2. The response MUST be a SINGLE LINE with NO ACTUAL NEWLINES
+3. Every newline in the text must be TWO BACKSLASHES + n: "\\\\n"
+4. Example of correct format:
+   {
+     "user": "Pix",
+     "text": "[SIGNAL INTERCEPT]\\\\n\\\\nMarkets running hot\\\\n\\\\n[SECTOR SCAN]\\\\ntg: bullish 🚀",
+     "action": "DIVINATION"
+   }
+5. Example of INCORRECT format:
+   {
+     "user": "Pix",
+     "text": "\`\`\`json\\n{\\n  \\"content\\": \\"[SIGNAL INTERCEPT]...\\"}\\n\`\`\`",
+     "action": "DIVINATION"
+   }
+
+DEBUG INSTRUCTIONS:
+1. Write your divination reading following the Required Structure
+2. Convert it to a single line, replacing newlines with \\\\n
+3. Place the single line into the "text" field of the JSON response
+4. Do NOT wrap the divination content in its own JSON block
+`;
 
 interface MarketSentiment {
     data: {
