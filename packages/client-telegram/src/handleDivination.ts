@@ -1,7 +1,7 @@
 import { Context } from "telegraf";
 import { IAgentRuntime, elizaLogger, stringToUuid } from "@elizaos/core";
 import { DivinationClient } from "./divination";
-import { composeContext, generateText, ModelClass } from "@elizaos/core";
+import { composeContext, generateText, ModelClass, parseJSONObjectFromText } from "@elizaos/core";
 import { pixDivinationTemplate } from "./divination";
 
 const MAX_MESSAGE_LENGTH = 4096;
@@ -93,34 +93,28 @@ export async function handleDivinationCommand(
                     lastNewline: response?.lastIndexOf('\n')
                 });
 
-                // Extract JSON block
-                const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
-                if (!jsonMatch) {
-                    elizaLogger.error("Response missing JSON block, retrying...", {
-                        response: response.substring(0, 200) + "..." // Log first 200 chars
+                // Parse JSON using core functionality
+                const parsedResponse = parseJSONObjectFromText(response);
+                if (!parsedResponse) {
+                    elizaLogger.error("Failed to parse JSON response, retrying...", {
+                        response: response.substring(0, 200) + "..."
                     });
                     retryCount++;
                     continue;
                 }
 
-                // Parse and validate JSON
-                let parsedResponse;
-                try {
-                    parsedResponse = JSON.parse(jsonMatch[1]);
-                    elizaLogger.debug("Parsed JSON response:", {
-                        user: parsedResponse.user,
-                        action: parsedResponse.action,
-                        textLength: parsedResponse.text?.length,
-                        textPreview: parsedResponse.text?.substring(0, 100) + "..."
-                    });
+                elizaLogger.debug("Parsed JSON response:", {
+                    user: parsedResponse.user,
+                    action: parsedResponse.action,
+                    textLength: parsedResponse.text?.length,
+                    textPreview: parsedResponse.text?.substring(0, 100) + "..."
+                });
 
-                    if (!parsedResponse.user || !parsedResponse.text || !parsedResponse.action) {
-                        throw new Error("Missing required JSON fields");
-                    }
-                } catch (parseError) {
-                    elizaLogger.error("JSON parsing failed:", {
-                        error: parseError.message,
-                        jsonContent: jsonMatch[1].substring(0, 200) + "..."
+                if (!parsedResponse.user || !parsedResponse.text || !parsedResponse.action) {
+                    elizaLogger.error("Missing required JSON fields", {
+                        user: !!parsedResponse.user,
+                        text: !!parsedResponse.text,
+                        action: !!parsedResponse.action
                     });
                     retryCount++;
                     continue;
