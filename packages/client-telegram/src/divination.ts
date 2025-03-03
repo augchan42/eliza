@@ -230,6 +230,8 @@ interface IraiAskResponse {
 }
 
 export class DivinationClient {
+    private static readonly DEFAULT_TIMEOUT = 30000; // 30 seconds default timeout
+
     // client: ClientBase;
     runtime: IAgentRuntime;
     private username: string;
@@ -245,68 +247,86 @@ export class DivinationClient {
     // }
 
     public async fetchIraiNews(topK: number = 5) {
-        const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
-            headers: {
-                "irai-api-key": process.env.IRAI_API_KEY || "",
-            },
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
 
-        if (!res.ok) {
-            throw new Error("Failed to fetch news");
+        try {
+            const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
+                headers: {
+                    "irai-api-key": process.env.IRAI_API_KEY || "",
+                },
+                signal: controller.signal,
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to fetch news");
+            }
+
+            return res.json();
+        } catch (error) {
+            elizaLogger.error("News fetch failed:", error);
+            throw error;
+        } finally {
+            clearTimeout(timeout);
         }
-
-        return res.json();
     }
 
     public async fetchMarketSentiment() {
-        const res = await fetch("https://api.irai.co/get_market_sentiment", {
-            headers: {
-                "irai-api-key": process.env.IRAI_API_KEY || "",
-            },
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
 
-        if (!res.ok) {
-            throw new Error("Failed to fetch market sentiment");
-        }
+        try {
+            const res = await fetch("https://api.irai.co/get_market_sentiment", {
+                headers: {
+                    "irai-api-key": process.env.IRAI_API_KEY || "",
+                },
+                signal: controller.signal,
+            });
 
-        const fullData: MarketSentiment = await res.json();
-
-        // Log the raw data to debug
-        elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
-
-        // Extract overview string and parse it
-        const overviewStr = fullData.data.overview;
-        const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
-
-        if (sentimentMatch) {
-            try {
-                // Replace single quotes with double quotes for JSON parsing
-                const jsonStr = sentimentMatch[1].replace(/'/g, '"');
-                const overview = JSON.parse(jsonStr);
-
-                return {
-                    telegram: overview.Telegram.current,
-                    reddit: overview.Reddit.current,
-                    market: overview["General market"].current,
-                };
-            } catch (error) {
-                elizaLogger.error("Error parsing sentiment:", {
-                    error,
-                    rawData: overviewStr,
-                });
+            if (!res.ok) {
+                throw new Error("Failed to fetch market sentiment");
             }
-        }
 
-        return {
-            telegram: "unknown",
-            reddit: "unknown",
-            market: "unknown",
-        };
+            const fullData: MarketSentiment = await res.json();
+            elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
+
+            const overviewStr = fullData.data.overview;
+            const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
+
+            if (sentimentMatch) {
+                try {
+                    const jsonStr = sentimentMatch[1].replace(/'/g, '"');
+                    const overview = JSON.parse(jsonStr);
+
+                    return {
+                        telegram: overview.Telegram.current,
+                        reddit: overview.Reddit.current,
+                        market: overview["General market"].current,
+                    };
+                } catch (error) {
+                    elizaLogger.error("Error parsing sentiment:", {
+                        error,
+                        rawData: overviewStr,
+                    });
+                }
+            }
+
+            return {
+                telegram: "unknown",
+                reddit: "unknown",
+                market: "unknown",
+            };
+        } catch (error) {
+            elizaLogger.error("Market sentiment fetch failed:", error);
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
     }
 
     public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
 
         try {
             const response = await fetch(
@@ -341,7 +361,7 @@ export class DivinationClient {
         features?: IraiAskRequest["features"],
     ): Promise<IraiAskResponse> {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 150000);
+        const timeout = setTimeout(() => controller.abort(), 150000); // Keep longer timeout for this endpoint
 
         try {
             const response = await fetch("https://api.irai.co/ask", {
@@ -352,7 +372,7 @@ export class DivinationClient {
                 },
                 body: JSON.stringify({
                     question,
-                    citations: false, // Default to false, can be made configurable
+                    citations: false,
                     lang: "English",
                     features: {
                         news: true,
@@ -363,7 +383,7 @@ export class DivinationClient {
                         technical_analysis: true,
                         market_update: true,
                         top_movers: true,
-                        ...features, // Allow overriding defaults
+                        ...features,
                     },
                 } as IraiAskRequest),
                 signal: controller.signal,

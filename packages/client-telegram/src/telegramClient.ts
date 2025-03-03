@@ -33,8 +33,8 @@ export class TelegramClient {
         this.backendToken = runtime.getSetting("BACKEND_TOKEN");
         this.tgTrader = runtime.getSetting("TG_TRADER"); // boolean To Be added to the settings
 
-        // Initialize rate limiter (1 request per user per minute)
-        this.rateLimiter = new RateLimiter(5 * 60 * 1000); // 5 minutes
+        // Initialize rate limiter (1 request per user per 5 minutes)
+        this.rateLimiter = new RateLimiter(5 * 60 * 1000);
 
         elizaLogger.log("✅ TelegramClient constructor completed");
     }
@@ -44,6 +44,7 @@ export class TelegramClient {
         try {
             await this.initializeBot();
             this.setupMessageHandlers();
+            this.setupErrorBoundary();
             this.setupShutdownHandlers();
         } catch (error) {
             elizaLogger.error("❌ Failed to launch Telegram bot:", error);
@@ -186,12 +187,6 @@ export class TelegramClient {
                 ctx.message.document.file_name,
             );
         });
-
-        this.bot.catch((err: Error, ctx) => {
-            elizaLogger.error(`❌ Telegram Error for ${ctx.updateType}:`, err);
-            const errorMessage = `An unexpected error occurred. Please try again later.\n\nError: ${err.message}`;
-            ctx.reply(errorMessage);
-        });
     }
 
     private setupShutdownHandlers(): void {
@@ -218,9 +213,17 @@ export class TelegramClient {
 
     public async stop(): Promise<void> {
         elizaLogger.log("Stopping Telegram bot...");
-        //await
-        this.bot.stop();
-        elizaLogger.log("Telegram bot stopped");
+        try {
+            // Cleanup rate limiter
+            this.rateLimiter.destroy();
+
+            // Stop the bot
+            await this.bot.stop();
+            elizaLogger.log("Telegram bot stopped successfully");
+        } catch (error) {
+            elizaLogger.error("Error stopping Telegram bot:", error);
+            throw error;
+        }
     }
 
     private async registerCommands(): Promise<void> {
@@ -309,6 +312,32 @@ out to Tavily websearch and openweather API.
                 await handleDivinationCommand(ctx, this.runtime);
             } catch (error) {
                 elizaLogger.error("❌ Error handling scan command:", error);
+            }
+        });
+    }
+
+    private setupErrorBoundary(): void {
+        this.bot.catch(async (err: Error, ctx) => {
+            elizaLogger.error(`❌ Unhandled Telegram Error:`, err);
+
+            try {
+                // Check if we can still communicate
+                const chatId = ctx.chat?.id;
+                if (!chatId) {
+                    elizaLogger.error("Cannot send error message - no chat ID available");
+                    return;
+                }
+
+                // Try to send error message
+                await ctx.reply(
+                    "⚠️ An unexpected error occurred. Bot is recovering...\n" +
+                    "Please try your command again in a few moments."
+                );
+
+                // Log recovery attempt
+                elizaLogger.info(`Recovery message sent to chat ${chatId}`);
+            } catch (replyError) {
+                elizaLogger.error("Failed to send error message:", replyError);
             }
         });
     }
