@@ -89,6 +89,16 @@ Market Sentiment: {{marketSentiment}}
 Source: https://irai.co market vibes
 Oracle Reading: {{oracleReading}}
 
+# Recent Activity
+Recent messages:
+{{recentMessages}}
+
+Current conversation:
+{{formattedConversation}}
+
+Last message:
+{{lastMessage}}
+
 # Oracle Reading Format
 {
   interpretation: {
