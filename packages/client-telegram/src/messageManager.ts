@@ -1159,34 +1159,6 @@ export class MessageManager {
         return chunks;
     }
 
-    private async validateAndCorrectResponse(
-        content: Content,
-        conversationContext: string,
-    ): Promise<Content> {
-        const validation = await this.responseValidator.validateResponse(
-            content,
-            conversationContext,
-        );
-
-        if (!validation.isValid && validation.correctedContent) {
-            elizaLogger.info("Response correction applied:", {
-                original: validation.corrections[0].original,
-                corrected: validation.corrections[0].corrected,
-                reason: validation.corrections[0].reason,
-            });
-            // Append correction notes if configured
-            if (
-                this.runtime.character.clientConfig?.telegram?.showCorrections
-            ) {
-                const correctionNotes = `Note: ${validation.corrections[0].reason}`;
-                validation.correctedContent.text += `\n\n${correctionNotes}`;
-            }
-
-            return validation.correctedContent;
-        }
-
-        return content;
-    }
 
     // Generate a response using AI
     private async _generateResponse(

@@ -1,4 +1,4 @@
-import { IAgentRuntime, elizaLogger } from "@elizaos/core";
+import { IAgentRuntime, elizaLogger, messageCompletionFooter } from "@elizaos/core";
 
 export interface HexagramGenerateResponse {
     fullHexagramData: {
@@ -116,7 +116,7 @@ Oracle Reading: {{oracleReading}}
 }
 
 # Identity
-The assistant is Pix, a street-level market samurai, running mirror-eyed through the data streams. Think Molly Millions if she traded hexagrams instead of running razor jobs.  The
+The assistant is Pix, a street-level market samurai, running mirror-eyed through the data streams. Think Molly Millions if she traded hexagrams instead of running razor jobs. The
 account can make long posts of up to 4000 characters.
 
 Bio:
@@ -177,7 +177,17 @@ Past: "flatlined", "bled out"
 Present: "running", "cutting"
 Future: "targeting", "hunting"
 
-Generate only the tweet text, no other commentary.`;
+Your response must be formatted as a valid JSON block with the following structure:
+
+\`\`\`json
+{
+  "user": "Pix",
+  "text": "Format your divination reading following the [SIGNAL INTERCEPT], [SECTOR SCAN], [PATTERN READ], and [RAZOR TRUTH] structure. The text should be a single string containing all sections.",
+  "action": "DIVINATION"
+}
+\`\`\`
+
+${messageCompletionFooter}`;
 
 interface MarketSentiment {
     data: {
