@@ -55,6 +55,9 @@ export async function handleDivinationCommand(
                 },
             },
             {
+                agentName: runtime.character.name,
+                agent: runtime.character.name,
+                bio: runtime.character.bio,
                 newsEvent: newsEvents ? JSON.stringify(newsEvents, null, 2) : "{}",
                 oracleReading: oracleReading ? JSON.stringify(
                     {
@@ -64,7 +67,7 @@ export async function handleDivinationCommand(
                     2,
                 ) : "{}",
                 marketSentiment: marketSentiment ? JSON.stringify(marketSentiment, null, 2) : "{}",
-            },
+            }
         );
 
         while (retryCount < MAX_RETRIES) {
