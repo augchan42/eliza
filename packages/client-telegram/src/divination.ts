@@ -192,10 +192,16 @@ Your response must be formatted as a valid JSON block with the following structu
 \`\`\`json
 {
   "user": "Pix",
-  "text": "Format your divination reading following the [SIGNAL INTERCEPT], [SECTOR SCAN], [PATTERN READ], and [RAZOR TRUTH] structure. The text should be a single string containing all sections.",
+  "text": "Format your divination reading following the [SIGNAL INTERCEPT], [SECTOR SCAN], [PATTERN READ], and [RAZOR TRUTH] structure.\\n\\nThe text should be a single string containing all sections.\\n\\nExample:\\n[SIGNAL INTERCEPT]\\n{market data}\\n\\n[SECTOR SCAN]\\ntg: sentiment\\n\\n[PATTERN READ]\\nhexagram\\n\\n[RAZOR TRUTH]\\ninsights",
   "action": "DIVINATION"
 }
 \`\`\`
+
+Note:
+- Use double quotes (") for JSON properties
+- All newlines must be escaped as \\n in the JSON text field
+- Keep text natural and readable in the template - the framework will handle escaping
+- Format as a proper JSON code block with \`\`\`json markers
 
 ${messageCompletionFooter}`;
 
