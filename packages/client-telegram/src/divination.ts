@@ -187,21 +187,22 @@ Past: "flatlined", "bled out"
 Present: "running", "cutting"
 Future: "targeting", "hunting"
 
-Your response must be formatted as a valid JSON block with the following structure:
+Your response must be formatted as a valid JSON block with proper escaping:
 
 \`\`\`json
 {
   "user": "Pix",
-  "text": "Format your divination reading following the [SIGNAL INTERCEPT], [SECTOR SCAN], [PATTERN READ], and [RAZOR TRUTH] structure.\\n\\nThe text should be a single string containing all sections.\\n\\nExample:\\n[SIGNAL INTERCEPT]\\n{market data}\\n\\n[SECTOR SCAN]\\ntg: sentiment\\n\\n[PATTERN READ]\\nhexagram\\n\\n[RAZOR TRUTH]\\ninsights",
+  "text": "[SIGNAL INTERCEPT]\\n\\n{market data}\\n\\n[SECTOR SCAN]\\ntg: sentiment\\nr/: sentiment\\nmkt: sentiment\\n\\n[PATTERN READ]\\nhexagram\\n\\n[RAZOR TRUTH]\\ninsights\\n\\n- through mirrored eyes\\n8bitoracle.ai + irai.co",
   "action": "DIVINATION"
 }
 \`\`\`
 
-Note:
-- Use double quotes (") for JSON properties
-- All newlines must be escaped as \\n in the JSON text field
-- Keep text natural and readable in the template - the framework will handle escaping
-- Format as a proper JSON code block with \`\`\`json markers
+IMPORTANT JSON FORMATTING RULES:
+1. Every newline must be escaped with TWO backslashes: "\\\\n"
+2. Use double quotes (") for JSON properties
+3. The entire response must be a single line in the JSON text field
+4. Do not use actual newlines in the JSON text field - use "\\\\n" instead
+5. The framework will handle displaying the text with proper formatting
 
 ${messageCompletionFooter}`;
 
@@ -288,7 +289,15 @@ export class DivinationClient {
                 throw new Error("Failed to fetch news");
             }
 
-            return res.json();
+            const data = await res.json();
+
+            // Debug log the first 300 chars of news data
+            if (data && typeof data === 'object') {
+                const newsStr = JSON.stringify(data, null, 2);
+                elizaLogger.debug("IRAI News Preview (first 300 chars):", newsStr.substring(0, 300) + "...");
+            }
+
+            return data;
         } catch (error) {
             elizaLogger.error("News fetch failed:", error);
             throw error;
