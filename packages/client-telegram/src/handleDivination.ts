@@ -85,14 +85,48 @@ export async function handleDivinationCommand(
                     modelClass: ModelClass.LARGE,
                 });
 
-                // Validate response format
-                if (!response.includes('```json')) {
-                    elizaLogger.error("Response missing JSON block, retrying...");
+                elizaLogger.debug("Raw LLM response:", {
+                    response,
+                    length: response?.length,
+                    hasJsonBlock: response?.includes('```json'),
+                    firstNewline: response?.indexOf('\n'),
+                    lastNewline: response?.lastIndexOf('\n')
+                });
+
+                // Extract JSON block
+                const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+                if (!jsonMatch) {
+                    elizaLogger.error("Response missing JSON block, retrying...", {
+                        response: response.substring(0, 200) + "..." // Log first 200 chars
+                    });
                     retryCount++;
                     continue;
                 }
 
-                let responseText = `${response}\n`;
+                // Parse and validate JSON
+                let parsedResponse;
+                try {
+                    parsedResponse = JSON.parse(jsonMatch[1]);
+                    elizaLogger.debug("Parsed JSON response:", {
+                        user: parsedResponse.user,
+                        action: parsedResponse.action,
+                        textLength: parsedResponse.text?.length,
+                        textPreview: parsedResponse.text?.substring(0, 100) + "..."
+                    });
+
+                    if (!parsedResponse.user || !parsedResponse.text || !parsedResponse.action) {
+                        throw new Error("Missing required JSON fields");
+                    }
+                } catch (parseError) {
+                    elizaLogger.error("JSON parsing failed:", {
+                        error: parseError.message,
+                        jsonContent: jsonMatch[1].substring(0, 200) + "..."
+                    });
+                    retryCount++;
+                    continue;
+                }
+
+                let responseText = parsedResponse.text;
 
                 // Add warning if some data sources failed
                 if (!marketSentiment || !newsEvents || !oracleReading) {

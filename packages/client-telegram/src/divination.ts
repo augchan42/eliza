@@ -202,25 +202,60 @@ CRITICAL JSON FORMATTING REQUIREMENTS:
 1. Do NOT wrap the divination content itself in a JSON block
 2. The response MUST be a SINGLE LINE with NO ACTUAL NEWLINES
 3. Every newline in the text must be TWO BACKSLASHES + n: "\\\\n"
-4. Example of correct format:
-   {
-     "user": "Pix",
-     "text": "[SIGNAL INTERCEPT]\\\\n\\\\nMarkets running hot\\\\n\\\\n[SECTOR SCAN]\\\\ntg: bullish 🚀",
-     "action": "DIVINATION"
-   }
-5. Example of INCORRECT format:
-   {
-     "user": "Pix",
-     "text": "\`\`\`json\\n{\\n  \\"content\\": \\"[SIGNAL INTERCEPT]...\\"}\\n\`\`\`",
-     "action": "DIVINATION"
-   }
+4. The text field must contain the ENTIRE divination reading
+5. Do NOT include the \`\`\`json wrapper in the text field
+6. Do NOT escape the outer JSON block - only escape newlines in the text field
 
-DEBUG INSTRUCTIONS:
-1. Write your divination reading following the Required Structure
-2. Convert it to a single line, replacing newlines with \\\\n
-3. Place the single line into the "text" field of the JSON response
-4. Do NOT wrap the divination content in its own JSON block
-`;
+EXAMPLES:
+
+CORRECT FORMAT:
+\`\`\`json
+{
+  "user": "Pix",
+  "text": "[SIGNAL INTERCEPT]\\\\nMarkets running hot\\\\n\\\\n[SECTOR SCAN]\\\\ntg: bullish 🚀\\\\nr/: neutral ➡️\\\\nmkt: bearish 📉\\\\n\\\\n[PATTERN READ]\\\\n䷌ Tong Ren (Fellowship with Men)",
+  "action": "DIVINATION"
+}
+\`\`\`
+
+INCORRECT FORMATS:
+
+1. Don't wrap content in another JSON block:
+\`\`\`json
+{
+  "user": "Pix",
+  "text": "\`\`\`json\\n{\\"content\\": \\"[SIGNAL INTERCEPT]...\\"}\\n\`\`\`",
+  "action": "DIVINATION"
+}
+\`\`\`
+
+2. Don't use actual newlines in text field:
+\`\`\`json
+{
+  "user": "Pix",
+  "text": "[SIGNAL INTERCEPT]
+Markets running hot
+[SECTOR SCAN]",
+  "action": "DIVINATION"
+}
+\`\`\`
+
+3. Don't escape the outer JSON structure:
+\`\`\`json
+{
+  \"user\": \"Pix\",
+  \"text\": \"[SIGNAL INTERCEPT]\\\\n...\",
+  \"action\": \"DIVINATION\"
+}
+\`\`\`
+
+PROCESS:
+1. Write your complete divination reading following the Required Structure
+2. Convert ALL newlines to \\\\n
+3. Put the entire reading as a single line in the text field
+4. Wrap in the JSON response format
+5. Verify the JSON is valid and properly formatted
+
+${messageCompletionFooter}`;
 
 interface MarketSentiment {
     data: {
