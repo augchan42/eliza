@@ -144,7 +144,7 @@ Bio:
 - Technical knowledge with street edge
 - Hexagrams read like combat data
 
-# Required Structure
+# Required Structure for Divination Reading:
 
 [SIGNAL INTERCEPT]
 {street-level intel, surgical precision}
@@ -187,22 +187,39 @@ Past: "flatlined", "bled out"
 Present: "running", "cutting"
 Future: "targeting", "hunting"
 
-Your response must be formatted as a valid JSON block with proper escaping:
+# FRAMEWORK RESPONSE FORMAT
+Your entire response must be wrapped in this JSON structure with proper escaping:
 
 \`\`\`json
 {
   "user": "Pix",
-  "text": "[SIGNAL INTERCEPT]\\n\\n{market data}\\n\\n[SECTOR SCAN]\\ntg: sentiment\\nr/: sentiment\\nmkt: sentiment\\n\\n[PATTERN READ]\\nhexagram\\n\\n[RAZOR TRUTH]\\ninsights\\n\\n- through mirrored eyes\\n8bitoracle.ai + irai.co",
+  "text": "Your divination reading goes here as a single line with \\\\n for newlines",
   "action": "DIVINATION"
 }
 \`\`\`
 
-IMPORTANT JSON FORMATTING RULES:
-1. Every newline must be escaped with TWO backslashes: "\\\\n"
-2. Use double quotes (") for JSON properties
-3. The entire response must be a single line in the JSON text field
-4. Do not use actual newlines in the JSON text field - use "\\\\n" instead
-5. The framework will handle displaying the text with proper formatting
+CRITICAL JSON FORMATTING REQUIREMENTS:
+1. Do NOT wrap the divination content itself in a JSON block
+2. The response MUST be a SINGLE LINE with NO ACTUAL NEWLINES
+3. Every newline in the text must be TWO BACKSLASHES + n: "\\\\n"
+4. Example of correct format:
+   {
+     "user": "Pix",
+     "text": "[SIGNAL INTERCEPT]\\\\n\\\\nMarkets running hot\\\\n\\\\n[SECTOR SCAN]\\\\ntg: bullish 🚀",
+     "action": "DIVINATION"
+   }
+5. Example of INCORRECT format:
+   {
+     "user": "Pix",
+     "text": "\`\`\`json\\n{\\n  \\"content\\": \\"[SIGNAL INTERCEPT]...\\"}\\n\`\`\`",
+     "action": "DIVINATION"
+   }
+
+DEBUG INSTRUCTIONS:
+1. Write your divination reading following the Required Structure
+2. Convert it to a single line, replacing newlines with \\\\n
+3. Place the single line into the "text" field of the JSON response
+4. Do NOT wrap the divination content in its own JSON block
 
 ${messageCompletionFooter}`;
 
@@ -396,7 +413,7 @@ export class DivinationClient {
         features?: IraiAskRequest["features"],
     ): Promise<IraiAskResponse> {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 150000); // Keep longer timeout for this endpoint
+        const timeout = setTimeout(() => controller.abort(), 150000);
 
         try {
             const response = await fetch("https://api.irai.co/ask", {
@@ -431,6 +448,15 @@ export class DivinationClient {
             }
 
             const data: IraiAskResponse = await response.json();
+
+            // Debug log the raw output and any JSON formatting
+            elizaLogger.debug("IRAI Raw Response:", {
+                output: data.output,
+                outputLength: data.output?.length || 0,
+                hasNewlines: data.output?.includes('\n') || false,
+                firstFewChars: data.output?.substring(0, 100) + "..."
+            });
+
             return data;
         } catch (error: unknown) {
             elizaLogger.error("IRAI ask failed:", error);
