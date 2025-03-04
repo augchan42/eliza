@@ -1047,37 +1047,68 @@ ${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\
             const scanSection = uniqueSections.find(s => s.startsWith('[SCAN]'));
             if (scanSection) {
                 const scanText = scanSection.substring(6).trim(); // Remove [SCAN] prefix
-                const isGenericScan = scanText.toLowerCase().includes('seeking wisdom') ||
-                                    scanText.toLowerCase().includes('thirst for') ||
-                                    scanText.toLowerCase().includes('deeper synthesis');
 
-                if (isGenericScan) {
-                    elizaLogger.error("SCAN section too generic", {
-                        scan: scanText
+                // Check for generic phrases that should be avoided
+                const genericPhrases = [
+                    'seeking wisdom',
+                    'thirst for',
+                    'deeper synthesis',
+                    'ancient wisdom',
+                    'technical proficiency',
+                    'deeper connections',
+                    'fascination with',
+                    'interplay between'
+                ];
+
+                // Check if the scan contains generic phrases
+                const hasGenericPhrases = genericPhrases.some(phrase =>
+                    scanText.toLowerCase().includes(phrase.toLowerCase())
+                );
+
+                // Detect query type from message content
+                const messageText = message.content.text.toLowerCase();
+                const isPersonalQuestion = messageText.includes('your favorite') ||
+                                        messageText.includes('do you like') ||
+                                        messageText.includes('what do you think');
+                const isTechnicalQuestion = messageText.includes('how to') ||
+                                         messageText.includes('what is') ||
+                                         messageText.includes('explain');
+                const isMarketQuestion = messageText.includes('market') ||
+                                       messageText.includes('trading') ||
+                                       messageText.includes('price');
+
+                // Validate SCAN based on query type
+                let isValidScan = true;
+                if (isPersonalQuestion && hasGenericPhrases) {
+                    elizaLogger.error("Personal question received generic SCAN response", {
+                        scan: scanText,
+                        messageType: 'personal'
                     });
-                    return null;
+                    isValidScan = false;
+                }
+
+                if (hasGenericPhrases && !messageText.includes('wisdom')) {
+                    elizaLogger.error("Generic SCAN for non-wisdom query", {
+                        scan: scanText,
+                        message: messageText
+                    });
+                    isValidScan = false;
                 }
 
                 // Check if SCAN is too similar to recent ones
                 const isTooSimilar = recentScanTexts.some(recentScan => {
                     const similarity = cosineSimilarity(scanText.toLowerCase(), recentScan.toLowerCase());
-                    return similarity > 0.8; // Threshold for similarity
+                    return similarity > 0.7; // Slightly lower threshold to catch more similar responses
                 });
 
-                if (isTooSimilar) {
-                    elizaLogger.error("SCAN section too similar to recent ones");
+                if (!isValidScan || isTooSimilar) {
+                    elizaLogger.error("Invalid or too similar SCAN section", {
+                        isValidScan,
+                        isTooSimilar,
+                        scan: scanText
+                    });
                     return null;
                 }
-            }
-
-            if (!hasScan || !hasPattern || !hasTransmission) {
-                elizaLogger.error("Response missing required sections", {
-                    hasScan,
-                    hasPattern,
-                    hasTransmission,
-                    sections: uniqueSections
-                });
-                return null;
             }
 
             // Extract hexagram from response and update recent list
