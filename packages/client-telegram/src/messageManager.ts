@@ -806,12 +806,23 @@ export class MessageManager {
                 );
             });
         } else {
-            const combinedText = content.reasoning
-                ? `${content.reasoning}\n\n${content.text}`
-                : content.text;
-            const chunks = this.splitMessage(combinedText);
+            // Don't combine reasoning with text - they should be separate
+            const messageText = content.text;
+
+            // Split on double newlines to get sections
+            const sections = messageText.split(/\n\n+/);
+
+            // Remove any duplicate sections
+            const uniqueSections = [...new Set(sections)];
+
+            // Rejoin with double newlines
+            const cleanedText = uniqueSections.join('\n\n');
+
+            const chunks = this.splitMessage(cleanedText);
             elizaLogger.debug("[sendMessageInChunks] Splitting text message", {
                 chunkCount: chunks.length,
+                originalLength: messageText.length,
+                cleanedLength: cleanedText.length
             });
 
             const sentMessages: Message.TextMessage[] = [];
@@ -966,6 +977,25 @@ export class MessageManager {
             context: cleanContext,
         });
 
+        // Check if evaluation reasoning already contains a full response
+        if (_state.evaluationReasoning &&
+            typeof _state.evaluationReasoning === 'string' &&
+            _state.evaluationReasoning.includes("[SCAN]") &&
+            _state.evaluationReasoning.includes("[PATTERN]") &&
+            _state.evaluationReasoning.includes("[TRANSMISSION]")) {
+
+            elizaLogger.debug("Using complete response from evaluation reasoning");
+
+            // Extract the response part (after the initial explanation)
+            const responsePart = _state.evaluationReasoning.split("\n\n").slice(1).join("\n\n");
+
+            return {
+                text: responsePart,
+                action: "NONE",
+                source: "telegram"
+            };
+        }
+
         // Use structured response to get reasoning
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -987,13 +1017,37 @@ export class MessageManager {
             return null;
         }
 
-        // If we have evaluation reasoning from shouldRespond, combine it with the response reasoning
-        if (_state.evaluationReasoning) {
-            const responseWithReasoning = response as Content;
-            const currentReasoning = String(responseWithReasoning.reasoning || "");
-            responseWithReasoning.reasoning = currentReasoning ?
-                `Initial evaluation: ${String(_state.evaluationReasoning)}\n\nResponse reasoning: ${currentReasoning}` :
-                String(_state.evaluationReasoning);
+        // Validate response format and remove any duplicates
+        if (response.text) {
+            // Split on double newlines to get sections
+            const sections = response.text.split(/\n\n+/);
+
+            // Remove any duplicate sections
+            const uniqueSections = [...new Set(sections)];
+
+            // Check if we have the required sections
+            const hasScan = uniqueSections.some(s => s.startsWith('[SCAN]'));
+            const hasPattern = uniqueSections.some(s => s.startsWith('[PATTERN]'));
+            const hasTransmission = uniqueSections.some(s => s.startsWith('[TRANSMISSION]'));
+
+            if (!hasScan || !hasPattern || !hasTransmission) {
+                elizaLogger.error("Response missing required sections", {
+                    hasScan,
+                    hasPattern,
+                    hasTransmission,
+                    sections: uniqueSections
+                });
+                return null;
+            }
+
+            response.text = uniqueSections.join('\n\n');
+        }
+
+        // Only add evaluation reasoning if it doesn't contain a full response
+        if (_state.evaluationReasoning &&
+            typeof _state.evaluationReasoning === 'string' &&
+            !response.reasoning) {
+            response.reasoning = _state.evaluationReasoning;
         }
 
         await this.runtime.databaseAdapter.log({
