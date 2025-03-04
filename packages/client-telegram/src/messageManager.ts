@@ -956,18 +956,23 @@ export class MessageManager {
                 template: templateWithRandomUsers,
             });
 
-            const response = await generateShouldRespond({
+            const evaluationResult = await generateShouldRespond({
                 runtime: this.runtime,
                 context: shouldRespondContext,
                 modelClass: ModelClass.SMALL,
             });
 
             elizaLogger.debug(`[shouldRespond] Final decision`, {
-                decision: response,
-                shouldRespond: response === "RESPOND",
+                decision: evaluationResult.decision,
+                reasoning: evaluationResult.reasoning,
+                shouldRespond: evaluationResult.decision === "RESPOND",
             });
 
-            return response === "RESPOND";
+            // Store evaluation reasoning in state
+            state.evaluationReasoning = evaluationResult.reasoning || "";
+            state.evaluationDecision = evaluationResult.decision;
+
+            return evaluationResult.decision === "RESPOND";
         }
 
         elizaLogger.debug(

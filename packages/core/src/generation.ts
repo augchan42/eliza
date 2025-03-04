@@ -1414,49 +1414,39 @@ export async function generateText({
 export async function generateShouldRespond({
     runtime,
     context,
-    modelClass,
+    modelClass = ModelClass.SMALL,
 }: {
     runtime: IAgentRuntime;
     context: string;
-    modelClass: ModelClass;
-}): Promise<"RESPOND" | "IGNORE" | "STOP" | null> {
-    let retryDelay = 1000;
-    while (true) {
-        try {
-            elizaLogger.debug(
-                "Attempting to generate text with context:",
-                context,
-            );
-            const response = await generateText({
-                runtime,
-                context,
-                modelClass,
-            });
+    modelClass?: ModelClass;
+}): Promise<{
+    decision: "RESPOND" | "IGNORE" | "STOP";
+    reasoning?: string;
+}> {
+    const response = await runtime.llm.generate({
+        context,
+        modelClass,
+        schema: {
+            type: "object",
+            properties: {
+                decision: {
+                    type: "string",
+                    enum: ["RESPOND", "IGNORE", "STOP"],
+                    description: "Whether to respond to the message",
+                },
+                reasoning: {
+                    type: "string",
+                    description: "Explanation for why this decision was made",
+                },
+            },
+            required: ["decision"],
+        },
+    });
 
-            elizaLogger.debug("Received response from generateText:", response);
-            const parsedResponse = parseShouldRespondFromText(response.trim());
-            if (parsedResponse) {
-                elizaLogger.debug("Parsed response:", parsedResponse);
-                return parsedResponse;
-            } else {
-                elizaLogger.debug("generateShouldRespond no response");
-            }
-        } catch (error) {
-            elizaLogger.error("Error in generateShouldRespond:", error);
-            if (
-                error instanceof TypeError &&
-                error.message.includes("queueTextCompletion")
-            ) {
-                elizaLogger.error(
-                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')",
-                );
-            }
-        }
-
-        elizaLogger.log(`Retrying in ${retryDelay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        retryDelay *= 2;
-    }
+    return response.object as {
+        decision: "RESPOND" | "IGNORE" | "STOP";
+        reasoning?: string;
+    };
 }
 
 /**

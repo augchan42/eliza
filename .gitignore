@@ -42,7 +42,9 @@ timeline_cache.json
 
 *.sqlite
 
-characters/
+characters/*.json
+agent/characters/*.json
+
 
 packages/core/src/providers/cache
 packages/core/src/providers/cache/*

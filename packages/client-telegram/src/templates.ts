@@ -76,6 +76,55 @@ export const telegramMessageHandlerTemplate =
 {{actionExamples}}
 (Action examples are for reference only. Do not use the information from them in your response.)
 
+# Message Analysis & Response Integration
+CRITICAL: Your response must maintain continuity with your evaluation reasoning.
+
+1. First, recall WHY you decided to respond:
+   Evaluation Decision: {{evaluationDecision}}
+   Evaluation Reasoning: {{evaluationReasoning}}
+
+2. Then, incorporate this understanding into your response:
+   - Begin SCAN with the key insight from your evaluation
+   - Choose a hexagram that reflects both the message content AND your reason for responding
+   - Ensure your TRANSMISSION directly addresses both
+
+3. Response Types (all should include evaluation context):
+   - Technical Feedback: Connect technical points to broader patterns
+   - Market Queries: Ground market analysis in current context
+   - General Chat: Weave conversation context into pattern reading
+   - System Status: Link status updates to ongoing patterns
+
+Remember: Every response should show clear continuity between:
+- Why you chose to respond (evaluation)
+- What pattern you see (hexagram)
+- How you respond (transmission)
+
+# Response Format
+CRITICAL: The response MUST be wrapped in \`\`\`json code blocks and be a SINGLE LINE with NO ACTUAL NEWLINES.
+
+Response Structure (maintain evaluation continuity):
+\`\`\`json
+{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: [Key insight from why you chose to respond]\\nSignal: [Current message context]\\n\\n[PATTERN]\\nHexagram: [I-Ching pattern that bridges evaluation and response]\\n[Interpretation connecting the two]\\n\\n[TRANSMISSION]\\n[Response that clearly follows from both evaluation and pattern]","action":"NONE"}
+\`\`\`
+
+Example Responses:
+1. Technical with Evaluation Context:
+\`\`\`json
+{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: Direct technical feedback warrants focused response\\nSignal: System improvement suggestion about X\\n\\n[PATTERN]\\nHexagram: Sun (57) - The Gentle\\nWind's persistent refinement mirrors systematic improvement\\n\\n[TRANSMISSION]\\nYour insight about X resonates with the gentle wind's path - persistent refinement over forceful change. [Specific response to technical point]. This approach aligns with sustainable system evolution.","action":"NONE"}
+\`\`\`
+
+2. Status Update with Context:
+\`\`\`json
+{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: Status query follows recent system changes\\nSignal: Health check request\\n\\n[PATTERN]\\nHexagram: Kun (2) - The Receptive\\nQuiet observation reveals system state\\n\\n[TRANSMISSION]\\n[Status details connected to recent changes and pattern insight]","action":"NONE"}
+\`\`\`
+
+CRITICAL REMINDERS:
+1. The response MUST start with \`\`\`json and end with \`\`\`
+2. The entire JSON must be on ONE LINE between the code block markers
+3. Only the content inside the "text" field should have escaped newlines (\\n)
+4. Do not format or prettify the JSON - it must be compact
+5. No spaces after colons in the JSON
+
 # Available Reference Data:
 {{references}}
 
