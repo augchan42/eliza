@@ -97,6 +97,29 @@ export class MessageManager {
     } as const;
 
     private recentHexagrams: string[] = [];
+    private currentPerspectiveIndex: number = 0;
+    private readonly perspectives = [
+        {
+            name: 'analytical',
+            prompt: 'Analyze the situation objectively, focusing on patterns and implications.'
+        },
+        {
+            name: 'emotional',
+            prompt: 'Connect with the emotional aspects, considering feelings and personal impact.'
+        },
+        {
+            name: 'practical',
+            prompt: 'Focus on concrete, practical aspects and real-world applications.'
+        },
+        {
+            name: 'intuitive',
+            prompt: 'Draw upon intuitive understanding and subtle connections.'
+        },
+        {
+            name: 'reflective',
+            prompt: 'Consider the broader context and deeper meanings.'
+        }
+    ];
 
     constructor(bot: Telegraf<Context>, runtime: IAgentRuntime) {
         this.bot = bot;
@@ -943,6 +966,11 @@ export class MessageManager {
         return chunks;
     }
 
+    private getNextPerspective(): { name: string; prompt: string } {
+        const perspective = this.perspectives[this.currentPerspectiveIndex];
+        this.currentPerspectiveIndex = (this.currentPerspectiveIndex + 1) % this.perspectives.length;
+        return perspective;
+    }
 
     // Generate a response using AI
     private async _generateResponse(
@@ -973,28 +1001,29 @@ export class MessageManager {
 
         const { userId, roomId } = message;
 
-        elizaLogger.debug("Generating response for message:", {
+        // Get the next perspective to use
+        const perspective = this.getNextPerspective();
+
+        elizaLogger.debug("Generating response with perspective:", {
             messageId: message.id,
+            perspective: perspective.name,
             messageContent: message.content,
-            context: cleanContext,
-            recentHexagrams: this.recentHexagrams,
         });
 
-        // Track recent SCAN sections to prevent repetition
-        const recentScans = await this.runtime.messageManager.getMemories({
-            roomId,
-            count: 5,
-            unique: true
-        });
+        // Simplified context with rotating perspective
+        const enhancedContext = cleanContext + `
+RESPONSE GUIDANCE:
+You are having a natural conversation while maintaining the [SCAN], [PATTERN], and [TRANSMISSION] structure.
 
-        // Extract SCAN sections from recent responses
-        const recentScanTexts = recentScans
-            ?.filter(m => m.content.text?.includes('[SCAN]'))
-            .map(m => {
-                const scanMatch = m.content.text.match(/\[SCAN\](.*?)(?=\[PATTERN\]|\[TRANSMISSION\]|$)/s);
-                return scanMatch ? scanMatch[1].trim() : null;
-            })
-            .filter(Boolean);
+Current Perspective: ${perspective.name}
+${perspective.prompt}
+
+Guidelines:
+1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}
+2. Let your analysis flow naturally from the current perspective
+3. Choose a hexagram that resonates with both the question and your current perspective
+
+Remember: This is a unique moment - your response should reflect your current perspective while maintaining authenticity.`;
 
         let attempts = 0;
         const maxAttempts = 3;
@@ -1002,18 +1031,8 @@ export class MessageManager {
 
         while (attempts < maxAttempts && !validResponse) {
             attempts++;
-            elizaLogger.debug(`Attempt ${attempts} of ${maxAttempts} to generate valid response`);
 
-            // Add context about avoiding recently used hexagrams and similar SCAN sections
-            const enhancedContext = cleanContext + `
-IMPORTANT RESPONSE GUIDELINES:
-${attempts > 1 ? '⚠️ Previous response was rejected. Please ensure this response is more specific and unique.\\n' : ''}
-1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}. Choose a different, contextually appropriate hexagram.
-
-2. Your SCAN section must be unique and specific to this query. Recent SCAN patterns to avoid:
-${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\n')}`;
-
-            // Use structured response to get reasoning
+            // Generate response with structured format
             const response = await generateMessageResponse({
                 runtime: this.runtime,
                 context: enhancedContext,
@@ -1021,152 +1040,55 @@ ${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\
                 structured: true
             }) as MessageResponseResult;
 
-            elizaLogger.debug("Raw response from generateMessageResponse:", {
-                hasResponse: !!response,
-                responseKeys: response ? Object.keys(response) : [],
-                fullResponse: response,
-                reasoning: response?.reasoning,
-                isStructured: response?.__structured,
-            });
-
             if (!response?.text) {
-                elizaLogger.error("No response text from generateMessageResponse");
+                elizaLogger.error("No response text generated");
                 continue;
             }
 
-            // Split on double newlines to get sections
+            // Basic validation: check for required sections and extract hexagram
             const sections = response.text.split(/\n\n+/);
+            const hasRequiredSections = sections.some(s => s.startsWith('[SCAN]')) &&
+                                      sections.some(s => s.startsWith('[PATTERN]')) &&
+                                      sections.some(s => s.startsWith('[TRANSMISSION]'));
 
-            // Remove any duplicate sections
-            const uniqueSections = [...new Set(sections)];
+            if (!hasRequiredSections) {
+                elizaLogger.error("Response missing required sections");
+                continue;
+            }
 
-            // Validate SCAN section is specific enough
-            const scanSection = uniqueSections.find(s => s.startsWith('[SCAN]'));
-            if (scanSection) {
-                const scanText = scanSection.substring(6).trim(); // Remove [SCAN] prefix
-
-                // Check for generic phrases that should be avoided
-                const genericPhrases = [
-                    'seeking wisdom',
-                    'thirst for',
-                    'deeper synthesis',
-                    'ancient wisdom',
-                    'technical proficiency',
-                    'deeper connections',
-                    'fascination with',
-                    'interplay between'
-                ];
-
-                // Check if the scan contains generic phrases
-                const hasGenericPhrases = genericPhrases.some(phrase =>
-                    scanText.toLowerCase().includes(phrase.toLowerCase())
-                );
-
-                // Detect query type from message content
-                const messageText = message.content.text.toLowerCase();
-                const isPersonalQuestion = messageText.includes('your favorite') ||
-                                        messageText.includes('do you like') ||
-                                        messageText.includes('what do you think');
-                const isTechnicalQuestion = messageText.includes('how to') ||
-                                         messageText.includes('what is') ||
-                                         messageText.includes('explain');
-                const isMarketQuestion = messageText.includes('market') ||
-                                       messageText.includes('trading') ||
-                                       messageText.includes('price');
-
-                // Validate SCAN based on query type
-                let isValidScan = true;
-                if (isPersonalQuestion && hasGenericPhrases) {
-                    elizaLogger.error("Personal question received generic SCAN response", {
-                        scan: scanText,
-                        messageType: 'personal'
-                    });
-                    isValidScan = false;
-                }
-
-                if (isTechnicalQuestion && !scanText.toLowerCase().includes('technical') && !scanText.toLowerCase().includes('system')) {
-                    elizaLogger.error("Technical question missing technical analysis in SCAN", {
-                        scan: scanText,
-                        messageType: 'technical'
-                    });
-                    isValidScan = false;
-                }
-
-                if (isMarketQuestion && !scanText.toLowerCase().includes('market') && !scanText.toLowerCase().includes('trading')) {
-                    elizaLogger.error("Market question missing market analysis in SCAN", {
-                        scan: scanText,
-                        messageType: 'market'
-                    });
-                    isValidScan = false;
-                }
-
-                if (hasGenericPhrases && !messageText.includes('wisdom')) {
-                    elizaLogger.error("Generic SCAN for non-wisdom query", {
-                        scan: scanText,
-                        message: messageText
-                    });
-                    isValidScan = false;
-                }
-
-                // Check if SCAN is too similar to recent ones
-                const isTooSimilar = recentScanTexts.some(recentScan => {
-                    const similarity = cosineSimilarity(scanText.toLowerCase(), recentScan.toLowerCase());
-                    return similarity > 0.7; // Slightly lower threshold to catch more similar responses
-                });
-
-                if (!isValidScan || isTooSimilar) {
-                    elizaLogger.error(`Attempt ${attempts}: Invalid or too similar SCAN section`, {
-                        isValidScan,
-                        isTooSimilar,
-                        scan: scanText
-                    });
-                    continue;
-                }
-
-                // Extract hexagram from response and update recent list
-                const patternSection = uniqueSections.find(s => s.startsWith('[PATTERN]'));
-                if (patternSection) {
-                    const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
-                    if (hexagramMatch) {
-                        const hexagram = hexagramMatch[1].trim();
+            // Extract and update hexagram
+            const patternSection = sections.find(s => s.startsWith('[PATTERN]'));
+            if (patternSection) {
+                const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
+                if (hexagramMatch) {
+                    const hexagram = hexagramMatch[1].trim();
+                    // Only add if it's not in recent list
+                    if (!this.recentHexagrams.includes(hexagram)) {
                         this.recentHexagrams.unshift(hexagram);
-                        // Keep only last 5 hexagrams
                         this.recentHexagrams = this.recentHexagrams.slice(0, 5);
                     }
                 }
-
-                // If we get here, the response is valid
-                validResponse = response;
-                validResponse.text = uniqueSections.join('\n\n');
             }
+
+            // If we get here, the response is valid
+            validResponse = response;
         }
 
         if (!validResponse) {
             elizaLogger.error(`Failed to generate valid response after ${maxAttempts} attempts`);
-            // Fall back to a simple response that bypasses validation
             return {
-                text: "I apologize, but I'm having trouble generating a unique and specific response. Could you please rephrase your question?",
+                text: "I apologize, but I'm having trouble formulating a response. Could you please rephrase your question?",
                 source: "telegram"
             };
         }
 
-        // Only store evaluation reasoning if it's not a full response
-        if (_state.evaluationReasoning &&
-            typeof _state.evaluationReasoning === 'string' &&
-            !_state.evaluationReasoning.includes('[SCAN]') &&
-            !_state.evaluationReasoning.includes('[PATTERN]') &&
-            !_state.evaluationReasoning.includes('[TRANSMISSION]')) {
-            validResponse.reasoning = _state.evaluationReasoning;
-        }
-
+        // Log the response generation
         await this.runtime.databaseAdapter.log({
             body: {
                 message,
                 cleanContext,
                 response: validResponse,
-                responseType: typeof validResponse,
-                hasReasoning: !!validResponse.reasoning,
-                evaluationReasoning: _state.evaluationReasoning,
+                perspective: perspective.name,
                 attempts
             },
             userId,
