@@ -96,6 +96,8 @@ export class MessageManager {
         // Add other plugins and their keywords here
     } as const;
 
+    private recentHexagrams: string[] = [];
+
     constructor(bot: Telegraf<Context>, runtime: IAgentRuntime) {
         this.bot = bot;
         this.runtime = runtime;
@@ -975,12 +977,16 @@ export class MessageManager {
             messageId: message.id,
             messageContent: message.content,
             context: cleanContext,
+            recentHexagrams: this.recentHexagrams,
         });
+
+        // Add context about avoiding recently used hexagrams
+        const enhancedContext = cleanContext + `\nIMPORTANT: For variety, avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}. Choose a different, contextually appropriate hexagram.`;
 
         // Use structured response to get reasoning
         const response = await generateMessageResponse({
             runtime: this.runtime,
-            context: cleanContext,
+            context: enhancedContext,
             modelClass: ModelClass.LARGE,
             structured: true
         }) as MessageResponseResult;
@@ -1019,6 +1025,18 @@ export class MessageManager {
                     sections: uniqueSections
                 });
                 return null;
+            }
+
+            // Extract hexagram from response and update recent list
+            const patternSection = uniqueSections.find(s => s.startsWith('[PATTERN]'));
+            if (patternSection) {
+                const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
+                if (hexagramMatch) {
+                    const hexagram = hexagramMatch[1].trim();
+                    this.recentHexagrams.unshift(hexagram);
+                    // Keep only last 5 hexagrams
+                    this.recentHexagrams = this.recentHexagrams.slice(0, 5);
+                }
             }
 
             response.text = uniqueSections.join('\n\n');
