@@ -996,52 +996,49 @@ export class MessageManager {
             })
             .filter(Boolean);
 
-        // Add context about avoiding recently used hexagrams and similar SCAN sections
-        const enhancedContext = cleanContext + `
-IMPORTANT:
+        let attempts = 0;
+        const maxAttempts = 3;
+        let validResponse: MessageResponseResult = null;
+
+        while (attempts < maxAttempts && !validResponse) {
+            attempts++;
+            elizaLogger.debug(`Attempt ${attempts} of ${maxAttempts} to generate valid response`);
+
+            // Add context about avoiding recently used hexagrams and similar SCAN sections
+            const enhancedContext = cleanContext + `
+IMPORTANT RESPONSE GUIDELINES:
+${attempts > 1 ? '⚠️ Previous response was rejected. Please ensure this response is more specific and unique.\\n' : ''}
 1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}. Choose a different, contextually appropriate hexagram.
-2. Your SCAN section must be unique and specific to this query. Avoid these recently used SCAN patterns:
-${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\n')}
-3. Ensure your SCAN section:
-   - Analyzes the specific content of THIS message
-   - Identifies the exact type of query
-   - Uses concrete details from the user's message
-   - Avoids generic statements about "seeking wisdom" unless directly asked about wisdom
-   - Focuses on unique elements of this particular query`;
 
-        // Use structured response to get reasoning
-        const response = await generateMessageResponse({
-            runtime: this.runtime,
-            context: enhancedContext,
-            modelClass: ModelClass.LARGE,
-            structured: true
-        }) as MessageResponseResult;
+2. Your SCAN section must be unique and specific to this query. Recent SCAN patterns to avoid:
+${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\n')}`;
 
-        elizaLogger.debug("Raw response from generateMessageResponse:", {
-            hasResponse: !!response,
-            responseKeys: response ? Object.keys(response) : [],
-            fullResponse: response,
-            reasoning: response?.reasoning,
-            isStructured: response?.__structured,
-        });
+            // Use structured response to get reasoning
+            const response = await generateMessageResponse({
+                runtime: this.runtime,
+                context: enhancedContext,
+                modelClass: ModelClass.LARGE,
+                structured: true
+            }) as MessageResponseResult;
 
-        if (!response) {
-            elizaLogger.error("No response from generateMessageResponse");
-            return null;
-        }
+            elizaLogger.debug("Raw response from generateMessageResponse:", {
+                hasResponse: !!response,
+                responseKeys: response ? Object.keys(response) : [],
+                fullResponse: response,
+                reasoning: response?.reasoning,
+                isStructured: response?.__structured,
+            });
 
-        // Validate response format and remove any duplicates
-        if (response.text) {
+            if (!response?.text) {
+                elizaLogger.error("No response text from generateMessageResponse");
+                continue;
+            }
+
             // Split on double newlines to get sections
             const sections = response.text.split(/\n\n+/);
 
             // Remove any duplicate sections
             const uniqueSections = [...new Set(sections)];
-
-            // Check if we have the required sections
-            const hasScan = uniqueSections.some(s => s.startsWith('[SCAN]'));
-            const hasPattern = uniqueSections.some(s => s.startsWith('[PATTERN]'));
-            const hasTransmission = uniqueSections.some(s => s.startsWith('[TRANSMISSION]'));
 
             // Validate SCAN section is specific enough
             const scanSection = uniqueSections.find(s => s.startsWith('[SCAN]'));
@@ -1087,6 +1084,22 @@ ${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\
                     isValidScan = false;
                 }
 
+                if (isTechnicalQuestion && !scanText.toLowerCase().includes('technical') && !scanText.toLowerCase().includes('system')) {
+                    elizaLogger.error("Technical question missing technical analysis in SCAN", {
+                        scan: scanText,
+                        messageType: 'technical'
+                    });
+                    isValidScan = false;
+                }
+
+                if (isMarketQuestion && !scanText.toLowerCase().includes('market') && !scanText.toLowerCase().includes('trading')) {
+                    elizaLogger.error("Market question missing market analysis in SCAN", {
+                        scan: scanText,
+                        messageType: 'market'
+                    });
+                    isValidScan = false;
+                }
+
                 if (hasGenericPhrases && !messageText.includes('wisdom')) {
                     elizaLogger.error("Generic SCAN for non-wisdom query", {
                         scan: scanText,
@@ -1102,28 +1115,39 @@ ${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\
                 });
 
                 if (!isValidScan || isTooSimilar) {
-                    elizaLogger.error("Invalid or too similar SCAN section", {
+                    elizaLogger.error(`Attempt ${attempts}: Invalid or too similar SCAN section`, {
                         isValidScan,
                         isTooSimilar,
                         scan: scanText
                     });
-                    return null;
+                    continue;
                 }
-            }
 
-            // Extract hexagram from response and update recent list
-            const patternSection = uniqueSections.find(s => s.startsWith('[PATTERN]'));
-            if (patternSection) {
-                const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
-                if (hexagramMatch) {
-                    const hexagram = hexagramMatch[1].trim();
-                    this.recentHexagrams.unshift(hexagram);
-                    // Keep only last 5 hexagrams
-                    this.recentHexagrams = this.recentHexagrams.slice(0, 5);
+                // Extract hexagram from response and update recent list
+                const patternSection = uniqueSections.find(s => s.startsWith('[PATTERN]'));
+                if (patternSection) {
+                    const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
+                    if (hexagramMatch) {
+                        const hexagram = hexagramMatch[1].trim();
+                        this.recentHexagrams.unshift(hexagram);
+                        // Keep only last 5 hexagrams
+                        this.recentHexagrams = this.recentHexagrams.slice(0, 5);
+                    }
                 }
-            }
 
-            response.text = uniqueSections.join('\n\n');
+                // If we get here, the response is valid
+                validResponse = response;
+                validResponse.text = uniqueSections.join('\n\n');
+            }
+        }
+
+        if (!validResponse) {
+            elizaLogger.error(`Failed to generate valid response after ${maxAttempts} attempts`);
+            // Fall back to a simple response that bypasses validation
+            return {
+                text: "I apologize, but I'm having trouble generating a unique and specific response. Could you please rephrase your question?",
+                source: "telegram"
+            };
         }
 
         // Only store evaluation reasoning if it's not a full response
@@ -1132,24 +1156,25 @@ ${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\
             !_state.evaluationReasoning.includes('[SCAN]') &&
             !_state.evaluationReasoning.includes('[PATTERN]') &&
             !_state.evaluationReasoning.includes('[TRANSMISSION]')) {
-            response.reasoning = _state.evaluationReasoning;
+            validResponse.reasoning = _state.evaluationReasoning;
         }
 
         await this.runtime.databaseAdapter.log({
             body: {
                 message,
                 cleanContext,
-                response,
-                responseType: typeof response,
-                hasReasoning: !!response.reasoning,
+                response: validResponse,
+                responseType: typeof validResponse,
+                hasReasoning: !!validResponse.reasoning,
                 evaluationReasoning: _state.evaluationReasoning,
+                attempts
             },
             userId,
             roomId,
             type: "response",
         });
 
-        return response;
+        return validResponse;
     }
 
     // Main handler for incoming messages
