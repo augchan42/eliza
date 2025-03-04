@@ -81,6 +81,7 @@ export class MessageManager {
     private runtime: IAgentRuntime;
     private interestChats: InterestChats = {};
     private teamMemberUsernames: Map<string, string> = new Map();
+    private lastResponseTimes: Map<string, number> = new Map();
 
     private autoPostConfig: AutoPostConfig;
     private lastChannelActivity: { [channelId: string]: number } = {};
@@ -627,10 +628,29 @@ export class MessageManager {
         const isReplyToBot =
             (message as any).reply_to_message?.from?.is_bot === true &&
             (message as any).reply_to_message?.from?.username === botUsername;
-        const isMentioned = messageText.includes(`@${botUsername}`);
+        const isMentioned = messageText
+            .toLowerCase()
+            .split(/\s+/) // Split into words
+            .some(word => word === botUsername.toLowerCase()); // Check for exact name match
         const hasUsername = messageText
             .toLowerCase()
             .includes(botUsername.toLowerCase());
+
+        // If it's a direct mention or reply, bypass rate limiting
+        const isDirectInteraction = isReplyToBot || isMentioned;
+
+        // Only apply rate limiting for non-direct messages
+        if (!isDirectInteraction) {
+            const lastResponseTime = this.lastResponseTimes.get(message.chat.id.toString()) || 0;
+            const minTimeBetweenResponses = 60000; // 60 seconds
+            const timeSinceLastResponse = Date.now() - lastResponseTime;
+            if (timeSinceLastResponse < minTimeBetweenResponses) {
+                elizaLogger.debug(
+                    `Rate limited: Last response was ${timeSinceLastResponse / 1000}s ago`,
+                );
+                return false;
+            }
+        }
 
         return (
             isReplyToBot ||
