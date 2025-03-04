@@ -1591,6 +1591,16 @@ export async function generateTextArray({
     }
 }
 
+const MAX_RETRIES = 5;
+const INITIAL_DELAY = 1000; // 1 second
+const MAX_DELAY = 32000; // 32 seconds
+const JITTER_FACTOR = 0.1; // 10% jitter
+
+function addJitter(delay: number): number {
+    const jitter = delay * JITTER_FACTOR;
+    return delay + (Math.random() * 2 - 1) * jitter;
+}
+
 export async function generateObjectDeprecated({
     runtime,
     context,
@@ -1604,27 +1614,22 @@ export async function generateObjectDeprecated({
         elizaLogger.error("generateObjectDeprecated context is empty");
         return null;
     }
-    let retryDelay = 1000;
 
-    while (true) {
-        try {
-            // this is slightly different than generateObjectArray, in that we parse object, not object array
-            const response = await generateText({
-                runtime,
-                context,
-                modelClass,
-            });
-            const parsedResponse = parseJSONObjectFromText(response);
-            if (parsedResponse) {
-                return parsedResponse;
-            }
-        } catch (error) {
-            elizaLogger.error("Error in generateObject:", error);
-        }
+    const response = await generateText({
+        runtime,
+        context,
+        modelClass,
+    });
 
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        retryDelay *= 2;
+    const parsedResponse = parseJSONObjectFromText(response);
+    if (!parsedResponse) {
+        elizaLogger.error("Failed to parse response as JSON object:", {
+            response: response.substring(0, 200) + "..."
+        });
+        throw new Error("Failed to generate valid JSON response");
     }
+
+    return parsedResponse;
 }
 
 export async function generateObjectArray({
@@ -1640,27 +1645,22 @@ export async function generateObjectArray({
         elizaLogger.error("generateObjectArray context is empty");
         return [];
     }
-    let retryDelay = 1000;
 
-    while (true) {
-        try {
-            const response = await generateText({
-                runtime,
-                context,
-                modelClass,
-            });
+    const response = await generateText({
+        runtime,
+        context,
+        modelClass,
+    });
 
-            const parsedResponse = parseJsonArrayFromText(response);
-            if (parsedResponse) {
-                return parsedResponse;
-            }
-        } catch (error) {
-            elizaLogger.error("Error in generateTextArray:", error);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        retryDelay *= 2;
+    const parsedResponse = parseJsonArrayFromText(response);
+    if (!parsedResponse) {
+        elizaLogger.error("Failed to parse response as JSON array:", {
+            response: response.substring(0, 200) + "..."
+        });
+        throw new Error("Failed to generate valid JSON array response");
     }
+
+    return parsedResponse;
 }
 
 /**

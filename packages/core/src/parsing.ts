@@ -19,16 +19,18 @@ Response format must be a valid JSON block with properly escaped characters:
 \`\`\`json
 {
   "user": "{{agentName}}",
-  "text": "That's a great idea! I'm thinking we should try it.",
-  "action": "Demonstrates enthusiasm and agreement"
+  "text": "First line\\n\\nSecond line\\nThird line",
+  "action": "NONE"
 }
 \`\`\`
 
-Note:
-- Use double quotes (") for JSON properties
-- Use regular apostrophes (') within text - they will be automatically escaped
-- Keep text natural and readable - don't manually escape characters
-- Format as a proper JSON code block with \`\`\`json markers
+CRITICAL FORMATTING REQUIREMENTS:
+1. Use single backslash newlines (\\n) in the text field
+2. Use double quotes (") for JSON properties
+3. Use regular apostrophes (') within text
+4. Keep text natural and readable
+5. Format as a proper JSON code block with \`\`\`json markers
+6. The entire response must be valid JSON
 `;
 
 export const shouldRespondFooter = `The available options are [RESPOND], [IGNORE], or [STOP]. Choose the most appropriate option.
@@ -108,7 +110,9 @@ function normalizeJsonContent(jsonContent: string): string {
 
         // 3. Specifically handle text field newlines
         if (parsed.text) {
-            // Just convert literal \n to actual newlines
+            // Convert double backslash newlines to actual newlines
+            parsed.text = parsed.text.replace(/\\\\n/g, "\n");
+            // Also handle any remaining single backslash newlines
             parsed.text = parsed.text.replace(/\\n/g, "\n");
         }
 
