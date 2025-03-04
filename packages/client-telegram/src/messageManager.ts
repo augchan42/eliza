@@ -514,7 +514,7 @@ export class MessageManager {
         for (const [plugin, keywords] of Object.entries(this.PLUGIN_KEYWORDS)) {
             if (
                 keywords.some((keyword) =>
-                    messageText.toLowerCase().includes(keyword),
+                    messageText.toLowerCase().includes(keyword)
                 )
             ) {
                 elizaLogger.debug(
@@ -966,7 +966,18 @@ export class MessageManager {
         return chunks;
     }
 
-    private getNextPerspective(): { name: string; prompt: string } {
+    private getNextPerspective(messageText: string): { name: string; prompt: string } {
+        // Check if it's a personal question
+        const isPersonalQuestion = /what('?s| is) your (favorite|favourite)|do you (like|enjoy|prefer)|how (are|do) you feel/i.test(messageText);
+
+        if (isPersonalQuestion) {
+            return {
+                name: 'personal',
+                prompt: 'Focus on expressing genuine preferences and feelings. Keep responses direct and authentic without philosophical complexity.'
+            };
+        }
+
+        // Use rotating perspectives for non-personal questions
         const perspective = this.perspectives[this.currentPerspectiveIndex];
         this.currentPerspectiveIndex = (this.currentPerspectiveIndex + 1) % this.perspectives.length;
         return perspective;
@@ -979,30 +990,10 @@ export class MessageManager {
         context: string,
     ): Promise<Content> {
         const cleanContext = context.replace(/&quot;/g, "");
+        const messageText = message.content.text || '';
 
-        // Handle plugin queries
-        if (_state.pluginQuery === "weather") {
-            elizaLogger.debug("[generateResponse] Processing weather query");
-            return {
-                text: "Let me check the weather for you...",
-                action: "GET_CURRENT_WEATHER",
-                source: "telegram",
-            };
-        }
-
-        if (_state.pluginQuery === "news") {
-            elizaLogger.debug("[generateResponse] Processing news query");
-            return {
-                text: "Let me check the news for you...",
-                action: "WEB_SEARCH",
-                source: "telegram",
-            };
-        }
-
-        const { userId, roomId } = message;
-
-        // Get the next perspective to use
-        const perspective = this.getNextPerspective();
+        // Get the appropriate perspective based on message content
+        const perspective = this.getNextPerspective(messageText);
 
         elizaLogger.debug("Generating response with perspective:", {
             messageId: message.id,
@@ -1010,7 +1001,7 @@ export class MessageManager {
             messageContent: message.content,
         });
 
-        // Simplified context with rotating perspective
+        // Simplified context with appropriate perspective
         const enhancedContext = cleanContext + `
 RESPONSE GUIDANCE:
 You are having a natural conversation while maintaining the [SCAN], [PATTERN], and [TRANSMISSION] structure.
@@ -1020,10 +1011,14 @@ ${perspective.prompt}
 
 Guidelines:
 1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}
-2. Let your analysis flow naturally from the current perspective
-3. Choose a hexagram that resonates with both the question and your current perspective
+2. Keep responses direct and relevant to the question
+3. For personal questions about preferences or feelings:
+   - Give clear, direct answers
+   - Avoid philosophical or market-related responses
+   - Focus on the specific subject being asked about
+4. Choose hexagrams that reflect the personal nature of the conversation
 
-Remember: This is a unique moment - your response should reflect your current perspective while maintaining authenticity.`;
+Remember: This is a unique moment - your response should be authentic while maintaining the required structure.`;
 
         let attempts = 0;
         const maxAttempts = 3;
@@ -1045,24 +1040,35 @@ Remember: This is a unique moment - your response should reflect your current pe
                 continue;
             }
 
-            // Basic validation: check for required sections and extract hexagram
-            const sections = response.text.split(/\n\n+/);
-            const hasRequiredSections = sections.some(s => s.startsWith('[SCAN]')) &&
-                                      sections.some(s => s.startsWith('[PATTERN]')) &&
-                                      sections.some(s => s.startsWith('[TRANSMISSION]'));
+            // For personal questions, validate that the response actually answers the question
+            if (perspective.name === 'personal') {
+                const sections = response.text.split(/\n\n+/);
+                const scanSection = sections.find(s => s.startsWith('[SCAN]'));
+                const transmissionSection = sections.find(s => s.startsWith('[TRANSMISSION]'));
 
-            if (!hasRequiredSections) {
-                elizaLogger.error("Response missing required sections");
-                continue;
+                if (!scanSection || !transmissionSection) {
+                    elizaLogger.error("Response missing required sections");
+                    continue;
+                }
+
+                // Check if the response addresses the specific subject
+                const subjectMatch = messageText.match(/what('?s| is) your (favorite|favourite) (\w+)|do you (like|enjoy|prefer) (\w+)|how (are|do) you feel/i);
+                if (subjectMatch) {
+                    const subject = subjectMatch[3] || subjectMatch[5] || 'feeling';
+                    if (!transmissionSection.toLowerCase().includes(subject.toLowerCase())) {
+                        elizaLogger.error(`Response doesn't address the subject: ${subject}`);
+                        continue;
+                    }
+                }
             }
 
             // Extract and update hexagram
+            const sections = response.text.split(/\n\n+/);
             const patternSection = sections.find(s => s.startsWith('[PATTERN]'));
             if (patternSection) {
                 const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
                 if (hexagramMatch) {
                     const hexagram = hexagramMatch[1].trim();
-                    // Only add if it's not in recent list
                     if (!this.recentHexagrams.includes(hexagram)) {
                         this.recentHexagrams.unshift(hexagram);
                         this.recentHexagrams = this.recentHexagrams.slice(0, 5);
@@ -1091,8 +1097,8 @@ Remember: This is a unique moment - your response should reflect your current pe
                 perspective: perspective.name,
                 attempts
             },
-            userId,
-            roomId,
+            userId: message.userId,
+            roomId: message.roomId,
             type: "response",
         });
 
