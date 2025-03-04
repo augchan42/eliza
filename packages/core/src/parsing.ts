@@ -186,21 +186,42 @@ export function parseJSONObjectFromText(text: string): any {
         hasJsonBlock: /```json\s*\n/.test(text),
     });
 
+    // First try with code blocks if present
     const jsonMatch = text.match(jsonBlockPattern);
-    if (!jsonMatch) {
-        elizaLogger.debug("[parseJSONObjectFromText] No JSON block found");
-        return null;
+    if (jsonMatch) {
+        try {
+            return normalizeAndParseJson(jsonMatch[1]);
+        } catch (e) {
+            elizaLogger.error("[parseJSONObjectFromText] Failed to parse JSON from code block:", {
+                content: jsonMatch[1],
+                error: e.message,
+            });
+        }
     }
 
+    // If no code blocks or parsing failed, try to find raw JSON
+    elizaLogger.debug("[parseJSONObjectFromText] No code blocks found or parsing failed, trying raw JSON");
     try {
-        return normalizeAndParseJson(jsonMatch[1]);
+        // Look for JSON-like pattern (object starting with { and ending with })
+        const jsonPattern = /{[\s\S]*}/;
+        const rawMatch = text.match(jsonPattern);
+        if (rawMatch) {
+            // Wrap in code blocks and try again
+            const wrappedJson = "```json\n" + rawMatch[0] + "\n```";
+            elizaLogger.debug("[parseJSONObjectFromText] Found raw JSON, trying with code blocks:", {
+                rawJson: rawMatch[0].substring(0, 100),
+                wrapped: wrappedJson.substring(0, 100),
+            });
+            return normalizeAndParseJson(wrappedJson);
+        }
     } catch (e) {
-        elizaLogger.error("[parseJSONObjectFromText] Failed to parse JSON:", {
-            content: jsonMatch[1],
+        elizaLogger.error("[parseJSONObjectFromText] Failed to parse raw JSON:", {
             error: e.message,
         });
-        return null;
     }
+
+    elizaLogger.debug("[parseJSONObjectFromText] No valid JSON found");
+    return null;
 }
 
 export const postActionResponseFooter = `Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
