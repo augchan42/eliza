@@ -30,6 +30,7 @@ export interface Content {
     /** The main text content */
     text: string;
 
+    /** Optional reasoning for the response */
     reasoning?: string;
 
     /** Optional action associated with the message */
@@ -47,10 +48,21 @@ export interface Content {
     /** Array of media attachments */
     attachments?: Media[];
 
-    metadata?: ContentMetadata; // Now properly typed
+    /** Metadata about the content */
+    metadata?: ContentMetadata;
 
     /** Additional dynamic properties */
     [key: string]: unknown;
+}
+
+/**
+ * Result from generateShouldRespond with optional reasoning
+ */
+export interface ShouldRespondResult {
+    /** The decision: RESPOND, IGNORE, or STOP */
+    decision: "RESPOND" | "IGNORE" | "STOP";
+    /** Optional reasoning for the decision */
+    reasoning?: string;
 }
 
 /**
@@ -1553,12 +1565,13 @@ export interface ITeeLogService extends Service {
 }
 
 export enum ServiceType {
-    IMAGE_DESCRIPTION = "image_description",
+    IMAGE_DESCRIPTION = "image-description",
+    IMAGE_GENERATION = "image-generation",
     TRANSCRIPTION = "transcription",
     VIDEO = "video",
-    TEXT_GENERATION = "text_generation",
+    TEXT_GENERATION = "text-generation",
     BROWSER = "browser",
-    SPEECH_GENERATION = "speech_generation",
+    SPEECH_GENERATION = "speech-generation",
     PDF = "pdf",
     INTIFACE = "intiface",
     AWS_S3 = "aws_s3",
@@ -1716,4 +1729,17 @@ export interface DirectoryItem {
 export interface ChunkRow {
     id: string;
     // Add other properties if needed
+}
+
+export interface ImageGenerationOptions {
+    model?: string;
+    width?: number;
+    height?: number;
+    n?: number;
+}
+
+export interface IImageGenerationService extends Service {
+    serviceType: ServiceType.IMAGE_GENERATION;
+    initialize(runtime: IAgentRuntime): Promise<void>;
+    generateImage(prompt: string, options?: ImageGenerationOptions): Promise<string[]>;
 }

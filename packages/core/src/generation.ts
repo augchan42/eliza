@@ -36,7 +36,7 @@ import {
 } from "./parsing.ts";
 import settings from "./settings.ts";
 import {
-    type Content,
+    Content,
     type IAgentRuntime,
     type IImageDescriptionService,
     type ITextGenerationService,
@@ -50,6 +50,9 @@ import {
     //VerifiableInferenceProvider,
     type TelemetrySettings,
     TokenizerType,
+    ShouldRespondResult,
+    type Service,
+    type IImageGenerationService,
 } from "./types.ts";
 import { fal } from "@fal-ai/client";
 
@@ -58,9 +61,6 @@ import { createPublicClient, http } from "viem";
 
 type Tool = CoreTool<any, any>;
 type StepResult = AIStepResult<any>;
-
-// Static storage for last evaluation context
-const lastEvaluationContext = new Map<string, { decision: "RESPOND" | "IGNORE" | "STOP"; reasoning?: string }>();
 
 /**
  * Trims the provided text context to a specified token limit using a tokenizer model and type.
@@ -1401,122 +1401,81 @@ export async function generateText({
 }
 
 /**
- * DEPRECATED: Use generateText instead. This will be removed in a future version.
- * Generates a structured object response from the model.
+ * Sends a message to the model to determine if it should respond to the given context.
+ * @param opts - The options for the generateText request
+ * @param opts.context The context to evaluate for response
+ * @param opts.modelClass The model class to use
+ * @param opts.structured Whether to return a structured response with reasoning
+ * @returns Promise resolving to "RESPOND", "IGNORE", "STOP", null, or a structured response
  */
-export async function generateObjectDeprecated<T = any>({
+export async function generateShouldRespond({
     runtime,
     context,
-    modelClass = ModelClass.SMALL,
-    tools = {},
-    onStepFinish,
-    maxSteps = 1,
-    stop,
-    customSystemPrompt,
+    modelClass,
+    structured = false
 }: {
     runtime: IAgentRuntime;
     context: string;
     modelClass: ModelClass;
-    tools?: Record<string, Tool>;
-    onStepFinish?: (event: StepResult) => Promise<void> | void;
-    maxSteps?: number;
-    stop?: string[];
-    customSystemPrompt?: string;
-}): Promise<T> {
-    const response = await generateText({
-        runtime,
-        context,
-        modelClass,
-        tools,
-        onStepFinish,
-        maxSteps,
-        stop,
-        customSystemPrompt,
-    });
+    structured?: boolean;
+}): Promise<"RESPOND" | "IGNORE" | "STOP" | null | ShouldRespondResult> {
+    let retryDelay = 1000;
+    while (true) {
+        try {
+            elizaLogger.debug(
+                "Attempting to generate text with context:",
+                context,
+            );
+            const response = await generateText({
+                runtime,
+                context,
+                modelClass,
+            });
 
-    try {
-        return JSON.parse(response);
-    } catch (error) {
-        elizaLogger.error("Failed to parse JSON response:", error);
-        throw new Error("Failed to parse model response as JSON");
+            elizaLogger.debug("Received response from generateText:", response);
+            const parsedResponse = parseShouldRespondFromText(response.trim());
+
+            if (parsedResponse) {
+                elizaLogger.debug("Parsed response:", parsedResponse);
+
+                if (structured) {
+                    // Extract reasoning if present (after the decision)
+                    const lines = response.trim().split('\n');
+                    const reasoning = lines.length > 1 ? lines.slice(1).join('\n').trim() : undefined;
+
+                    return {
+                        decision: parsedResponse,
+                        reasoning
+                    };
+                }
+
+                return parsedResponse;
+            } else {
+                elizaLogger.debug("generateShouldRespond no response");
+            }
+        } catch (error) {
+            elizaLogger.error("Error in generateShouldRespond:", error);
+            if (
+                error instanceof TypeError &&
+                error.message.includes("queueTextCompletion")
+            ) {
+                elizaLogger.error(
+                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')",
+                );
+            }
+        }
+
+        elizaLogger.log(`Retrying in ${retryDelay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay *= 2;
     }
-}
-
-// Type for the structured response
-export interface ShouldRespondResult {
-    decision: "RESPOND" | "IGNORE" | "STOP";
-    reasoning?: string;
-    __structured?: true;
-}
-
-/**
- * Sends a message to the model to determine if it should respond to the given context.
- * @param opts - The options for the generateText request
- * @param opts.context The context to evaluate for response
- * @param opts.stop A list of strings to stop the generateText at
- * @param opts.model The model to use for generateText
- * @param opts.frequency_penalty The frequency penalty to apply (0.0 to 2.0)
- * @param opts.presence_penalty The presence penalty to apply (0.0 to 2.0)
- * @param opts.temperature The temperature to control randomness (0.0 to 2.0)
- * @param opts.serverUrl The URL of the API server
- * @param opts.max_context_length Maximum allowed context length in tokens
- * @param opts.max_response_length Maximum allowed response length in tokens
- * @returns Promise resolving to "RESPOND", "IGNORE", "STOP" or null
- */
-export async function generateShouldRespond<T extends boolean = false>({
-    runtime,
-    context,
-    modelClass = ModelClass.SMALL,
-    structured = false as T,
-}: {
-    runtime: IAgentRuntime;
-    context: string;
-    modelClass?: ModelClass;
-    structured?: T;
-}): Promise<T extends true ? ShouldRespondResult : "RESPOND" | "IGNORE" | "STOP"> {
-    const response = await generateText({
-        runtime,
-        context,
-        modelClass,
-    });
-
-    const parsedResponse = parseJSONObjectFromText(response) as {
-        decision: "RESPOND" | "IGNORE" | "STOP";
-        reasoning?: string;
-    };
-
-    if (!parsedResponse) {
-        elizaLogger.error("Failed to parse response as JSON object:", {
-            response: response.substring(0, 200) + "..."
-        });
-        throw new Error("Failed to generate valid JSON response");
-    }
-
-    // Validate the response matches our expected schema
-    if (!parsedResponse.decision ||
-        !["RESPOND", "IGNORE", "STOP"].includes(parsedResponse.decision) ||
-        (parsedResponse.reasoning && typeof parsedResponse.reasoning !== "string")) {
-        elizaLogger.error("Invalid response format:", parsedResponse);
-        throw new Error("Response does not match expected schema");
-    }
-
-    // Return structured response if requested
-    if (structured) {
-        return {
-            ...parsedResponse,
-            __structured: true
-        } as T extends true ? ShouldRespondResult : "RESPOND" | "IGNORE" | "STOP";
-    }
-
-    // For backward compatibility, return just the decision
-    return parsedResponse.decision as T extends true ? ShouldRespondResult : "RESPOND" | "IGNORE" | "STOP";
 }
 
 /**
  * Splits content into chunks of specified size with optional overlapping bleed sections
  * @param content - The text content to split into chunks
  * @param chunkSize - The maximum size of each chunk in tokens
- * @param bleed - Number of characters to overlap between chunks (default: 20)
+ * @param bleed - Number of characters to overlap between chunks (default: 100)
  * @returns Promise resolving to array of text chunks with bleed sections
  */
 export async function splitChunks(
@@ -1540,4 +1499,1266 @@ export async function splitChunks(
     });
 
     return chunks;
+}
+
+/**
+ * Sends a message to the model and parses the response as a boolean value
+ * @param opts - The options for the generateText request
+ * @param opts.context The context to evaluate for the boolean response
+ * @param opts.stop A list of strings to stop the generateText at
+ * @param opts.model The model to use for generateText
+ * @param opts.frequency_penalty The frequency penalty to apply (0.0 to 2.0)
+ * @param opts.presence_penalty The presence penalty to apply (0.0 to 2.0)
+ * @param opts.temperature The temperature to control randomness (0.0 to 2.0)
+ * @param opts.serverUrl The URL of the API server
+ * @param opts.max_context_length Maximum allowed context length in tokens
+ * @param opts.max_response_length Maximum allowed response length in tokens
+ * @returns Promise resolving to a boolean value parsed from the model's response
+ */
+export async function generateTrueOrFalse({
+    runtime,
+    context = "",
+    modelClass,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+}): Promise<boolean> {
+    let retryDelay = 1000;
+    const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+    const stop = Array.from(
+        new Set([...(modelSettings.stop || []), ["\n"]]),
+    ) as string[];
+
+    while (true) {
+        try {
+            const response = await generateText({
+                stop,
+                runtime,
+                context,
+                modelClass,
+            });
+
+            const parsedResponse = parseBooleanFromText(response.trim());
+            if (parsedResponse !== null) {
+                return parsedResponse;
+            }
+        } catch (error) {
+            elizaLogger.error("Error in generateTrueOrFalse:", error);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay *= 2;
+    }
+}
+
+/**
+ * Send a message to the model and parse the response as a string array
+ * @param opts - The options for the generateText request
+ * @param opts.context The context/prompt to send to the model
+ * @param opts.stop Array of strings that will stop the model's generation if encountered
+ * @param opts.model The language model to use
+ * @param opts.frequency_penalty The frequency penalty to apply (0.0 to 2.0)
+ * @param opts.presence_penalty The presence penalty to apply (0.0 to 2.0)
+ * @param opts.temperature The temperature to control randomness (0.0 to 2.0)
+ * @param opts.serverUrl The URL of the API server
+ * @param opts.token The API token for authentication
+ * @param opts.max_context_length Maximum allowed context length in tokens
+ * @param opts.max_response_length Maximum allowed response length in tokens
+ * @returns Promise resolving to an array of strings parsed from the model's response
+ */
+export async function generateTextArray({
+    runtime,
+    context,
+    modelClass,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+}): Promise<string[]> {
+    if (!context) {
+        elizaLogger.error("generateTextArray context is empty");
+        return [];
+    }
+    let retryDelay = 1000;
+
+    while (true) {
+        try {
+            const response = await generateText({
+                runtime,
+                context,
+                modelClass,
+            });
+
+            const parsedResponse = parseJsonArrayFromText(response);
+            if (parsedResponse) {
+                return parsedResponse;
+            }
+        } catch (error) {
+            elizaLogger.error("Error in generateTextArray:", error);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay *= 2;
+    }
+}
+
+const MAX_RETRIES = 5;
+const INITIAL_DELAY = 1000; // 1 second
+const MAX_DELAY = 32000; // 32 seconds
+const JITTER_FACTOR = 0.1; // 10% jitter
+
+function addJitter(delay: number): number {
+    const jitter = delay * JITTER_FACTOR;
+    return delay + (Math.random() * 2 - 1) * jitter;
+}
+
+export async function generateObjectDeprecated({
+    runtime,
+    context,
+    modelClass,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+}): Promise<any> {
+    if (!context) {
+        elizaLogger.error("generateObjectDeprecated context is empty");
+        return null;
+    }
+
+    const response = await generateText({
+        runtime,
+        context,
+        modelClass,
+    });
+
+    const parsedResponse = parseJSONObjectFromText(response);
+    if (!parsedResponse) {
+        elizaLogger.error("Failed to parse response as JSON object:", {
+            response: response.substring(0, 200) + "..."
+        });
+        throw new Error("Failed to generate valid JSON response");
+    }
+
+    return parsedResponse;
+}
+
+export async function generateObjectArray({
+    runtime,
+    context,
+    modelClass,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+}): Promise<any[]> {
+    if (!context) {
+        elizaLogger.error("generateObjectArray context is empty");
+        return [];
+    }
+
+    const response = await generateText({
+        runtime,
+        context,
+        modelClass,
+    });
+
+    const parsedResponse = parseJsonArrayFromText(response);
+    if (!parsedResponse) {
+        elizaLogger.error("Failed to parse response as JSON array:", {
+            response: response.substring(0, 200) + "..."
+        });
+        throw new Error("Failed to generate valid JSON array response");
+    }
+
+    return parsedResponse;
+}
+
+/**
+ * Send a message to the model for generateText.
+ * @param opts - The options for the generateText request
+ * @param opts.context The context of the message to be completed
+ * @param opts.modelClass The model class to use
+ * @param opts.structured Whether to return a structured response with reasoning
+ * @returns The completed message
+ */
+export async function generateMessageResponse<T extends boolean = false>({
+    runtime,
+    context,
+    modelClass,
+    structured = false as T,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+    structured?: T;
+}): Promise<T extends true ? MessageResponseResult : Content> {
+    const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+    let retryLength = 1000;
+
+    while (true) {
+        try {
+            const rawResponse = await generateText({
+                runtime,
+                context,
+                modelClass,
+            });
+
+            elizaLogger.debug("Raw response before parsing:", {
+                responseLength: rawResponse?.length,
+                hasReasoningPrefix: rawResponse?.startsWith("Reasoning:"),
+                fullResponse: rawResponse,
+            });
+
+            // Extract reasoning using multiple patterns to ensure backward compatibility
+            let reasoning: string | undefined;
+
+            // Pattern 1: Reasoning block before JSON
+            const reasoningBeforeJson = rawResponse.match(/Reasoning:\n([\s\S]*?)\n\n```json/);
+            if (reasoningBeforeJson?.[1]) {
+                reasoning = reasoningBeforeJson[1].trim();
+            }
+
+            // Pattern 2: Reasoning in JSON format
+            const jsonMatch = rawResponse.match(/```json\n([\s\S]*?)\n```/);
+            let jsonContent = jsonMatch ? jsonMatch[1] : rawResponse;
+
+            const parsedContent = parseJSONObjectFromText(jsonContent) as Content;
+
+            elizaLogger.debug("Parsed content result:", {
+                success: !!parsedContent,
+                content: parsedContent,
+                keys: parsedContent ? Object.keys(parsedContent) : null,
+            });
+
+            if (!parsedContent) {
+                elizaLogger.debug("No parsed content, retrying");
+                continue;
+            }
+
+            // Add reasoning to content if found
+            if (reasoning && !parsedContent.reasoning) {
+                parsedContent.reasoning = reasoning;
+            }
+
+            elizaLogger.debug("Final content with reasoning:", {
+                hasReasoning: !!parsedContent.reasoning,
+                reasoningLength: parsedContent.reasoning?.length,
+                finalContent: parsedContent,
+            });
+
+            // Return structured response if requested
+            if (structured) {
+                return {
+                    ...parsedContent,
+                    __structured: true
+                } as T extends true ? MessageResponseResult : Content;
+            }
+
+            // For backward compatibility, return just the content without __structured flag
+            return parsedContent as T extends true ? MessageResponseResult : Content;
+
+        } catch (error) {
+            elizaLogger.error("Error:", { error, type: typeof error });
+            retryLength *= 2;
+            await new Promise((resolve) => setTimeout(resolve, retryLength));
+        }
+    }
+}
+
+export const generateImage = async (
+    data: {
+        prompt: string;
+        width: number;
+        height: number;
+        count?: number;
+        negativePrompt?: string;
+        numIterations?: number;
+        guidanceScale?: number;
+        seed?: number;
+        modelId?: string;
+        jobId?: string;
+        stylePreset?: string;
+        hideWatermark?: boolean;
+        safeMode?: boolean;
+        cfgScale?: number;
+    },
+    runtime: IAgentRuntime,
+): Promise<{
+    success: boolean;
+    data?: string[];
+    error?: any;
+}> => {
+    const modelSettings = getImageModelSettings(runtime.imageModelProvider);
+    const model = modelSettings.name;
+    elizaLogger.info("Generating image with options:", {
+        imageModelProvider: model,
+    });
+
+    const apiKey =
+        runtime.imageModelProvider === runtime.modelProvider
+            ? runtime.token
+            : (() => {
+                  // First try to match the specific provider
+                  switch (runtime.imageModelProvider) {
+                      case ModelProviderName.HEURIST:
+                          return runtime.getSetting("HEURIST_API_KEY");
+                      case ModelProviderName.TOGETHER:
+                          return runtime.getSetting("TOGETHER_API_KEY");
+                      case ModelProviderName.FAL:
+                          return runtime.getSetting("FAL_API_KEY");
+                      case ModelProviderName.OPENAI:
+                          return runtime.getSetting("OPENAI_API_KEY");
+                      case ModelProviderName.VENICE:
+                          return runtime.getSetting("VENICE_API_KEY");
+                      case ModelProviderName.LIVEPEER:
+                          return runtime.getSetting("LIVEPEER_GATEWAY_URL");
+                      default:
+                          // If no specific match, try the fallback chain
+                          return (
+                              runtime.getSetting("HEURIST_API_KEY") ??
+                              runtime.getSetting("NINETEEN_AI_API_KEY") ??
+                              runtime.getSetting("TOGETHER_API_KEY") ??
+                              runtime.getSetting("FAL_API_KEY") ??
+                              runtime.getSetting("OPENAI_API_KEY") ??
+                              runtime.getSetting("VENICE_API_KEY") ??
+                              runtime.getSetting("LIVEPEER_GATEWAY_URL")
+                          );
+                  }
+              })();
+    try {
+        if (runtime.imageModelProvider === ModelProviderName.HEURIST) {
+            const response = await fetch(
+                "http://sequencer.heurist.xyz/submit_job",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        job_id: data.jobId || crypto.randomUUID(),
+                        model_input: {
+                            SD: {
+                                prompt: data.prompt,
+                                neg_prompt: data.negativePrompt,
+                                num_iterations: data.numIterations || 20,
+                                width: data.width || 512,
+                                height: data.height || 512,
+                                guidance_scale: data.guidanceScale || 3,
+                                seed: data.seed || -1,
+                            },
+                        },
+                        model_id: model,
+                        deadline: 60,
+                        priority: 1,
+                    }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Heurist image generation failed: ${response.statusText}`,
+                );
+            }
+
+            const imageURL = await response.json();
+            return { success: true, data: [imageURL] };
+        } else if (
+            runtime.imageModelProvider === ModelProviderName.TOGETHER ||
+            // for backwards compat
+            runtime.imageModelProvider === ModelProviderName.LLAMACLOUD
+        ) {
+            const together = new Together({ apiKey: apiKey as string });
+            const response = await together.images.create({
+                model: model,
+                prompt: data.prompt,
+                width: data.width,
+                height: data.height,
+                steps: modelSettings?.steps ?? 4,
+                n: data.count,
+            });
+
+            // Add type assertion to handle the response properly
+            const togetherResponse =
+                response as unknown as TogetherAIImageResponse;
+
+            if (
+                !togetherResponse.data ||
+                !Array.isArray(togetherResponse.data)
+            ) {
+                throw new Error("Invalid response format from Together AI");
+            }
+
+            // Rest of the code remains the same...
+            const base64s = await Promise.all(
+                togetherResponse.data.map(async (image) => {
+                    if (!image.url) {
+                        elizaLogger.error("Missing URL in image data:", image);
+                        throw new Error("Missing URL in Together AI response");
+                    }
+
+                    // Fetch the image from the URL
+                    const imageResponse = await fetch(image.url);
+                    if (!imageResponse.ok) {
+                        throw new Error(
+                            `Failed to fetch image: ${imageResponse.statusText}`,
+                        );
+                    }
+
+                    // Convert to blob and then to base64
+                    const blob = await imageResponse.blob();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+                    // Return with proper MIME type
+                    return `data:image/jpeg;base64,${base64}`;
+                }),
+            );
+
+            if (base64s.length === 0) {
+                throw new Error("No images generated by Together AI");
+            }
+
+            elizaLogger.debug(`Generated ${base64s.length} images`);
+            return { success: true, data: base64s };
+        } else if (runtime.imageModelProvider === ModelProviderName.FAL) {
+            fal.config({
+                credentials: apiKey as string,
+            });
+
+            // Prepare the input parameters according to their schema
+            const input = {
+                prompt: data.prompt,
+                image_size: "square" as const,
+                num_inference_steps: modelSettings?.steps ?? 50,
+                guidance_scale: data.guidanceScale || 3.5,
+                num_images: data.count,
+                enable_safety_checker:
+                    runtime.getSetting("FAL_AI_ENABLE_SAFETY_CHECKER") ===
+                    "true",
+                safety_tolerance: Number(
+                    runtime.getSetting("FAL_AI_SAFETY_TOLERANCE") || "2",
+                ),
+                output_format: "png" as const,
+                seed: data.seed ?? 6252023,
+                ...(runtime.getSetting("FAL_AI_LORA_PATH")
+                    ? {
+                          loras: [
+                              {
+                                  path: runtime.getSetting("FAL_AI_LORA_PATH"),
+                                  scale: 1,
+                              },
+                          ],
+                      }
+                    : {}),
+            };
+
+            // Subscribe to the model
+            const result = await fal.subscribe(model, {
+                input,
+                logs: true,
+                onQueueUpdate: (update) => {
+                    if (update.status === "IN_PROGRESS") {
+                        elizaLogger.info(update.logs.map((log) => log.message));
+                    }
+                },
+            });
+            // Convert the returned image URLs to base64 to match existing functionality
+            const base64Promises = result.data.images.map(async (image) => {
+                const response = await fetch(image.url);
+                const blob = await response.blob();
+                const buffer = await blob.arrayBuffer();
+                const base64 = Buffer.from(buffer).toString("base64");
+                return `data:${image.content_type};base64,${base64}`;
+            });
+
+            const base64s = await Promise.all(base64Promises);
+            return { success: true, data: base64s };
+        } else if (runtime.imageModelProvider === ModelProviderName.VENICE) {
+            const response = await fetch(
+                "https://api.venice.ai/api/v1/image/generate",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        prompt: data.prompt,
+                        cfg_scale: data.guidanceScale,
+                        negative_prompt: data.negativePrompt,
+                        width: data.width,
+                        height: data.height,
+                        steps: data.numIterations,
+                        safe_mode: data.safeMode,
+                        seed: data.seed,
+                        style_preset: data.stylePreset,
+                        hide_watermark: data.hideWatermark,
+                    }),
+                },
+            );
+
+            const result = await response.json();
+
+            if (!result.images || !Array.isArray(result.images)) {
+                throw new Error("Invalid response format from Venice AI");
+            }
+
+            const base64s = result.images.map((base64String) => {
+                if (!base64String) {
+                    throw new Error(
+                        "Empty base64 string in Venice AI response",
+                    );
+                }
+                return `data:image/png;base64,${base64String}`;
+            });
+
+            return { success: true, data: base64s };
+        } else if (
+            runtime.imageModelProvider === ModelProviderName.NINETEEN_AI
+        ) {
+            const response = await fetch(
+                "https://api.nineteen.ai/v1/text-to-image",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        prompt: data.prompt,
+                        negative_prompt: data.negativePrompt,
+                        width: data.width,
+                        height: data.height,
+                        steps: data.numIterations,
+                        cfg_scale: data.guidanceScale || 3,
+                    }),
+                },
+            );
+
+            const result = await response.json();
+
+            if (!result.images || !Array.isArray(result.images)) {
+                throw new Error("Invalid response format from Nineteen AI");
+            }
+
+            const base64s = result.images.map((base64String) => {
+                if (!base64String) {
+                    throw new Error(
+                        "Empty base64 string in Nineteen AI response",
+                    );
+                }
+                return `data:image/png;base64,${base64String}`;
+            });
+
+            return { success: true, data: base64s };
+        } else if (runtime.imageModelProvider === ModelProviderName.LIVEPEER) {
+            if (!apiKey) {
+                throw new Error("Livepeer Gateway is not defined");
+            }
+            try {
+                const baseUrl = new URL(apiKey);
+                if (!baseUrl.protocol.startsWith("http")) {
+                    throw new Error("Invalid Livepeer Gateway URL protocol");
+                }
+
+                const response = await fetch(
+                    `${baseUrl.toString()}text-to-image`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: "Bearer eliza-app-img",
+                        },
+                        body: JSON.stringify({
+                            model_id:
+                                data.modelId || "ByteDance/SDXL-Lightning",
+                            prompt: data.prompt,
+                            width: data.width || 1024,
+                            height: data.height || 1024,
+                        }),
+                    },
+                );
+                const result = await response.json();
+                if (!result.images?.length) {
+                    throw new Error("No images generated");
+                }
+                const base64Images = await Promise.all(
+                    result.images.map(async (image) => {
+                        console.log("imageUrl console log", image.url);
+                        let imageUrl;
+                        if (image.url.includes("http")) {
+                            imageUrl = image.url;
+                        } else {
+                            imageUrl = `${apiKey}${image.url}`;
+                        }
+                        const imageResponse = await fetch(imageUrl);
+                        if (!imageResponse.ok) {
+                            throw new Error(
+                                `Failed to fetch image: ${imageResponse.statusText}`,
+                            );
+                        }
+                        const blob = await imageResponse.blob();
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const base64 =
+                            Buffer.from(arrayBuffer).toString("base64");
+                        return `data:image/jpeg;base64,${base64}`;
+                    }),
+                );
+                return {
+                    success: true,
+                    data: base64Images,
+                };
+            } catch (error) {
+                console.error(error);
+                return { success: false, error: error };
+            }
+        } else {
+            let targetSize = `${data.width}x${data.height}`;
+            if (
+                targetSize !== "1024x1024" &&
+                targetSize !== "1792x1024" &&
+                targetSize !== "1024x1792"
+            ) {
+                targetSize = "1024x1024";
+            }
+            const openaiApiKey = runtime.getSetting("OPENAI_API_KEY") as string;
+            if (!openaiApiKey) {
+                throw new Error("OPENAI_API_KEY is not set");
+            }
+            const openai = new OpenAI({
+                apiKey: openaiApiKey as string,
+            });
+            const response = await openai.images.generate({
+                model,
+                prompt: data.prompt,
+                size: targetSize as "1024x1024" | "1792x1024" | "1024x1792",
+                n: data.count,
+                response_format: "b64_json",
+            });
+            const base64s = response.data.map(
+                (image) => `data:image/png;base64,${image.b64_json}`,
+            );
+            return { success: true, data: base64s };
+        }
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: error };
+    }
+};
+
+export const generateCaption = async (
+    data: { imageUrl: string },
+    runtime: IAgentRuntime,
+): Promise<{
+    title: string;
+    description: string;
+}> => {
+    const { imageUrl } = data;
+    const imageDescriptionService =
+        runtime.getService<IImageDescriptionService>(
+            ServiceType.IMAGE_DESCRIPTION,
+        );
+
+    if (!imageDescriptionService) {
+        throw new Error("Image description service not found");
+    }
+
+    const resp = await imageDescriptionService.describeImage(imageUrl);
+    return {
+        title: resp.title.trim(),
+        description: resp.description.trim(),
+    };
+};
+
+/**
+ * Configuration options for generating objects with a model.
+ */
+export interface GenerationOptions {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+    schema?: ZodSchema;
+    schemaName?: string;
+    schemaDescription?: string;
+    stop?: string[];
+    mode?: "auto" | "json" | "tool";
+    experimental_providerMetadata?: Record<string, unknown>;
+    verifiableInference?: boolean;
+    verifiableInferenceAdapter?: IVerifiableInferenceAdapter;
+    verifiableInferenceOptions?: VerifiableInferenceOptions;
+}
+
+/**
+ * Base settings for model generation.
+ */
+interface ModelSettings {
+    prompt: string;
+    temperature: number;
+    maxTokens: number;
+    frequencyPenalty: number;
+    presencePenalty: number;
+    stop?: string[];
+    experimental_telemetry?: TelemetrySettings;
+}
+
+/**
+ * Generates structured objects from a prompt using specified AI models and configuration options.
+ *
+ * @param {GenerationOptions} options - Configuration options for generating objects.
+ * @returns {Promise<any[]>} - A promise that resolves to an array of generated objects.
+ * @throws {Error} - Throws an error if the provider is unsupported or if generation fails.
+ */
+export const generateObject = async ({
+    runtime,
+    context,
+    modelClass,
+    schema,
+    schemaName,
+    schemaDescription,
+    stop,
+    mode = "json",
+    verifiableInference = false,
+    verifiableInferenceAdapter,
+    verifiableInferenceOptions,
+}: GenerationOptions): Promise<GenerateObjectResult<unknown>> => {
+    if (!context) {
+        const errorMessage = "generateObject context is empty";
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    const provider = runtime.modelProvider;
+    const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+    const model = modelSettings.name;
+    const temperature = modelSettings.temperature;
+    const frequency_penalty = modelSettings.frequency_penalty;
+    const presence_penalty = modelSettings.presence_penalty;
+    const max_context_length = modelSettings.maxInputTokens;
+    const max_response_length = modelSettings.maxOutputTokens;
+    const experimental_telemetry = modelSettings.experimental_telemetry;
+    const apiKey = runtime.token;
+
+    try {
+        context = await trimTokens(context, max_context_length, runtime);
+
+        const modelOptions: ModelOptions = {
+            prompt: context,
+            temperature,
+            maxTokens: max_response_length,
+            frequencyPenalty: frequency_penalty,
+            presencePenalty: presence_penalty,
+            stop: stop || modelSettings.stop,
+            experimental_telemetry,
+        };
+
+        const response = await handleProvider({
+            provider,
+            model,
+            apiKey,
+            schema,
+            schemaName,
+            schemaDescription,
+            mode,
+            modelOptions,
+            runtime,
+            context,
+            modelClass,
+            verifiableInference,
+            verifiableInferenceAdapter,
+            verifiableInferenceOptions,
+        });
+
+        return response;
+    } catch (error) {
+        console.error("Error in generateObject:", error);
+        throw error;
+    }
+};
+
+/**
+ * Interface for provider-specific generation options.
+ */
+interface ProviderOptions {
+    runtime: IAgentRuntime;
+    provider: ModelProviderName;
+    model: any;
+    apiKey: string;
+    schema?: ZodSchema;
+    schemaName?: string;
+    schemaDescription?: string;
+    mode?: "auto" | "json" | "tool";
+    experimental_providerMetadata?: Record<string, unknown>;
+    modelOptions: ModelOptions;
+    modelClass: ModelClass;
+    context: string;
+    verifiableInference?: boolean;
+    verifiableInferenceAdapter?: IVerifiableInferenceAdapter;
+    verifiableInferenceOptions?: VerifiableInferenceOptions;
+}
+
+/**
+ * Handles AI generation based on the specified provider.
+ *
+ * @param {ProviderOptions} options - Configuration options specific to the provider.
+ * @returns {Promise<any[]>} - A promise that resolves to an array of generated objects.
+ */
+export async function handleProvider(
+    options: ProviderOptions,
+): Promise<GenerateObjectResult<unknown>> {
+    const {
+        provider,
+        runtime,
+        context,
+        modelClass,
+        //verifiableInference,
+        //verifiableInferenceAdapter,
+        //verifiableInferenceOptions,
+    } = options;
+    switch (provider) {
+        case ModelProviderName.OPENAI:
+        case ModelProviderName.ETERNALAI:
+        case ModelProviderName.ALI_BAILIAN:
+        case ModelProviderName.VOLENGINE:
+        case ModelProviderName.LLAMACLOUD:
+        case ModelProviderName.TOGETHER:
+        case ModelProviderName.NANOGPT:
+        case ModelProviderName.AKASH_CHAT_API: {
+            return await handleOpenAI(options);
+        }
+        case ModelProviderName.ANTHROPIC:
+        case ModelProviderName.CLAUDE_VERTEX: {
+            return await handleAnthropic(options);
+        }
+        case ModelProviderName.GROK: {
+            return await handleGrok(options);
+        }
+        case ModelProviderName.GROQ: {
+            return await handleGroq(options);
+        }
+        case ModelProviderName.LLAMALOCAL: {
+            return await generateObjectDeprecated(options);
+        }
+        case ModelProviderName.GOOGLE: {
+            return await handleGoogle(options);
+        }
+        case ModelProviderName.MISTRAL: {
+            return await handleMistral(options);
+        }
+        case ModelProviderName.REDPILL: {
+            return await handleRedPill(options);
+        }
+        case ModelProviderName.OPENROUTER: {
+            return await handleOpenRouter(options);
+        }
+        case ModelProviderName.OLLAMA: {
+            return await handleOllama(options);
+        }
+        case ModelProviderName.DEEPSEEK: {
+            return await handleDeepSeek(options);
+        }
+        case ModelProviderName.LIVEPEER: {
+            return await handleLivepeer(options);
+        }
+        default: {
+            const errorMessage = `Unsupported provider: ${provider}`;
+            elizaLogger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }
+}
+/**
+ * Handles object generation for OpenAI.
+ *
+ * @param {ProviderOptions} options - Options specific to OpenAI.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleOpenAI({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+    provider: _provider,
+    runtime,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const baseURL =
+        getCloudflareGatewayBaseURL(runtime, "openai") ||
+        models.openai.endpoint;
+    const openai = createOpenAI({ apiKey, baseURL });
+    return await aiGenerateObject({
+        model: openai.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Anthropic models.
+ *
+ * @param {ProviderOptions} options - Options specific to Anthropic.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleAnthropic({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+    runtime,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    elizaLogger.debug("Handling Anthropic request with Cloudflare check");
+    const baseURL = getCloudflareGatewayBaseURL(runtime, "anthropic");
+    elizaLogger.debug("Anthropic handleAnthropic baseURL:", { baseURL });
+
+    const anthropic = createAnthropic({ apiKey, baseURL });
+    return await aiGenerateObject({
+        model: anthropic.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Grok models.
+ *
+ * @param {ProviderOptions} options - Options specific to Grok.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleGrok({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const grok = createOpenAI({ apiKey, baseURL: models.grok.endpoint });
+    return await aiGenerateObject({
+        model: grok.languageModel(model, { parallelToolCalls: false }),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Groq models.
+ *
+ * @param {ProviderOptions} options - Options specific to Groq.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleGroq({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+    runtime,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    elizaLogger.debug("Handling Groq request with Cloudflare check");
+    const baseURL = getCloudflareGatewayBaseURL(runtime, "groq");
+    elizaLogger.debug("Groq handleGroq baseURL:", { baseURL });
+
+    const groq = createGroq({ apiKey, baseURL });
+    return await aiGenerateObject({
+        model: groq.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Google models.
+ *
+ * @param {ProviderOptions} options - Options specific to Google.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleGoogle({
+    model,
+    apiKey: _apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const google = createGoogleGenerativeAI();
+    return await aiGenerateObject({
+        model: google(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Mistral models.
+ *
+ * @param {ProviderOptions} options - Options specific to Mistral.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleMistral({
+    model,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const mistral = createMistral();
+    return await aiGenerateObject({
+        model: mistral(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Redpill models.
+ *
+ * @param {ProviderOptions} options - Options specific to Redpill.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleRedPill({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const redPill = createOpenAI({ apiKey, baseURL: models.redpill.endpoint });
+    return await aiGenerateObject({
+        model: redPill.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for OpenRouter models.
+ *
+ * @param {ProviderOptions} options - Options specific to OpenRouter.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleOpenRouter({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const openRouter = createOpenAI({
+        apiKey,
+        baseURL: models.openrouter.endpoint,
+    });
+    return await aiGenerateObject({
+        model: openRouter.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for Ollama models.
+ *
+ * @param {ProviderOptions} options - Options specific to Ollama.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleOllama({
+    model,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode = "json",
+    modelOptions,
+    provider,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const ollamaProvider = createOllama({
+        baseURL: getEndpoint(provider) + "/api",
+    });
+    const ollama = ollamaProvider(model);
+    return await aiGenerateObject({
+        model: ollama,
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+/**
+ * Handles object generation for DeepSeek models.
+ *
+ * @param {ProviderOptions} options - Options specific to DeepSeek.
+ * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
+ */
+async function handleDeepSeek({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    const openai = createOpenAI({ apiKey, baseURL: models.deepseek.endpoint });
+    return await aiGenerateObject({
+        model: openai.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+async function handleLivepeer({
+    model,
+    apiKey,
+    schema,
+    schemaName,
+    schemaDescription,
+    mode,
+    modelOptions,
+}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
+    console.log("Livepeer provider api key:", apiKey);
+    if (!apiKey) {
+        throw new Error(
+            "Livepeer provider requires LIVEPEER_GATEWAY_URL to be configured",
+        );
+    }
+
+    const livepeerClient = createOpenAI({
+        apiKey,
+        baseURL: apiKey, // Use the apiKey as the baseURL since it contains the gateway URL
+    });
+
+    return await aiGenerateObject({
+        model: livepeerClient.languageModel(model),
+        schema,
+        schemaName,
+        schemaDescription,
+        mode,
+        ...modelOptions,
+    });
+}
+
+// Add type definition for Together AI response
+interface TogetherAIImageResponse {
+    data: Array<{
+        url: string;
+        content_type?: string;
+        image_type?: string;
+    }>;
+}
+
+export async function generateTweetActions({
+    runtime,
+    context,
+    modelClass,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+}): Promise<ActionResponse | null> {
+    let retryDelay = 1000;
+    while (true) {
+        try {
+            const response = await generateText({
+                runtime,
+                context,
+                modelClass,
+            });
+            console.debug(
+                "Received response from generateText for tweet actions:",
+                response,
+            );
+            const { actions } = parseActionResponseFromText(response.trim());
+            if (actions) {
+                console.debug("Parsed tweet actions:", actions);
+                return actions;
+            } else {
+                elizaLogger.debug("generateTweetActions no valid response");
+            }
+        } catch (error) {
+            elizaLogger.error("Error in generateTweetActions:", error);
+            if (
+                error instanceof TypeError &&
+                error.message.includes("queueTextCompletion")
+            ) {
+                elizaLogger.error(
+                    "TypeError: Cannot read properties of null (reading 'queueTextCompletion')",
+                );
+            }
+        }
+        elizaLogger.log(`Retrying in ${retryDelay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay *= 2;
+    }
+}
+
+// Type for the structured message response
+export interface MessageResponseResult extends Content {
+    reasoning?: string;
+    __structured?: true;
+}
+
+interface ModelOptions {
+    prompt: string;
+    temperature: number;
+    maxTokens: number;
+    frequencyPenalty: number;
+    presencePenalty: number;
+    stop: string[];
+    experimental_telemetry?: TelemetrySettings;
+}
+
+async function generateWithModel(
+    runtime: IAgentRuntime,
+    context: string,
+    modelClass: ModelClass,
+    stop: string[] | undefined,
+    modelOptions: ModelOptions
+): Promise<string> {
+    // Implementation will be added later
+    return "";
 }

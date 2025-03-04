@@ -14,6 +14,7 @@ import {
     getEmbeddingZeroVector,
     AgentRole,
     UUID,
+    type ShouldRespondResult,
 } from "@elizaos/core";
 import type { EchoChamberClient } from "./echoChamberClient";
 import type { ChatMessage, ChatRoom } from "./types";
@@ -660,14 +661,30 @@ export class InteractionClient {
             template: shouldRespondTemplate,
         });
 
-        const shouldRespond = await generateShouldRespond({
+        const response = await generateShouldRespond({
             runtime: this.runtime,
             context: shouldRespondContext,
             modelClass: ModelClass.SMALL,
         });
 
-        if (shouldRespond !== "RESPOND") {
-            return { shouldRespond, responseContext: null };
+        // Handle all possible response types
+        let decision: "RESPOND" | "IGNORE" | "STOP";
+
+        if (response === null) {
+            decision = "IGNORE";
+        } else if (typeof response === "string") {
+            decision = response;
+        } else {
+            // We know it's a ShouldRespondResult at this point
+            decision = response.decision;
+            // Store reasoning if present
+            if (response.reasoning) {
+                state.evaluationReasoning = response.reasoning;
+            }
+        }
+
+        if (decision !== "RESPOND") {
+            return { shouldRespond: decision, responseContext: null };
         }
 
         const messageTemplate =
@@ -679,7 +696,7 @@ export class InteractionClient {
             template: messageTemplate,
         });
 
-        return { shouldRespond, responseContext };
+        return { shouldRespond: decision, responseContext };
     }
 
     private async handleResponseCallback(
