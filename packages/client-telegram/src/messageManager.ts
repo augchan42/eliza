@@ -977,25 +977,6 @@ export class MessageManager {
             context: cleanContext,
         });
 
-        // Check if evaluation reasoning already contains a full response
-        if (_state.evaluationReasoning &&
-            typeof _state.evaluationReasoning === 'string' &&
-            _state.evaluationReasoning.includes("[SCAN]") &&
-            _state.evaluationReasoning.includes("[PATTERN]") &&
-            _state.evaluationReasoning.includes("[TRANSMISSION]")) {
-
-            elizaLogger.debug("Using complete response from evaluation reasoning");
-
-            // Extract the response part (after the initial explanation)
-            const responsePart = _state.evaluationReasoning.split("\n\n").slice(1).join("\n\n");
-
-            return {
-                text: responsePart,
-                action: "NONE",
-                source: "telegram"
-            };
-        }
-
         // Use structured response to get reasoning
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -1043,10 +1024,12 @@ export class MessageManager {
             response.text = uniqueSections.join('\n\n');
         }
 
-        // Only add evaluation reasoning if it doesn't contain a full response
+        // Only store evaluation reasoning if it's not a full response
         if (_state.evaluationReasoning &&
             typeof _state.evaluationReasoning === 'string' &&
-            !response.reasoning) {
+            !_state.evaluationReasoning.includes('[SCAN]') &&
+            !_state.evaluationReasoning.includes('[PATTERN]') &&
+            !_state.evaluationReasoning.includes('[TRANSMISSION]')) {
             response.reasoning = _state.evaluationReasoning;
         }
 
