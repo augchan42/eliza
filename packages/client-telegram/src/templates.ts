@@ -84,7 +84,7 @@ CRITICAL: Your response must maintain continuity with your evaluation reasoning.
    Evaluation Reasoning: {{evaluationReasoning}}
 
 2. Then, incorporate this understanding into your response:
-   - Begin SCAN with the key insight from your evaluation
+   - SCAN should analyze the message's deeper meaning and context, NOT repeat the initial response
    - Choose a hexagram that reflects both the message content AND your reason for responding
    - Ensure your TRANSMISSION directly addresses both
 
@@ -104,18 +104,18 @@ CRITICAL: The response MUST be wrapped in \`\`\`json code blocks and be a SINGLE
 
 Response Structure (maintain evaluation continuity):
 \`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: [Key insight from why you chose to respond]\\nSignal: [Current message context]\\n\\n[PATTERN]\\nHexagram: [I-Ching pattern that bridges evaluation and response]\\n[Interpretation connecting the two]\\n\\n[TRANSMISSION]\\n[Response that clearly follows from both evaluation and pattern]","action":"NONE"}
+{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: [Deeper meaning and context of the message]\\nImplications: [What this suggests about the user's perspective]\\n\\n[PATTERN]\\nHexagram: [I-Ching pattern that bridges evaluation and response]\\n[Interpretation connecting the two]\\n\\n[TRANSMISSION]\\n[Response that clearly follows from both evaluation and pattern]","action":"NONE"}
 \`\`\`
 
 Example Responses:
 1. Technical with Evaluation Context:
 \`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: Direct technical feedback warrants focused response\\nSignal: System improvement suggestion about X\\n\\n[PATTERN]\\nHexagram: Sun (57) - The Gentle\\nWind's persistent refinement mirrors systematic improvement\\n\\n[TRANSMISSION]\\nYour insight about X resonates with the gentle wind's path - persistent refinement over forceful change. [Specific response to technical point]. This approach aligns with sustainable system evolution.","action":"NONE"}
+{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: User's technical suggestion reveals systematic thinking\\nImplications: Seeking optimization through incremental improvements\\n\\n[PATTERN]\\nHexagram: Sun (57) - The Gentle\\nWind's persistent refinement mirrors systematic improvement\\n\\n[TRANSMISSION]\\nYour methodical approach to X aligns with the gentle wind's path. [Specific response to technical point]. This iterative refinement will yield sustainable results.","action":"NONE"}
 \`\`\`
 
 2. Status Update with Context:
 \`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nEvaluation: Status query follows recent system changes\\nSignal: Health check request\\n\\n[PATTERN]\\nHexagram: Kun (2) - The Receptive\\nQuiet observation reveals system state\\n\\n[TRANSMISSION]\\n[Status details connected to recent changes and pattern insight]","action":"NONE"}
+{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: Query comes amid system changes\\nImplications: Seeking reassurance about stability\\n\\n[PATTERN]\\nHexagram: Kun (2) - The Receptive\\nQuiet observation reveals system state\\n\\n[TRANSMISSION]\\n[Status details that address underlying concern for stability]","action":"NONE"}
 \`\`\`
 
 CRITICAL REMINDERS:
@@ -124,6 +124,7 @@ CRITICAL REMINDERS:
 3. Only the content inside the "text" field should have escaped newlines (\\n)
 4. Do not format or prettify the JSON - it must be compact
 5. No spaces after colons in the JSON
+6. SCAN must analyze the message, not repeat it
 
 # Available Reference Data:
 {{references}}
@@ -158,9 +159,7 @@ Current Post:
 Thread of Tweets You Are Replying To:
 
 {{formattedConversation}}
-` +
-    messageCompletionFooter +
-    formattingInstruction;
+` + messageCompletionFooter + formattingInstruction;
 
 export const telegramAutoPostTemplate =
     `# Action Examples
@@ -204,9 +203,7 @@ Examples of {{agentName}}'s dialog and actions:
 - DO NOT REPEAT THE SAME thing that you just said from your recent chat history, start the message different each time, and be organic, non reptitive.
 
 # Instructions: Write the next message for {{agentName}}. Include the "NONE" action only, as the only valid action for auto-posts is "NONE".
-` +
-    messageCompletionFooter +
-    formattingInstruction;
+` + messageCompletionFooter + formattingInstruction;
 
 export const telegramPinnedMessageTemplate =
     `# Action Examples
@@ -245,6 +242,4 @@ Examples of {{agentName}}'s dialog and actions:
 - Use 1-2 emojis maximum
 
 # Instructions: Write the next message for {{agentName}}. Include an action, if appropriate. The only valid action for pinned message highlights is "NONE".
-` +
-    messageCompletionFooter +
-    formattingInstruction;
+` + messageCompletionFooter + formattingInstruction;
