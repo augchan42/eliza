@@ -640,26 +640,25 @@ export class MessageManager {
 
     private _isMessageForMe(message: Message): boolean {
         const botUsername = this.bot.botInfo?.username;
+        const characterName = this.runtime.character.name;
         if (!botUsername) return false;
 
-        const messageText =
-            "text" in message
-                ? message.text
-                : "caption" in message
-                  ? message.caption
-                  : "";
+        const messageText = "text" in message ? message.text :
+                           "caption" in message ? message.caption : "";
         if (!messageText) return false;
 
-        const isReplyToBot =
-            (message as any).reply_to_message?.from?.is_bot === true &&
-            (message as any).reply_to_message?.from?.username === botUsername;
-        const isMentioned = messageText
-            .toLowerCase()
-            .split(/\s+/) // Split into words
-            .some(word => word === botUsername.toLowerCase()); // Check for exact name match
-        const hasUsername = messageText
-            .toLowerCase()
-            .includes(botUsername.toLowerCase());
+        const isReplyToBot = (message as any).reply_to_message?.from?.is_bot === true &&
+                            (message as any).reply_to_message?.from?.username === botUsername;
+
+        const isMentioned = messageText.toLowerCase()
+            .split(/\s+/)
+            .some(word =>
+                word === botUsername.toLowerCase() ||
+                word === `@${botUsername.toLowerCase()}` ||
+                word === characterName.toLowerCase()
+            );
+
+        const hasUsername = messageText.toLowerCase().includes(botUsername.toLowerCase());
 
         // If it's a direct mention or reply, bypass rate limiting
         const isDirectInteraction = isReplyToBot || isMentioned;
