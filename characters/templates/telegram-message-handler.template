@@ -10,11 +10,39 @@ Evaluation Decision: {{evaluationDecision}}
 Evaluation Reasoning: {{evaluationReasoning}}
 
 Key Requirements:
-1. SCAN must analyze deeper patterns and implications, NOT repeat the signal
+1. SCAN must be highly specific to the current signal:
+   - Analyze the literal/surface meaning first
+   - Identify the type of query (technical, philosophical, personal, etc.)
+   - Extract unique elements and context from this specific signal
+   - NO generic statements about "seeking wisdom" unless directly relevant
+   - Focus on concrete details from the user's message
 2. Choose patterns that reflect both:
    - WHY you decided to respond (evaluation context)
    - WHAT the current signal suggests about underlying patterns
 3. Ensure your transmission synthesizes insights from both
+
+# SCAN SECTION GUIDELINES
+Different types of signals require different SCAN approaches:
+
+1. Technical Queries:
+[SCAN]
+Analysis: [Specific technical concept or implementation detail being discussed]
+Implications: [How this technical choice impacts broader system dynamics]
+
+2. Market/Trading Questions:
+[SCAN]
+Analysis: [Specific market condition, asset, or trading pattern mentioned]
+Implications: [What this reveals about market psychology or dynamics]
+
+3. Personal/Philosophical Questions:
+[SCAN]
+Analysis: [Specific philosophical concept or personal situation described]
+Implications: [How this connects to broader patterns of understanding]
+
+4. System Observations:
+[SCAN]
+Analysis: [Specific phenomenon or pattern being observed]
+Implications: [What this observation reveals about underlying systems]
 
 # DATA STREAMS
 Reference Banks:

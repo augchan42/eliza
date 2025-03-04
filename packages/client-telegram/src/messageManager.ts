@@ -980,8 +980,34 @@ export class MessageManager {
             recentHexagrams: this.recentHexagrams,
         });
 
-        // Add context about avoiding recently used hexagrams
-        const enhancedContext = cleanContext + `\nIMPORTANT: For variety, avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}. Choose a different, contextually appropriate hexagram.`;
+        // Track recent SCAN sections to prevent repetition
+        const recentScans = await this.runtime.messageManager.getMemories({
+            roomId,
+            count: 5,
+            unique: true
+        });
+
+        // Extract SCAN sections from recent responses
+        const recentScanTexts = recentScans
+            ?.filter(m => m.content.text?.includes('[SCAN]'))
+            .map(m => {
+                const scanMatch = m.content.text.match(/\[SCAN\](.*?)(?=\[PATTERN\]|\[TRANSMISSION\]|$)/s);
+                return scanMatch ? scanMatch[1].trim() : null;
+            })
+            .filter(Boolean);
+
+        // Add context about avoiding recently used hexagrams and similar SCAN sections
+        const enhancedContext = cleanContext + `
+IMPORTANT:
+1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}. Choose a different, contextually appropriate hexagram.
+2. Your SCAN section must be unique and specific to this query. Avoid these recently used SCAN patterns:
+${recentScanTexts.map(scan => '   - ' + scan.substring(0, 100) + '...').join('\\n')}
+3. Ensure your SCAN section:
+   - Analyzes the specific content of THIS message
+   - Identifies the exact type of query
+   - Uses concrete details from the user's message
+   - Avoids generic statements about "seeking wisdom" unless directly asked about wisdom
+   - Focuses on unique elements of this particular query`;
 
         // Use structured response to get reasoning
         const response = await generateMessageResponse({
@@ -1016,6 +1042,33 @@ export class MessageManager {
             const hasScan = uniqueSections.some(s => s.startsWith('[SCAN]'));
             const hasPattern = uniqueSections.some(s => s.startsWith('[PATTERN]'));
             const hasTransmission = uniqueSections.some(s => s.startsWith('[TRANSMISSION]'));
+
+            // Validate SCAN section is specific enough
+            const scanSection = uniqueSections.find(s => s.startsWith('[SCAN]'));
+            if (scanSection) {
+                const scanText = scanSection.substring(6).trim(); // Remove [SCAN] prefix
+                const isGenericScan = scanText.toLowerCase().includes('seeking wisdom') ||
+                                    scanText.toLowerCase().includes('thirst for') ||
+                                    scanText.toLowerCase().includes('deeper synthesis');
+
+                if (isGenericScan) {
+                    elizaLogger.error("SCAN section too generic", {
+                        scan: scanText
+                    });
+                    return null;
+                }
+
+                // Check if SCAN is too similar to recent ones
+                const isTooSimilar = recentScanTexts.some(recentScan => {
+                    const similarity = cosineSimilarity(scanText.toLowerCase(), recentScan.toLowerCase());
+                    return similarity > 0.8; // Threshold for similarity
+                });
+
+                if (isTooSimilar) {
+                    elizaLogger.error("SCAN section too similar to recent ones");
+                    return null;
+                }
+            }
 
             if (!hasScan || !hasPattern || !hasTransmission) {
                 elizaLogger.error("Response missing required sections", {
