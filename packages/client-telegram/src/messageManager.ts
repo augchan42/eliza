@@ -966,17 +966,18 @@ export class MessageManager {
     }
 
     private getNextPerspective(messageText: string): { name: string; prompt: string } {
-        // Check if it's a personal question
+        // Check if it's a greeting or personal question
+        const isGreeting = /\b(hi|hello|welcome|hey|greetings)\b/i.test(messageText);
         const isPersonalQuestion = /what('?s| is) your (favorite|favourite)|do you (like|enjoy|prefer)|how (are|do) you feel/i.test(messageText);
 
-        if (isPersonalQuestion) {
+        if (isGreeting || isPersonalQuestion) {
             return {
                 name: 'personal',
-                prompt: 'Focus on expressing genuine preferences and feelings. Keep responses direct and authentic without philosophical complexity.'
+                prompt: 'Focus on expressing genuine acknowledgment and feelings. Keep responses direct, warm, and personal without philosophical or market analysis.'
             };
         }
 
-        // Use rotating perspectives for non-personal questions
+        // Use rotating perspectives for other messages
         const perspective = this.perspectives[this.currentPerspectiveIndex];
         this.currentPerspectiveIndex = (this.currentPerspectiveIndex + 1) % this.perspectives.length;
         return perspective;
