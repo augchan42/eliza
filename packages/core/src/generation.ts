@@ -1400,6 +1400,48 @@ export async function generateText({
     }
 }
 
+/**
+ * DEPRECATED: Use generateText instead. This will be removed in a future version.
+ * Generates a structured object response from the model.
+ */
+export async function generateObjectDeprecated<T = any>({
+    runtime,
+    context,
+    modelClass = ModelClass.SMALL,
+    tools = {},
+    onStepFinish,
+    maxSteps = 1,
+    stop,
+    customSystemPrompt,
+}: {
+    runtime: IAgentRuntime;
+    context: string;
+    modelClass: ModelClass;
+    tools?: Record<string, Tool>;
+    onStepFinish?: (event: StepResult) => Promise<void> | void;
+    maxSteps?: number;
+    stop?: string[];
+    customSystemPrompt?: string;
+}): Promise<T> {
+    const response = await generateText({
+        runtime,
+        context,
+        modelClass,
+        tools,
+        onStepFinish,
+        maxSteps,
+        stop,
+        customSystemPrompt,
+    });
+
+    try {
+        return JSON.parse(response);
+    } catch (error) {
+        elizaLogger.error("Failed to parse JSON response:", error);
+        throw new Error("Failed to parse model response as JSON");
+    }
+}
+
 // Type for the structured response
 export interface ShouldRespondResult {
     decision: "RESPOND" | "IGNORE" | "STOP";
