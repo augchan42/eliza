@@ -1,4 +1,4 @@
-import { Provider } from "@elizaos/core";
+import { Provider, IAgentRuntime, Memory, State } from "@elizaos/core";
 import {
     MarketData,
     MarketSentiment,
@@ -25,6 +25,14 @@ export class IraiProvider implements Provider {
     constructor(config: IraiProviderConfig) {
         this.apiKey = config.apiKey;
         this.rateLimits = config.rateLimits;
+    }
+
+    async get(
+        runtime: IAgentRuntime,
+        message: Memory,
+        state?: State,
+    ): Promise<MarketData> {
+        return await this.getMarketData();
     }
 
     async initialize(): Promise<void> {
@@ -81,7 +89,7 @@ export class IraiProvider implements Provider {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const data = await response.json();
+            const data = (await response.json()) as { news: string[] };
             return data.news || [];
         } catch (error) {
             throw new DivinationError("Failed to fetch news", error);
@@ -105,7 +113,8 @@ export class IraiProvider implements Provider {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = (await response.json()) as MarketSentiment;
+            return data;
         } catch (error) {
             throw new DivinationError(
                 "Failed to fetch market sentiment",
@@ -133,7 +142,8 @@ export class IraiProvider implements Provider {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = (await response.json()) as IraiAskResponse;
+            return data;
         } catch (error) {
             throw new DivinationError("Failed to get IRAI response", error);
         }

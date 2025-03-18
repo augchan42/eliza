@@ -1,8 +1,16 @@
 import { Context } from "telegraf";
-import { IAgentRuntime, elizaLogger, stringToUuid } from "@elizaos/core";
-import { DivinationClient } from "./divination";
-import { composeContext, generateText, ModelClass } from "@elizaos/core";
-import { pixDivinationTemplate } from "./divination";
+import {
+    IAgentRuntime,
+    elizaLogger,
+    Memory,
+    stringToUuid,
+    HandlerCallback,
+    Content,
+} from "@elizaos/core";
+import {
+    TelegramFormatter,
+    DivinationResponse,
+} from "@elizaos/plugin-8bitoracle";
 
 export async function handleDivinationCommand(
     ctx: Context,
@@ -11,59 +19,43 @@ export async function handleDivinationCommand(
     try {
         await ctx.reply("🔮 Initiating market divination...");
 
-        const divinationClient = new DivinationClient();
-
-        // Fetch all required data in parallel
-        const [marketSentiment, newsEvents, oracleReading] = await Promise.all([
-            divinationClient.fetchMarketSentiment(),
-            divinationClient.fetchIraiNews(5),
-            divinationClient.fetch8BitOracle(),
-        ]);
-
-        const roomId = stringToUuid(
-            `telegram-divination-${ctx.message?.message_id}`,
-        );
-
-        // Compose state with all the divination data
-        const state = await runtime.composeState(
-            {
-                userId: runtime.agentId,
-                roomId: roomId,
-                agentId: runtime.agentId,
-                content: {
-                    text: "market divination",
-                    action: "DIVINATION",
-                },
+        // Create a memory object for the divination action
+        const memory: Memory = {
+            userId: stringToUuid(ctx.from?.id.toString() || "unknown"),
+            roomId: stringToUuid(ctx.chat?.id.toString() || "unknown"),
+            agentId: runtime.agentId,
+            content: {
+                action: "PERFORM_DIVINATION",
+                text: "market divination",
             },
-            {
-                newsEvent: JSON.stringify(newsEvents, null, 2),
-                oracleReading: JSON.stringify(
-                    {
-                        interpretation: oracleReading.interpretation,
-                    },
-                    null,
-                    2,
-                ),
-                marketSentiment: JSON.stringify(marketSentiment, null, 2),
-            },
-        );
+        };
 
-        // Generate context for LLM interpretation
-        const context = composeContext({
-            state: state,
-            template: pixDivinationTemplate,
+        // Process the divination action and capture the response
+        const response = await new Promise<DivinationResponse>((resolve) => {
+            const callback: HandlerCallback = async (response: Content) => {
+                if ("divination" in response) {
+                    resolve(response.divination as DivinationResponse);
+                } else {
+                    throw new Error("Invalid divination response");
+                }
+                return Promise.resolve([]);
+            };
+            runtime.processActions(memory, [memory], undefined, callback);
         });
 
-        // Get LLM interpretation
-        const response = await generateText({
-            runtime,
-            context,
-            modelClass: ModelClass.LARGE,
-        });
+        // Format the response using the plugin's Telegram formatter
+        const formatter = new TelegramFormatter();
+        const formatted = formatter.format(response);
 
-        let responseText = `${response}\n`;
-
-        await ctx.reply(responseText);
+        // Handle long messages
+        if (formatted.length > 4096) {
+            const parts = formatter.split(formatted);
+            for (const part of parts) {
+                await ctx.reply(part);
+            }
+        } else {
+            await ctx.reply(formatted);
+        }
     } catch (error) {
         elizaLogger.error("Error in divination command:", error);
         await ctx.reply("⚠️ Divination circuits overloaded. Try again later.");

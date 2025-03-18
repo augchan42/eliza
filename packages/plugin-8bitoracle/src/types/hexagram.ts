@@ -15,38 +15,29 @@ export interface HexagramLineData {
     lineValue: number;
 }
 
-export interface Trigram {
-    description: string;
-    english: string;
-    chinese: string;
-    figure: string;
-}
+export type Trigram =
+    | "kun"
+    | "zhen"
+    | "kan"
+    | "xun"
+    | "gen"
+    | "li"
+    | "dui"
+    | "qian";
 
 export interface HexagramName {
     pinyin: string;
     chinese: string;
 }
 
-export interface HexagramLine {
-    number: number;
-    text: string;
-    changed: boolean;
-    value: number;
-}
+export type HexagramLine = "yin" | "yang";
 
 export interface Hexagram {
-    number: number;
-    unicode: string;
-    name: HexagramName;
-    topTrigram: string;
-    bottomTrigram: string;
-    meaning: string;
-    binary: string;
+    number: number; // 1-64
+    lines: HexagramLine[];
     upperTrigram: Trigram;
     lowerTrigram: Trigram;
-    judgment?: string;
-    image?: string;
-    lines?: HexagramLine[];
+    changingLines: number[];
 }
 
 export interface HexagramChange {

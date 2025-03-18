@@ -1,18 +1,21 @@
-import { Service } from "@elizaos/core";
+import { Service, ServiceType } from "@elizaos/core";
 import { IraiProvider } from "../providers/irai.provider";
 import { OracleProvider } from "../providers/oracle.provider";
 import { DivinationResponse, DivinationError } from "../types/response";
 
-export class DivinationService implements Service {
+export class DivinationService extends Service {
     name = "DIVINATION_SERVICE";
+    static override serviceType = ServiceType.DIVINATION;
     private isRunning = false;
 
     constructor(
         private iraiProvider: IraiProvider,
         private oracleProvider: OracleProvider,
-    ) {}
+    ) {
+        super();
+    }
 
-    async start(): Promise<void> {
+    async initialize(): Promise<void> {
         try {
             // Initialize providers
             await Promise.all([
@@ -26,6 +29,10 @@ export class DivinationService implements Service {
                 error,
             );
         }
+    }
+
+    async start(): Promise<void> {
+        await this.initialize();
     }
 
     async stop(): Promise<void> {
