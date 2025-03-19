@@ -1,11 +1,10 @@
-import { Service, ServiceType } from "@elizaos/core";
+import { Service, ServiceType, IAgentRuntime } from "@elizaos/core";
 import { IraiProvider } from "../providers/irai.provider";
 import { OracleProvider } from "../providers/oracle.provider";
 import { DivinationResponse, DivinationError } from "../types/response";
 
 export class DivinationService extends Service {
     name = "DIVINATION_SERVICE";
-    static override serviceType = ServiceType.DIVINATION;
     private isRunning = false;
 
     constructor(
@@ -15,7 +14,11 @@ export class DivinationService extends Service {
         super();
     }
 
-    async initialize(): Promise<void> {
+    override get serviceType(): ServiceType {
+        return "divination" as ServiceType;
+    }
+
+    async initialize(runtime: IAgentRuntime): Promise<void> {
         try {
             // Initialize providers
             await Promise.all([
@@ -31,8 +34,8 @@ export class DivinationService extends Service {
         }
     }
 
-    async start(): Promise<void> {
-        await this.initialize();
+    async start(runtime: IAgentRuntime): Promise<void> {
+        await this.initialize(runtime);
     }
 
     async stop(): Promise<void> {

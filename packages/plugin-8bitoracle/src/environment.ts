@@ -41,6 +41,8 @@ export function createConfig(env: Environment): PluginConfig {
         oracle: env.ORACLE_API_URL
             ? {
                   apiUrl: env.ORACLE_API_URL,
+                  maxRetries: 3,
+                  retryDelay: 1000,
                   rateLimits: {
                       maxRequests: env.MAX_REQUESTS_PER_MINUTE,
                       timeWindow: 60000,
