@@ -25,7 +25,7 @@ const oraclePlugin = createEightBitOraclePlugin({
     irai: {
         apiKey: process.env.IRAI_API_KEY,
         rateLimits: {
-            maxRequests: 100,
+            maxRequests: 10,
             timeWindow: 60000, // 1 minute
         },
     },
