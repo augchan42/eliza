@@ -1,0 +1,207 @@
+---
+description: ENFORCE action implementation standards WHEN creating or modifying action components
+globs: packages/**/src/actions/**/*.ts
+---
+
+# Action Implementation Standards
+
+## Context
+- When implementing new actions
+- When modifying existing actions
+- When handling user interactions
+- When implementing command responses
+- When integrating with external services
+
+## Requirements
+
+### Core Structure
+- ALWAYS implement the Action interface completely
+- ALWAYS provide a descriptive name and description
+- ALWAYS implement proper validation logic
+- ALWAYS include comprehensive examples
+- ALWAYS handle permissions properly
+- ALWAYS document required capabilities
+
+### Handler Implementation
+- ALWAYS use proper typing for handler parameters
+- ALWAYS implement proper error handling
+- ALWAYS validate input parameters
+- ALWAYS return ActionResponse type
+- ALWAYS document handler behavior
+- ALWAYS handle service dependencies properly
+- ALWAYS implement proper timeouts for external calls
+
+### Validation Logic
+- ALWAYS implement validate() method with clear conditions
+- ALWAYS check user permissions
+- ALWAYS validate required parameters
+- ALWAYS handle edge cases
+- ALWAYS document validation criteria
+- ALWAYS validate service availability
+- ALWAYS check rate limits
+
+### Response Formatting
+- ALWAYS return properly structured ActionResponse
+- ALWAYS include appropriate status codes
+- ALWAYS provide meaningful error messages
+- ALWAYS format success responses consistently
+- ALWAYS include relevant metadata
+- ALWAYS handle partial success scenarios
+- ALWAYS document response formats
+
+### Examples
+- ALWAYS provide comprehensive example contexts
+- ALWAYS include example parameters
+- ALWAYS show expected responses
+- ALWAYS cover error scenarios
+- ALWAYS demonstrate proper format
+- ALWAYS include rate limit examples
+- ALWAYS show permission handling
+
+## Examples
+
+<example>
+```typescript
+// Good: Complete action implementation
+export const sampleAction: Action = {
+    name: "SAMPLE_ACTION",
+    description: "Clear description of action purpose and behavior",
+    requiredCapabilities: ["database", "api"],
+    validate: async (
+        runtime: IAgentRuntime,
+        params: Record<string, unknown>
+    ): Promise<boolean> => {
+        try {
+            // Validate required parameters
+            if (!params.requiredParam) {
+                console.error("Missing required parameter");
+                return false;
+            }
+
+            // Check permissions
+            if (!await runtime.hasPermission("sample_action")) {
+                console.error("Insufficient permissions");
+                return false;
+            }
+
+            // Validate rate limits
+            if (!await runtime.checkRateLimit("sample_action")) {
+                console.error("Rate limit exceeded");
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error("Validation error:", error);
+            return false;
+        }
+    },
+    handler: async (
+        runtime: IAgentRuntime,
+        params: Record<string, unknown>
+    ): Promise<ActionResponse> => {
+        try {
+            // Implement timeout
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("Operation timed out")), 30000);
+            });
+
+            const result = await Promise.race([
+                processAction(runtime, params),
+                timeoutPromise
+            ]);
+
+            return {
+                status: "success",
+                data: result,
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processingTime: performance.now()
+                }
+            };
+        } catch (error) {
+            console.error("Action error:", error);
+            return {
+                status: "error",
+                error: {
+                    message: error.message,
+                    code: "ACTION_ERROR",
+                    details: error.details
+                }
+            };
+        }
+    },
+    examples: [{
+        context: "Successful action execution",
+        params: {
+            requiredParam: "value",
+            optionalParam: 123
+        },
+        response: {
+            status: "success",
+            data: { result: "Expected result" }
+        }
+    }, {
+        context: "Error handling example",
+        params: {
+            requiredParam: null
+        },
+        response: {
+            status: "error",
+            error: {
+                message: "Missing required parameter",
+                code: "INVALID_PARAMS"
+            }
+        }
+    }, {
+        context: "Rate limit example",
+        params: {
+            requiredParam: "value"
+        },
+        response: {
+            status: "error",
+            error: {
+                message: "Rate limit exceeded",
+                code: "RATE_LIMIT_EXCEEDED"
+            }
+        }
+    }]
+};
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Incomplete implementation
+export const badAction = {
+    name: "BAD_ACTION",
+    // Missing description
+    handler: async (runtime, params) => {
+        // No error handling
+        const result = await doSomething(params);
+        return { status: "success", data: result };
+    }
+    // Missing validation
+    // Missing examples
+    // Missing capability requirements
+};
+
+// Bad: Poor error handling
+handler: async (runtime, params) => {
+    try {
+        return await processAction(params);
+    } catch (e) {
+        return { error: e }; // Improper error format
+    }
+};
+
+// Bad: No validation
+validate: async () => true; // No parameter or permission checks
+
+// Bad: Inconsistent response format
+handler: async (runtime, params) => {
+    const result = await process(params);
+    return result; // Not following ActionResponse format
+};
+```
+</example> 

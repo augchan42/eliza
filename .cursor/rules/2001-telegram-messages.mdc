@@ -1,0 +1,91 @@
+---
+description: ENFORCE message handling and response formatting standards WHEN processing Telegram messages
+globs: packages/client-telegram/**/*.ts
+---
+
+# Telegram Message Handling Standards
+
+## Context
+- When implementing message handlers
+- When formatting bot responses
+- When managing chat interactions
+- When handling media messages
+
+## Requirements
+
+### Message Processing
+- ALWAYS use the MessageManager class for message handling
+- ALWAYS implement proper message context tracking
+- ALWAYS handle message threading and replies correctly
+- ALWAYS validate message content before processing
+- ALWAYS handle different message types (text, photo, document, etc.)
+
+### Response Formatting
+- ALWAYS split messages exceeding 4096 characters
+- ALWAYS escape markdown in responses
+- ALWAYS validate response format before sending
+- ALWAYS handle empty or invalid responses
+- ALWAYS use proper formatting for different message types
+
+### Chat Management
+- ALWAYS track chat interest and context
+- ALWAYS implement proper decay time for chat interest
+- ALWAYS handle group chat permissions
+- ALWAYS respect chat-specific settings
+- ALWAYS maintain proper message history limits
+
+### Error Handling
+- ALWAYS catch and log message processing errors
+- ALWAYS provide user-friendly error messages
+- ALWAYS handle API rate limits gracefully
+- ALWAYS validate message sending status
+- ALWAYS implement proper fallback mechanisms
+
+## Examples
+
+<example>
+```typescript
+// Good: Proper message splitting
+private splitMessage(text: string): string[] {
+    const chunks: string[] = [];
+    let currentChunk = "";
+    const lines = text.split("\n");
+    for (const line of lines) {
+        if (currentChunk.length + line.length + 1 <= MAX_MESSAGE_LENGTH) {
+            currentChunk += (currentChunk ? "\n" : "") + line;
+        } else {
+            if (currentChunk) chunks.push(currentChunk);
+            currentChunk = line;
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    return chunks;
+}
+
+// Good: Proper chat interest tracking
+if (isDirectlyMentioned) {
+    this.interestChats[chatId] = {
+        currentHandler: this.bot.botInfo?.id.toString(),
+        lastMessageSent: Date.now(),
+        messages: []
+    };
+}
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: No message splitting
+async function sendMessage(ctx, text) {
+    await ctx.reply(text); // Might exceed length limit
+
+// Bad: No error handling
+async function processMessage(message) {
+    const response = await generateResponse(message);
+    await sendResponse(response);
+}
+
+// Bad: No markdown escaping
+await ctx.reply(`User *${username}* said: ${message}`);
+```
+</example>

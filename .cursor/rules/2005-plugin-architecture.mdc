@@ -1,0 +1,207 @@
+---
+description: ENFORCE plugin architecture standards WHEN implementing or modifying plugin components
+globs: packages/plugin-*/**/*.ts
+---
+
+# Plugin Architecture Standards
+
+## Context
+- When creating new plugins
+- When modifying existing plugins
+- When integrating plugin components
+- When implementing plugin features
+- When managing plugin dependencies
+
+## Requirements
+
+### Core Structure
+- ALWAYS implement the Plugin interface completely
+- ALWAYS provide descriptive name and description
+- ALWAYS organize components by type (actions, evaluators, providers, services, clients)
+- ALWAYS document plugin dependencies
+- ALWAYS maintain clear component separation
+- ALWAYS follow consistent file organization
+
+### Component Integration
+- ALWAYS register components properly with the plugin
+- ALWAYS handle component dependencies correctly
+- ALWAYS maintain proper component isolation
+- ALWAYS document component interactions
+- ALWAYS handle component lifecycle properly
+- ALWAYS implement proper error boundaries
+
+### Provider Implementation
+- ALWAYS implement required provider methods
+- ALWAYS handle provider state properly
+- ALWAYS implement proper error handling
+- ALWAYS validate provider configuration
+- ALWAYS document provider capabilities
+- ALWAYS handle provider initialization/cleanup
+
+### Service Implementation
+- ALWAYS implement required service interfaces
+- ALWAYS handle service lifecycle properly
+- ALWAYS implement proper error handling
+- ALWAYS validate service configuration
+- ALWAYS document service dependencies
+- ALWAYS handle service state management
+
+### Client Implementation
+- ALWAYS implement required client interfaces
+- ALWAYS handle client connections properly
+- ALWAYS implement proper error handling
+- ALWAYS validate client configuration
+- ALWAYS document client capabilities
+- ALWAYS handle client state management
+
+## Examples
+
+<example>
+```typescript
+// Good: Complete plugin implementation
+export const samplePlugin: Plugin = {
+    name: "SAMPLE_PLUGIN",
+    description: "Clear description of plugin purpose and capabilities",
+    
+    // Actions for command handling
+    actions: [
+        {
+            name: "SAMPLE_ACTION",
+            description: "Handles specific command",
+            // ... action implementation
+        }
+    ],
+    
+    // Evaluators for state analysis
+    evaluators: [
+        {
+            name: "SAMPLE_EVALUATOR",
+            description: "Analyzes specific state",
+            // ... evaluator implementation
+        }
+    ],
+    
+    // Providers for external integrations
+    providers: [
+        {
+            name: "SAMPLE_PROVIDER",
+            description: "Provides external service integration",
+            initialize: async () => {
+                // Proper initialization
+            },
+            // ... provider implementation
+        }
+    ],
+    
+    // Services for internal functionality
+    services: [
+        {
+            name: "SAMPLE_SERVICE",
+            description: "Handles internal functionality",
+            start: async () => {
+                // Proper service startup
+            },
+            stop: async () => {
+                // Proper service cleanup
+            },
+            // ... service implementation
+        }
+    ],
+    
+    // Clients for external communication
+    clients: [
+        {
+            name: "SAMPLE_CLIENT",
+            description: "Manages external communication",
+            connect: async () => {
+                // Proper connection handling
+            },
+            disconnect: async () => {
+                // Proper disconnection handling
+            },
+            // ... client implementation
+        }
+    ]
+};
+
+// Good: Proper component registration
+export class SamplePluginFactory {
+    async createPlugin(options: PluginOptions): Promise<Plugin> {
+        // Initialize components with proper error handling
+        const actions = await this.initializeActions(options);
+        const evaluators = await this.initializeEvaluators(options);
+        const providers = await this.initializeProviders(options);
+        const services = await this.initializeServices(options);
+        const clients = await this.initializeClients(options);
+
+        return {
+            name: "SAMPLE_PLUGIN",
+            description: "Sample plugin with proper initialization",
+            actions,
+            evaluators,
+            providers,
+            services,
+            clients
+        };
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Incomplete plugin implementation
+export const badPlugin = {
+    name: "BAD_PLUGIN",
+    // Missing description
+    actions: [
+        // Incomplete action implementation
+    ],
+    // Missing other components
+};
+
+// Bad: Poor component organization
+export const messyPlugin: Plugin = {
+    name: "MESSY",
+    description: "Poor organization",
+    actions: [
+        // Mixed concerns between action and service
+        {
+            name: "BAD_ACTION",
+            handler: async () => {
+                // Directly managing service state in action
+                await directServiceCall();
+            }
+        }
+    ]
+};
+
+// Bad: Improper component initialization
+const badInitialization = {
+    // No error handling
+    providers: [
+        {
+            name: "BAD_PROVIDER",
+            initialize: () => {
+                // No async/await
+                // No error handling
+                return connectToService();
+            }
+        }
+    ]
+};
+
+// Bad: No cleanup handling
+const noCleanup = {
+    services: [
+        {
+            name: "NO_CLEANUP",
+            start: async () => {
+                // Starts service
+            }
+            // Missing stop method
+        }
+    ]
+};
+```
+</example> 

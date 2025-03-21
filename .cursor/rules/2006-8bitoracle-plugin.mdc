@@ -1,0 +1,217 @@
+---
+description: ENFORCE 8BitOracle plugin standards WHEN implementing oracle and divination features
+globs: packages/plugin-8bitoracle/**/*.ts
+---
+
+# 8BitOracle Plugin Standards
+
+## Context
+- When implementing oracle features
+- When handling divination requests
+- When integrating with market data
+- When formatting oracle responses
+- When managing platform-specific outputs
+
+## Requirements
+
+### Core Structure
+```
+packages/plugin-8bitoracle/
+├── src/
+│   ├── index.ts                 # Plugin entry point
+│   ├── types/                   # Type definitions
+│   │   ├── hexagram.ts
+│   │   ├── market.ts
+│   │   └── response.ts
+│   ├── providers/              # External service integrations
+│   │   ├── irai.provider.ts
+│   │   └── oracle.provider.ts
+│   ├── services/              # Core business logic
+│   │   ├── divination.service.ts
+│   │   └── market.service.ts
+│   ├── actions/               # Action handlers
+│   │   └── divination.action.ts
+│   ├── formatters/           # Platform-specific formatting
+│   │   ├── base.formatter.ts
+│   │   ├── telegram.formatter.ts
+│   │   └── discord.formatter.ts  # Future platforms
+│   └── templates/            # Response templates
+│       └── divination.template.ts
+└── package.json
+```
+
+### Implementation Requirements
+
+#### Core Plugin
+- ALWAYS implement plugin interface completely
+- ALWAYS maintain platform-agnostic core logic
+- ALWAYS separate external service integrations
+- ALWAYS use proper dependency injection
+- ALWAYS implement proper error handling
+
+#### Providers
+- ALWAYS implement proper API integrations
+- ALWAYS handle rate limiting
+- ALWAYS implement proper error handling
+- ALWAYS validate API responses
+- ALWAYS handle service unavailability
+
+#### Services
+- ALWAYS implement core business logic
+- ALWAYS maintain state properly
+- ALWAYS validate inputs
+- ALWAYS handle errors gracefully
+- ALWAYS document service methods
+
+#### Formatters
+- ALWAYS implement base formatter interface
+- ALWAYS handle platform-specific requirements
+- ALWAYS implement proper message splitting
+- ALWAYS handle formatting errors
+- ALWAYS maintain consistent styling
+
+## Examples
+
+<example>
+```typescript
+// Good: Complete plugin implementation
+import { Plugin, IAgentRuntime } from "@elizaos/core";
+import { IraiProvider } from "./providers/irai.provider";
+import { OracleProvider } from "./providers/oracle.provider";
+import { DivinationService } from "./services/divination.service";
+import { performDivinationAction } from "./actions/divination.action";
+
+export const eightBitOraclePlugin: Plugin = {
+    name: "8BITORACLE",
+    description: "Street-level market divination through the lens of I-Ching",
+    
+    providers: [
+        new IraiProvider({
+            apiKey: process.env.IRAI_API_KEY,
+            rateLimits: { maxRequests: 100, timeWindow: 60000 }
+        }),
+        new OracleProvider()
+    ],
+    
+    services: [
+        new DivinationService()
+    ],
+    
+    actions: [
+        performDivinationAction
+    ]
+};
+
+// Good: Platform-agnostic service
+export class DivinationService {
+    constructor(
+        private iraiProvider: IraiProvider,
+        private oracleProvider: OracleProvider
+    ) {}
+
+    async performDivination(): Promise<DivinationResponse> {
+        try {
+            const [marketData, hexagram] = await Promise.all([
+                this.iraiProvider.getMarketData(),
+                this.oracleProvider.generateHexagram()
+            ]);
+
+            return {
+                hexagram,
+                marketData,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            throw new DivinationError("Failed to perform divination", error);
+        }
+    }
+}
+
+// Good: Platform-specific formatter
+export class TelegramFormatter implements ResponseFormatter {
+    format(response: DivinationResponse): string {
+        return `[SIGNAL INTERCEPT]
+${this.formatMarketData(response.marketData)}
+
+[PATTERN READ]
+${this.formatHexagram(response.hexagram)}
+
+[RAZOR TRUTH]
+${this.formatInterpretation(response.hexagram)}
+
+- through mirrored eyes
+8bitoracle.ai + irai.co`;
+    }
+}
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Mixed concerns
+export class BadDivinationService {
+    async performDivination(ctx: TelegramContext) { // Platform-specific parameter
+        const result = await this.oracle.generate();
+        // Direct Telegram formatting
+        await ctx.reply(this.formatTelegramMessage(result));
+    }
+}
+
+// Bad: No error handling
+export class BadOracleProvider {
+    async getHexagram() {
+        const response = await fetch("api.8bitoracle.com");
+        return response.json(); // No validation or error handling
+    }
+}
+
+// Bad: Hard-coded configuration
+export const badPlugin = {
+    name: "8BITORACLE",
+    providers: [
+        new IraiProvider("hardcoded-api-key"), // Should use environment variables
+    ]
+};
+```
+</example>
+
+## Integration with Telegram
+
+### Requirements
+- ALWAYS use the formatter for Telegram-specific output
+- ALWAYS handle Telegram message limits
+- ALWAYS implement proper error messages
+- ALWAYS handle rate limiting
+- ALWAYS validate user permissions
+
+### Example Integration
+
+```typescript
+// In Telegram client
+export class TelegramDivinationHandler {
+    constructor(
+        private runtime: IAgentRuntime,
+        private formatter: TelegramFormatter
+    ) {}
+
+    async handleDivinationCommand(ctx: Context) {
+        try {
+            const result = await this.runtime.executeAction("PERFORM_DIVINATION");
+            const formatted = this.formatter.format(result);
+            
+            // Handle long messages
+            if (formatted.length > 4096) {
+                const parts = this.formatter.split(formatted);
+                for (const part of parts) {
+                    await ctx.reply(part);
+                }
+            } else {
+                await ctx.reply(formatted);
+            }
+        } catch (error) {
+            await ctx.reply("The oracle's vision is clouded. Try again later.");
+            elizaLogger.error("Divination error:", error);
+        }
+    }
+}
+``` 

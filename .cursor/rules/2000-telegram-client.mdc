@@ -1,0 +1,79 @@
+---
+description: ENFORCE Telegram client configuration standards WHEN implementing or modifying Telegram bot features
+globs: packages/client-telegram/**/*.ts
+---
+
+# Telegram Client Configuration Standards
+
+## Context
+- When implementing or modifying Telegram bot features
+- When configuring Telegram client settings
+- When handling bot responses and interactions
+
+## Requirements
+
+### Environment Configuration
+- ALWAYS validate environment variables using zod schema
+- ALWAYS include TELEGRAM_BOT_TOKEN in environment validation
+- ALWAYS use typed configuration objects for client settings
+
+### Message Handling
+- ALWAYS implement rate limiting for command handlers
+- ALWAYS handle message length limits (4096 characters max)
+- ALWAYS implement proper error handling and logging
+- ALWAYS validate group authorization before processing messages
+- ALWAYS use the MessageManager for handling message interactions
+
+### Bot Commands
+- ALWAYS register commands through the proper registration process
+- ALWAYS include help text for each command
+- ALWAYS implement proper error handling for each command
+- ALWAYS validate user permissions before executing commands
+
+### Auto-Posting Features
+- ALWAYS respect inactivity thresholds
+- ALWAYS implement proper monitoring intervals
+- ALWAYS validate channel IDs before posting
+- ALWAYS handle message splitting for long posts
+
+## Examples
+
+<example>
+```typescript
+// Good: Proper environment validation
+const telegramEnvSchema = z.object({
+    TELEGRAM_BOT_TOKEN: z.string().min(1, "Telegram bot token is required"),
+});
+
+// Good: Proper command registration
+private async registerCommands(): Promise<void> {
+    await this.bot.telegram.setMyCommands([
+        { command: "start", description: "Start the bot" },
+        { command: "help", description: "Show help information" }
+    ]);
+}
+
+// Good: Proper message handling with rate limiting
+if (!this.rateLimiter.canMakeRequest(userId)) {
+    const timeLeft = this.rateLimiter.getTimeUntilNextRequest(userId);
+    await ctx.reply(`⏳ Please wait ${Math.ceil(timeLeft / 1000)} seconds`);
+    return;
+}
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Missing environment validation
+const botToken = process.env.TELEGRAM_BOT_TOKEN;
+new TelegramClient(runtime, botToken);
+
+// Bad: No rate limiting
+bot.command("scan", async (ctx) => {
+    await handleDivinationCommand(ctx, runtime);
+});
+
+// Bad: No message length handling
+await ctx.reply(veryLongMessage);
+```
+</example>

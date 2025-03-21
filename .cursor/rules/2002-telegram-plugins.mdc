@@ -1,0 +1,93 @@
+---
+description: ENFORCE plugin and command handling standards WHEN implementing Telegram bot plugins and commands
+globs: packages/client-telegram/**/*.ts
+---
+
+# Telegram Plugin and Command Standards
+
+## Context
+- When implementing new bot commands
+- When creating plugin integrations
+- When handling special message types
+- When implementing command responses
+
+## Requirements
+
+### Plugin Implementation
+- ALWAYS define plugin keywords in PLUGIN_KEYWORDS constant
+- ALWAYS implement proper plugin detection logic
+- ALWAYS handle plugin-specific errors separately
+- ALWAYS validate plugin responses
+- ALWAYS document plugin functionality
+
+### Command Registration
+- ALWAYS register commands through registerCommands method
+- ALWAYS provide command descriptions
+- ALWAYS implement proper command validation
+- ALWAYS handle command arguments properly
+- ALWAYS implement rate limiting for resource-intensive commands
+
+### Command Handlers
+- ALWAYS check group authorization before processing commands
+- ALWAYS implement proper error handling
+- ALWAYS provide user feedback for long-running commands
+- ALWAYS validate command inputs
+- ALWAYS implement proper response formatting
+
+### Special Features
+- ALWAYS implement proper rate limiting for special commands
+- ALWAYS handle media attachments correctly
+- ALWAYS validate special command permissions
+- ALWAYS implement proper response validation
+- ALWAYS handle timeouts for long-running operations
+
+## Examples
+
+<example>
+```typescript
+// Good: Proper plugin keyword definition
+private readonly PLUGIN_KEYWORDS = {
+    weather: ["weather"],
+    news: ["news"]
+} as const;
+
+// Good: Proper command registration with rate limiting
+this.bot.command("scan", async (ctx) => {
+    if (!this.rateLimiter.canMakeRequest(userId)) {
+        const timeLeft = this.rateLimiter.getTimeUntilNextRequest(userId);
+        await ctx.reply(`⏳ Please wait ${Math.ceil(timeLeft / 1000)} seconds`);
+        return;
+    }
+    this.rateLimiter.recordRequest(userId);
+    await handleDivinationCommand(ctx, this.runtime);
+});
+
+// Good: Proper command registration
+private async registerCommands(): Promise<void> {
+    await this.bot.telegram.setMyCommands([
+        { command: "start", description: "Start the bot" },
+        { command: "help", description: "Show help information" },
+        { command: "settings", description: "Manage your settings" }
+    ]);
+}
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Hardcoded keywords without proper structure
+if (message.includes("weather")) {
+    handleWeather();
+}
+
+// Bad: No rate limiting or error handling
+bot.command("scan", async (ctx) => {
+    await performScan(ctx);
+});
+
+// Bad: Missing command validation
+this.bot.command("admin", (ctx) => {
+    performAdminAction(ctx);
+});
+```
+</example>

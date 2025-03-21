@@ -1,0 +1,164 @@
+---
+description: ENFORCE evaluator implementation standards WHEN creating or modifying evaluator components
+globs: packages/**/src/evaluators/**/*.ts
+---
+
+# Evaluator Implementation Standards
+
+## Context
+- When implementing new evaluators
+- When modifying existing evaluators
+- When handling conversation analysis
+- When implementing state updates
+- When integrating with runtime services
+
+## Requirements
+
+### Core Structure
+- ALWAYS implement the Evaluator interface completely
+- ALWAYS provide a descriptive name and similes for the evaluator
+- ALWAYS implement proper validation logic
+- ALWAYS include comprehensive examples
+- ALWAYS handle state management properly
+- ALWAYS consider setting alwaysRun flag for critical evaluators
+
+### Handler Implementation
+- ALWAYS use proper typing for handler parameters
+- ALWAYS implement proper error handling
+- ALWAYS validate input state before processing
+- ALWAYS return consistent data types
+- ALWAYS document handler behavior
+- ALWAYS handle runtime service interactions properly
+- ALWAYS implement proper timeouts for external service calls
+
+### Validation Logic
+- ALWAYS implement validate() method with clear conditions
+- ALWAYS check necessary preconditions
+- ALWAYS validate runtime state
+- ALWAYS handle edge cases
+- ALWAYS document validation criteria
+- ALWAYS validate runtime service availability
+- ALWAYS check required permissions and capabilities
+
+### Examples
+- ALWAYS provide comprehensive example contexts
+- ALWAYS include example messages
+- ALWAYS show expected outcomes
+- ALWAYS cover edge cases
+- ALWAYS demonstrate proper format
+- ALWAYS include examples of error scenarios
+- ALWAYS demonstrate proper state transitions
+
+### Runtime Integration
+- ALWAYS handle runtime service dependencies properly
+- ALWAYS implement proper error handling for service calls
+- ALWAYS validate service responses
+- ALWAYS handle service unavailability gracefully
+- ALWAYS implement proper retry logic for transient failures
+
+### State Management
+- ALWAYS validate state before updates
+- ALWAYS handle concurrent state modifications
+- ALWAYS implement proper state rollback on failure
+- ALWAYS maintain state consistency
+- ALWAYS document state transition logic
+
+## Examples
+
+<example>
+```typescript
+// Good: Complete evaluator implementation with runtime integration
+export const sampleEvaluator: Evaluator = {
+    name: "SAMPLE_EVALUATOR",
+    similes: ["SIMILAR_NAME", "ALTERNATE_NAME"],
+    description: "Clear description of evaluator purpose",
+    alwaysRun: false, // Explicitly set based on requirements
+    validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+        try {
+            // Validate runtime services
+            if (!await runtime.hasRequiredServices(['database', 'cache'])) {
+                return false;
+            }
+            // Validate state and permissions
+            return true;
+        } catch (error) {
+            console.error("Validation error:", error);
+            return false;
+        }
+    },
+    handler: async (
+        runtime: IAgentRuntime,
+        message: Memory,
+        state?: State
+    ): Promise<unknown> => {
+        try {
+            // Implement timeout for external calls
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error("Operation timed out")), 30000);
+            });
+
+            const result = await Promise.race([
+                processMessage(runtime, message, state),
+                timeoutPromise
+            ]);
+
+            // Validate and update state
+            await runtime.updateState(result);
+            return result;
+        } catch (error) {
+            console.error("Error in sample evaluator:", error);
+            // Implement proper error handling and state rollback
+            await runtime.rollbackState();
+            throw error;
+        }
+    },
+    examples: [{
+        context: "Clear example context with state transition",
+        messages: [
+            {
+                user: "user1",
+                content: { text: "Example message" }
+            }
+        ],
+        outcome: "Expected outcome with state changes"
+    }, {
+        context: "Error scenario example",
+        messages: [
+            {
+                user: "user1",
+                content: { text: "Invalid input" }
+            }
+        ],
+        outcome: "Expected error handling behavior"
+    }]
+};
+```
+</example>
+
+<example type="invalid">
+```typescript
+// Bad: Incomplete implementation with poor error handling
+export const badEvaluator = {
+    name: "BAD",
+    // Missing similes and alwaysRun
+    handler: async (runtime, message) => {
+        // No timeout handling
+        const result = await externalCall();
+        // No state validation or rollback
+        return result;
+    },
+    // Missing validation
+    // Missing examples
+};
+
+// Bad: Poor state management
+handler: async (runtime, message) => {
+    const state = await runtime.getState();
+    state.value = newValue; // Direct mutation without validation
+    return state;
+};
+
+// Bad: No service dependency handling
+validate: async () => true, // No service checks
+```
+</example> 
