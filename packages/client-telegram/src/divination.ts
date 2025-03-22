@@ -1,4 +1,9 @@
-import { IAgentRuntime, elizaLogger, messageCompletionFooter, formattingInstruction } from "@elizaos/core";
+import {
+    IAgentRuntime,
+    elizaLogger,
+    messageCompletionFooter,
+    formattingInstruction,
+} from "@elizaos/core";
 
 export interface HexagramGenerateResponse {
     fullHexagramData: {
@@ -326,15 +331,21 @@ export class DivinationClient {
 
     public async fetchIraiNews(topK: number = 5) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
+        const timeout = setTimeout(
+            () => controller.abort(),
+            DivinationClient.DEFAULT_TIMEOUT,
+        );
 
         try {
-            const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
-                headers: {
-                    "irai-api-key": process.env.IRAI_API_KEY || "",
+            const res = await fetch(
+                `https://api.irai.co/top_news?top_k=${topK}`,
+                {
+                    headers: {
+                        "irai-api-key": process.env.IRAI_API_KEY || "",
+                    },
+                    signal: controller.signal,
                 },
-                signal: controller.signal,
-            });
+            );
 
             if (!res.ok) {
                 throw new Error("Failed to fetch news");
@@ -343,9 +354,12 @@ export class DivinationClient {
             const data = await res.json();
 
             // Debug log the first 300 chars of news data
-            if (data && typeof data === 'object') {
+            if (data && typeof data === "object") {
                 const newsStr = JSON.stringify(data, null, 2);
-                elizaLogger.debug("IRAI News Preview (first 300 chars):", newsStr.substring(0, 300) + "...");
+                elizaLogger.debug(
+                    "IRAI News Preview (first 1000 chars):",
+                    newsStr.substring(0, 1000) + "...",
+                );
             }
 
             return data;
@@ -359,15 +373,21 @@ export class DivinationClient {
 
     public async fetchMarketSentiment() {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
+        const timeout = setTimeout(
+            () => controller.abort(),
+            DivinationClient.DEFAULT_TIMEOUT,
+        );
 
         try {
-            const res = await fetch("https://api.irai.co/get_market_sentiment", {
-                headers: {
-                    "irai-api-key": process.env.IRAI_API_KEY || "",
+            const res = await fetch(
+                "https://api.irai.co/get_market_sentiment",
+                {
+                    headers: {
+                        "irai-api-key": process.env.IRAI_API_KEY || "",
+                    },
+                    signal: controller.signal,
                 },
-                signal: controller.signal,
-            });
+            );
 
             if (!res.ok) {
                 throw new Error("Failed to fetch market sentiment");
@@ -412,7 +432,10 @@ export class DivinationClient {
 
     public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), DivinationClient.DEFAULT_TIMEOUT);
+        const timeout = setTimeout(
+            () => controller.abort(),
+            DivinationClient.DEFAULT_TIMEOUT,
+        );
 
         try {
             const response = await fetch(
@@ -487,8 +510,8 @@ export class DivinationClient {
             elizaLogger.debug("IRAI Raw Response:", {
                 output: data.output,
                 outputLength: data.output?.length || 0,
-                hasNewlines: data.output?.includes('\n') || false,
-                firstFewChars: data.output?.substring(0, 100) + "..."
+                hasNewlines: data.output?.includes("\n") || false,
+                firstFewChars: data.output?.substring(0, 500) + "...",
             });
 
             return data;
