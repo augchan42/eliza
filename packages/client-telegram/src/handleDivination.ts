@@ -94,15 +94,21 @@ export async function handleDivinationCommand(
 
         let responseText;
         try {
-            // Parse the JSON response
-            const parsedResponse = JSON.parse(response);
-            responseText = parsedResponse.text;
+            // Extract just the JSON part from the response
+            const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+                const jsonStr = jsonMatch[1];
+                const parsedResponse = JSON.parse(jsonStr);
+                // Replace escaped newlines with actual newlines
+                responseText = parsedResponse.text.replace(/\\n/g, "\n");
+            } else {
+                // Fallback to raw response if no JSON block found
+                elizaLogger.error("No JSON block found in response");
+                responseText = response;
+            }
         } catch (error) {
             // Fallback to raw response if JSON parsing fails
-            elizaLogger.error(
-                "Failed to parse divination response as JSON:",
-                error,
-            );
+            elizaLogger.error("Failed to parse divination response:", error);
             responseText = response;
         }
 
