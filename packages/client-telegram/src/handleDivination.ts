@@ -92,7 +92,19 @@ export async function handleDivinationCommand(
             modelClass: ModelClass.LARGE,
         });
 
-        let responseText = response;
+        let responseText;
+        try {
+            // Parse the JSON response
+            const parsedResponse = JSON.parse(response);
+            responseText = parsedResponse.text;
+        } catch (error) {
+            // Fallback to raw response if JSON parsing fails
+            elizaLogger.error(
+                "Failed to parse divination response as JSON:",
+                error,
+            );
+            responseText = response;
+        }
 
         // Add warning if some data sources failed
         if (!marketSentiment || !newsEvents || !oracleReading) {
@@ -117,7 +129,7 @@ export async function handleDivinationCommand(
         }
 
         // Send final response
-        await ctx.reply(responseText);
+        await ctx.reply(responseText, { parse_mode: "Markdown" });
     } catch (error) {
         elizaLogger.error("Error in divination command:", error);
 
