@@ -96,6 +96,9 @@ export class ClientBase extends EventEmitter {
 
     profile: TwitterProfile | null;
 
+    private sessionMaintenanceInterval: NodeJS.Timeout | null = null;
+    private readonly SESSION_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
     async cacheTweet(tweet: Tweet): Promise<void> {
         if (!tweet) {
             console.warn("Tweet is undefined, skipping cache");
@@ -222,8 +225,7 @@ export class ClientBase extends EventEmitter {
         if (this.profile) {
             elizaLogger.log("Twitter user ID:", this.profile.id);
             elizaLogger.log(
-                "Twitter loaded:",
-                JSON.stringify(this.profile, null, 10)
+                "Twitter loaded: " + JSON.stringify(this.profile, null, 2)
             );
             // Store profile info for use in responses
             this.runtime.character.twitterProfile = {
@@ -239,6 +241,136 @@ export class ClientBase extends EventEmitter {
 
         await this.loadLatestCheckedTweetId();
         await this.populateTimeline();
+
+        // Start session maintenance after successful login
+        this.startSessionMaintenance();
+    }
+
+    private async startSessionMaintenance() {
+        // Clear any existing interval
+        if (this.sessionMaintenanceInterval) {
+            clearInterval(this.sessionMaintenanceInterval);
+        }
+
+        this.sessionMaintenanceInterval = setInterval(async () => {
+            try {
+                elizaLogger.info("Checking Twitter session status...");
+                if (!(await this.twitterClient.isLoggedIn())) {
+                    elizaLogger.warn(
+                        "Twitter session expired, refreshing login..."
+                    );
+                    await this.refreshSession();
+                } else {
+                    elizaLogger.info("Twitter session is still valid");
+                }
+            } catch (error) {
+                elizaLogger.error("Error during session maintenance:", error);
+            }
+        }, this.SESSION_CHECK_INTERVAL);
+    }
+
+    private async refreshSession() {
+        const username = this.twitterConfig.TWITTER_USERNAME;
+        const password = this.twitterConfig.TWITTER_PASSWORD;
+        const email = this.twitterConfig.TWITTER_EMAIL;
+        const twitter2faSecret = this.twitterConfig.TWITTER_2FA_SECRET;
+        let retries = this.twitterConfig.TWITTER_RETRY_LIMIT;
+        let backoffDelay = 2000; // Start with 2 second delay
+
+        // First try with existing cookies
+        try {
+            if (await this.twitterClient.isLoggedIn()) {
+                elizaLogger.info("Session still valid with existing cookies");
+                return;
+            }
+        } catch (error) {
+            elizaLogger.warn("Error checking existing session:", error);
+        }
+
+        while (retries > 0) {
+            try {
+                // Only clear cookies if previous login attempt failed
+                if (retries < this.twitterConfig.TWITTER_RETRY_LIMIT) {
+                    elizaLogger.info(
+                        "Clearing cookies for fresh login attempt"
+                    );
+                    await this.twitterClient.clearCookies();
+                }
+
+                await this.twitterClient.login(
+                    username,
+                    password,
+                    email,
+                    twitter2faSecret
+                );
+
+                if (await this.twitterClient.isLoggedIn()) {
+                    elizaLogger.info("Successfully refreshed Twitter session");
+                    const newCookies = await this.twitterClient.getCookies();
+                    await this.cacheCookies(username, newCookies);
+
+                    // Reset session check interval after successful refresh
+                    this.startSessionMaintenance();
+                    return;
+                }
+            } catch (error) {
+                elizaLogger.error(
+                    `Session refresh attempt failed: ${error.message}`
+                );
+
+                // Implement exponential backoff
+                backoffDelay = Math.min(backoffDelay * 2, 30000); // Max 30 second delay
+                await new Promise((resolve) =>
+                    setTimeout(resolve, backoffDelay)
+                );
+            }
+
+            retries--;
+            if (retries === 0) {
+                const error = new Error(
+                    "Twitter session refresh failed after maximum retries"
+                );
+                elizaLogger.error(error.message);
+
+                // Attempt emergency session recovery
+                await this.emergencySessionRecovery();
+                throw error;
+            }
+        }
+    }
+
+    private async emergencySessionRecovery() {
+        try {
+            elizaLogger.warn("Attempting emergency session recovery...");
+
+            // Clear all cached data
+            const username = this.twitterConfig.TWITTER_USERNAME;
+            await this.runtime.cacheManager.delete(
+                `twitter/${username}/cookies`
+            );
+            await this.runtime.cacheManager.delete(
+                `twitter/${username}/timeline`
+            );
+            await this.runtime.cacheManager.delete(
+                `twitter/${username}/mentions`
+            );
+
+            // Clear client cookies
+            await this.twitterClient.clearCookies();
+
+            // Attempt fresh login
+            await this.init();
+            elizaLogger.info("Emergency session recovery successful");
+        } catch (error) {
+            elizaLogger.error("Emergency session recovery failed:", error);
+        }
+    }
+
+    async stop() {
+        if (this.sessionMaintenanceInterval) {
+            clearInterval(this.sessionMaintenanceInterval);
+            this.sessionMaintenanceInterval = null;
+        }
     }
 
     async fetchOwnPosts(count: number): Promise<Tweet[]> {
@@ -262,7 +394,7 @@ export class ClientBase extends EventEmitter {
             ? await this.twitterClient.fetchFollowingTimeline(count, [])
             : await this.twitterClient.fetchHomeTimeline(count, []);
 
-        elizaLogger.debug(homeTimeline, { depth: Infinity });
+        elizaLogger.debug("Debug timeline data:", JSON.stringify(homeTimeline));
         const processedTimeline = homeTimeline
             .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
             .map((tweet) => {
@@ -357,14 +489,15 @@ export class ClientBase extends EventEmitter {
         searchMode: SearchMode,
         cursor?: string
     ): Promise<QueryTweetsResponse> {
-        try {
-            // Sometimes this fails because we are rate limited. in this case, we just need to return an empty array
-            // if we dont get a response in 5 seconds, something is wrong
-            const timeoutPromise = new Promise((resolve) =>
-                setTimeout(() => resolve({ tweets: [] }), 10000)
-            );
+        const maxRetries = 3;
+        let retries = 0;
 
+        while (retries < maxRetries) {
             try {
+                const timeoutPromise = new Promise((resolve) =>
+                    setTimeout(() => resolve({ tweets: [] }), 10000)
+                );
+
                 const result = await this.requestQueue.add(
                     async () =>
                         await Promise.race([
@@ -377,15 +510,48 @@ export class ClientBase extends EventEmitter {
                             timeoutPromise,
                         ])
                 );
+
+                // Check if we got an auth error
+                const typedResult = result as {
+                    errors?: Array<{ code: number }>;
+                };
+                if (typedResult?.errors?.some((e) => e.code === 32)) {
+                    elizaLogger.warn(
+                        "Authentication error detected, attempting session refresh"
+                    );
+                    await this.refreshSession();
+                    retries++;
+                    continue;
+                }
+
                 return (result ?? { tweets: [] }) as QueryTweetsResponse;
             } catch (error) {
                 elizaLogger.error("Error fetching search tweets:", error);
+
+                // Check if it's an auth error
+                const typedError = error as {
+                    data?: { errors?: Array<{ code: number }> };
+                };
+                if (typedError?.data?.errors?.some((e) => e.code === 32)) {
+                    elizaLogger.warn(
+                        "Authentication error detected, attempting session refresh"
+                    );
+                    await this.refreshSession();
+                    retries++;
+                    continue;
+                }
+
+                if (retries < maxRetries - 1) {
+                    retries++;
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, 2000 * Math.pow(2, retries))
+                    );
+                    continue;
+                }
                 return { tweets: [] };
             }
-        } catch (error) {
-            elizaLogger.error("Error fetching search tweets:", error);
-            return { tweets: [] };
         }
+        return { tweets: [] };
     }
 
     private async populateTimeline() {
