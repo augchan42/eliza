@@ -1,17 +1,15 @@
 import { Context } from "telegraf";
 import { IAgentRuntime, elizaLogger, stringToUuid } from "@elizaos/core";
 import { DivinationClient } from "./divination";
-import { composeContext, generateText, ModelClass, parseJSONObjectFromText } from "@elizaos/core";
+import { composeContext, generateText, ModelClass } from "@elizaos/core";
 import { pixDivinationTemplate } from "./divination";
 
 const MAX_MESSAGE_LENGTH = 4096;
-const MAX_RETRIES = 3;
 
 export async function handleDivinationCommand(
     ctx: Context,
     runtime: IAgentRuntime,
 ) {
-    let retryCount = 0;
     let statusMessage;
 
     try {
@@ -26,13 +24,18 @@ export async function handleDivinationCommand(
         ]);
 
         // Process results and handle partial failures
-        const [marketSentiment, newsEvents, oracleReading] = results.map((result, index) => {
-            if (result.status === 'rejected') {
-                elizaLogger.error(`Failed to fetch data for index ${index}:`, result.reason);
-                return null;
-            }
-            return result.value;
-        });
+        const [marketSentiment, newsEvents, oracleReading] = results.map(
+            (result, index) => {
+                if (result.status === "rejected") {
+                    elizaLogger.error(
+                        `Failed to fetch data for index ${index}:`,
+                        result.reason,
+                    );
+                    return null;
+                }
+                return result.value;
+            },
+        );
 
         // Check if we have enough data to proceed
         if (!marketSentiment && !newsEvents && !oracleReading) {
@@ -58,109 +61,73 @@ export async function handleDivinationCommand(
                 agentName: runtime.character.name,
                 agent: runtime.character.name,
                 bio: runtime.character.bio,
-                newsEvent: newsEvents ? JSON.stringify(newsEvents, null, 2) : "{}",
-                oracleReading: oracleReading ? JSON.stringify(
-                    {
-                        interpretation: oracleReading.interpretation,
-                    },
-                    null,
-                    2,
-                ) : "{}",
-                marketSentiment: marketSentiment ? JSON.stringify(marketSentiment, null, 2) : "{}",
-            }
+                newsEvent: newsEvents
+                    ? JSON.stringify(newsEvents, null, 2)
+                    : "{}",
+                oracleReading: oracleReading
+                    ? JSON.stringify(
+                          {
+                              interpretation: oracleReading.interpretation,
+                          },
+                          null,
+                          2,
+                      )
+                    : "{}",
+                marketSentiment: marketSentiment
+                    ? JSON.stringify(marketSentiment, null, 2)
+                    : "{}",
+            },
         );
 
-        while (retryCount < MAX_RETRIES) {
-            try {
-                // Generate context for LLM interpretation
-                const context = composeContext({
-                    state: state,
-                    template: pixDivinationTemplate,
-                });
+        // Generate context for LLM interpretation
+        const context = composeContext({
+            state: state,
+            template: pixDivinationTemplate,
+        });
 
-                // Get LLM interpretation
-                const response = await generateText({
-                    runtime,
-                    context,
-                    modelClass: ModelClass.LARGE,
-                });
+        // Get LLM interpretation
+        const response = await generateText({
+            runtime,
+            context,
+            modelClass: ModelClass.LARGE,
+        });
 
-                elizaLogger.debug("Raw LLM response:", {
-                    response,
-                    length: response?.length,
-                    hasJsonBlock: response?.includes('```json'),
-                    firstNewline: response?.indexOf('\n'),
-                    lastNewline: response?.lastIndexOf('\n')
-                });
+        let responseText = response;
 
-                // Parse JSON using core functionality
-                const parsedResponse = parseJSONObjectFromText(response);
-                if (!parsedResponse) {
-                    elizaLogger.error("Failed to parse JSON response, retrying...", {
-                        response: response.substring(0, 200) + "..."
-                    });
-                    retryCount++;
-                    continue;
-                }
-
-                elizaLogger.debug("Parsed JSON response:", {
-                    user: parsedResponse.user,
-                    action: parsedResponse.action,
-                    textLength: parsedResponse.text?.length,
-                    textPreview: parsedResponse.text?.substring(0, 100) + "..."
-                });
-
-                if (!parsedResponse.user || !parsedResponse.text || !parsedResponse.action) {
-                    elizaLogger.error("Missing required JSON fields", {
-                        user: !!parsedResponse.user,
-                        text: !!parsedResponse.text,
-                        action: !!parsedResponse.action
-                    });
-                    retryCount++;
-                    continue;
-                }
-
-                let responseText = parsedResponse.text;
-
-                // Convert escaped newlines to actual newlines
-                responseText = responseText.replace(/\\n/g, '\n');
-
-                // Add warning if some data sources failed
-                if (!marketSentiment || !newsEvents || !oracleReading) {
-                    responseText += "\n⚠️ Note: Some data sources were unavailable. Reading may be incomplete.";
-                }
-
-                // Check message length
-                if (responseText.length > MAX_MESSAGE_LENGTH) {
-                    responseText = responseText.substring(0, MAX_MESSAGE_LENGTH - 200) +
-                        "\n\n⚠️ Response truncated due to length limits.";
-                }
-
-                // Delete status message
-                if (statusMessage) {
-                    await ctx.telegram.deleteMessage(statusMessage.chat.id, statusMessage.message_id)
-                        .catch(err => elizaLogger.error("Failed to delete status message:", err));
-                }
-
-                // Send final response
-                await ctx.reply(responseText);
-                return;
-            } catch (error) {
-                elizaLogger.error(`Attempt ${retryCount + 1} failed:`, error);
-                retryCount++;
-
-                if (retryCount >= MAX_RETRIES) {
-                    throw new Error(`Failed after ${MAX_RETRIES} attempts`);
-                }
-            }
+        // Add warning if some data sources failed
+        if (!marketSentiment || !newsEvents || !oracleReading) {
+            responseText +=
+                "\n⚠️ Note: Some data sources were unavailable. Reading may be incomplete.";
         }
+
+        // Check message length
+        if (responseText.length > MAX_MESSAGE_LENGTH) {
+            responseText =
+                responseText.substring(0, MAX_MESSAGE_LENGTH - 200) +
+                "\n\n⚠️ Response truncated due to length limits.";
+        }
+
+        // Delete status message
+        if (statusMessage) {
+            await ctx.telegram
+                .deleteMessage(statusMessage.chat.id, statusMessage.message_id)
+                .catch((err) =>
+                    elizaLogger.error("Failed to delete status message:", err),
+                );
+        }
+
+        // Send final response
+        await ctx.reply(responseText);
     } catch (error) {
         elizaLogger.error("Error in divination command:", error);
 
         // Clean up status message if it exists
         if (statusMessage) {
-            await ctx.telegram.deleteMessage(statusMessage.chat.id, statusMessage.message_id)
-                .catch(err => elizaLogger.error("Failed to delete status message:", err));
+            await ctx.telegram
+                .deleteMessage(statusMessage.chat.id, statusMessage.message_id)
+                .catch((err) =>
+                    elizaLogger.error("Failed to delete status message:", err),
+                );
         }
 
         await ctx.reply("⚠️ Divination circuits overloaded. Try again later.");

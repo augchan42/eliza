@@ -45,7 +45,6 @@ timeline_cache.json
 characters/*.json
 agent/characters/*.json
 
-
 packages/core/src/providers/cache
 packages/core/src/providers/cache/*
 cache/*
@@ -72,4 +71,5 @@ packages/plugin-nvidia-nim/old_code
 packages/plugin-nvidia-nim/docs
 
 # Private individual user cursor rules
-.cursor/rules/_*.mdc
+.cursor
+characters

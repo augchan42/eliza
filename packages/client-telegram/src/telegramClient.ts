@@ -217,6 +217,9 @@ export class TelegramClient {
             // Cleanup rate limiter
             this.rateLimiter.destroy();
 
+            // Cleanup message manager
+            this.messageManager.destroy();
+
             // Stop the bot
             await this.bot.stop();
             elizaLogger.log("Telegram bot stopped successfully");
@@ -324,14 +327,16 @@ out to Tavily websearch and openweather API.
                 // Check if we can still communicate
                 const chatId = ctx.chat?.id;
                 if (!chatId) {
-                    elizaLogger.error("Cannot send error message - no chat ID available");
+                    elizaLogger.error(
+                        "Cannot send error message - no chat ID available",
+                    );
                     return;
                 }
 
                 // Try to send error message
                 await ctx.reply(
                     "⚠️ An unexpected error occurred. Bot is recovering...\n" +
-                    "Please try your command again in a few moments."
+                        "Please try your command again in a few moments.",
                 );
 
                 // Log recovery attempt

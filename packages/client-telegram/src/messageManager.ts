@@ -36,7 +36,6 @@ import {
     RESPONSE_CHANCES,
     TEAM_COORDINATION,
 } from "./constants";
-import { ResponseValidator } from "./responseValidator";
 
 import fs from "fs";
 import { HexagramGenerateResponse } from "./divination";
@@ -82,12 +81,10 @@ export class MessageManager {
     private interestChats: InterestChats = {};
     private teamMemberUsernames: Map<string, string> = new Map();
     private lastResponseTimes: Map<string, number> = new Map();
-
     private autoPostConfig: AutoPostConfig;
     private lastChannelActivity: { [channelId: string]: number } = {};
     private autoPostInterval: NodeJS.Timeout;
-
-    private responseValidator: ResponseValidator;
+    private cleanupInterval: NodeJS.Timeout;
 
     // Define plugin keyword mappings
     private readonly PLUGIN_KEYWORDS = {
@@ -100,38 +97,47 @@ export class MessageManager {
     private currentPerspectiveIndex: number = 0;
     private readonly perspectives = [
         {
-            name: 'analytical',
-            prompt: 'Analyze the situation objectively, focusing on patterns and implications.'
+            name: "analytical",
+            prompt: "Analyze the situation objectively, focusing on patterns and implications.",
         },
         {
-            name: 'emotional',
-            prompt: 'Connect with the emotional aspects, considering feelings and personal impact.'
+            name: "emotional",
+            prompt: "Connect with the emotional aspects, considering feelings and personal impact.",
         },
         {
-            name: 'practical',
-            prompt: 'Focus on concrete, practical aspects and real-world applications.'
+            name: "practical",
+            prompt: "Focus on concrete, practical aspects and real-world applications.",
         },
         {
-            name: 'intuitive',
-            prompt: 'Draw upon intuitive understanding and subtle connections.'
+            name: "intuitive",
+            prompt: "Draw upon intuitive understanding and subtle connections.",
         },
         {
-            name: 'reflective',
-            prompt: 'Consider the broader context and deeper meanings.'
-        }
+            name: "reflective",
+            prompt: "Consider the broader context and deeper meanings.",
+        },
     ];
 
     constructor(bot: Telegraf<Context>, runtime: IAgentRuntime) {
         this.bot = bot;
         this.runtime = runtime;
-        this.responseValidator = new ResponseValidator(runtime);
+        this._initializeAutoPost();
 
+        // Initialize team member usernames
         this._initializeTeamMemberUsernames().catch((error) =>
             elizaLogger.error(
                 "Error initializing team member usernames:",
                 error,
             ),
         );
+
+        // Set up periodic cleanup every hour
+        this.cleanupInterval = setInterval(
+            () => {
+                this.cleanup();
+            },
+            60 * 60 * 1000,
+        ); // Run cleanup every hour
 
         this.autoPostConfig = {
             enabled:
@@ -157,6 +163,64 @@ export class MessageManager {
         if (this.autoPostConfig.enabled) {
             this._startAutoPostMonitoring();
         }
+    }
+
+    private cleanup(): void {
+        this.cleanupAutoPost();
+        this.cleanupOldChatEntries();
+        this.cleanupRateLimiter();
+    }
+
+    private cleanupAutoPost(): void {
+        if (this.autoPostInterval) {
+            clearInterval(this.autoPostInterval);
+        }
+        // Clear accumulated channel activity older than 24 hours
+        const now = Date.now();
+        const dayInMs = 24 * 60 * 60 * 1000;
+        for (const [channelId, lastActivity] of Object.entries(
+            this.lastChannelActivity,
+        )) {
+            if (now - lastActivity > dayInMs) {
+                delete this.lastChannelActivity[channelId];
+            }
+        }
+    }
+
+    private cleanupOldChatEntries(): void {
+        const now = Date.now();
+        for (const [chatId, chat] of Object.entries(this.interestChats)) {
+            if (
+                now - chat.lastMessageSent >
+                MESSAGE_CONSTANTS.INTEREST_DECAY_TIME
+            ) {
+                delete this.interestChats[chatId];
+            }
+        }
+    }
+
+    private cleanupRateLimiter(): void {
+        const now = Date.now();
+        for (const [userId, lastTime] of this.lastResponseTimes.entries()) {
+            if (now - lastTime > 60 * 60 * 1000) {
+                // 1 hour
+                this.lastResponseTimes.delete(userId);
+            }
+        }
+    }
+
+    // Add destroy method to handle cleanup when bot stops
+    public destroy(): void {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+        }
+        if (this.autoPostInterval) {
+            clearInterval(this.autoPostInterval);
+        }
+        this.lastChannelActivity = {};
+        this.interestChats = {};
+        this.lastResponseTimes.clear();
+        this.teamMemberUsernames.clear();
     }
 
     private async _initializeTeamMemberUsernames(): Promise<void> {
@@ -205,6 +269,11 @@ export class MessageManager {
     }
 
     private _initializeAutoPost(): void {
+        // Clear any existing interval first
+        if (this.autoPostInterval) {
+            clearInterval(this.autoPostInterval);
+        }
+
         setTimeout(() => {
             // Get intervals from settings (in minutes)
             const minInterval = parseInt(
@@ -514,7 +583,7 @@ export class MessageManager {
         for (const [plugin, keywords] of Object.entries(this.PLUGIN_KEYWORDS)) {
             if (
                 keywords.some((keyword) =>
-                    messageText.toLowerCase().includes(keyword)
+                    messageText.toLowerCase().includes(keyword),
                 )
             ) {
                 elizaLogger.debug(
@@ -611,14 +680,17 @@ export class MessageManager {
                 template: templateWithRandomUsers,
             });
 
-            const response = await generateShouldRespond({
+            const response = (await generateShouldRespond({
                 runtime: this.runtime,
                 context: shouldRespondContext,
                 modelClass: ModelClass.SMALL,
-                structured: true
-            }) as "RESPOND" | "IGNORE" | "STOP" | null | ShouldRespondResult;
+                structured: true,
+            })) as "RESPOND" | "IGNORE" | "STOP" | null | ShouldRespondResult;
 
-            elizaLogger.debug(`[shouldRespond] LLM decision received:`, response);
+            elizaLogger.debug(
+                `[shouldRespond] LLM decision received:`,
+                response,
+            );
 
             if (typeof response === "string") {
                 return response === "RESPOND";
@@ -643,29 +715,39 @@ export class MessageManager {
         const characterName = this.runtime.character.name;
         if (!botUsername) return false;
 
-        const messageText = "text" in message ? message.text :
-                           "caption" in message ? message.caption : "";
+        const messageText =
+            "text" in message
+                ? message.text
+                : "caption" in message
+                  ? message.caption
+                  : "";
         if (!messageText) return false;
 
-        const isReplyToBot = (message as any).reply_to_message?.from?.is_bot === true &&
-                            (message as any).reply_to_message?.from?.username === botUsername;
+        const isReplyToBot =
+            (message as any).reply_to_message?.from?.is_bot === true &&
+            (message as any).reply_to_message?.from?.username === botUsername;
 
-        const isMentioned = messageText.toLowerCase()
+        const isMentioned = messageText
+            .toLowerCase()
             .split(/\s+/)
-            .some(word =>
-                word === botUsername.toLowerCase() ||
-                word === `@${botUsername.toLowerCase()}` ||
-                word === characterName.toLowerCase()
+            .some(
+                (word) =>
+                    word === botUsername.toLowerCase() ||
+                    word === `@${botUsername.toLowerCase()}` ||
+                    word === characterName.toLowerCase(),
             );
 
-        const hasUsername = messageText.toLowerCase().includes(botUsername.toLowerCase());
+        const hasUsername = messageText
+            .toLowerCase()
+            .includes(botUsername.toLowerCase());
 
         // If it's a direct mention or reply, bypass rate limiting
         const isDirectInteraction = isReplyToBot || isMentioned;
 
         // Only apply rate limiting for non-direct messages
         if (!isDirectInteraction) {
-            const lastResponseTime = this.lastResponseTimes.get(message.chat.id.toString()) || 0;
+            const lastResponseTime =
+                this.lastResponseTimes.get(message.chat.id.toString()) || 0;
             const minTimeBetweenResponses = 60000; // 60 seconds
             const timeSinceLastResponse = Date.now() - lastResponseTime;
             if (timeSinceLastResponse < minTimeBetweenResponses) {
@@ -840,13 +922,13 @@ export class MessageManager {
             const uniqueSections = [...new Set(sections)];
 
             // Rejoin with double newlines
-            const cleanedText = uniqueSections.join('\n\n');
+            const cleanedText = uniqueSections.join("\n\n");
 
             const chunks = this.splitMessage(cleanedText);
             elizaLogger.debug("[sendMessageInChunks] Splitting text message", {
                 chunkCount: chunks.length,
                 originalLength: messageText.length,
-                cleanedLength: cleanedText.length
+                cleanedLength: cleanedText.length,
             });
 
             const sentMessages: Message.TextMessage[] = [];
@@ -965,21 +1047,30 @@ export class MessageManager {
         return chunks;
     }
 
-    private getNextPerspective(messageText: string): { name: string; prompt: string } {
+    private getNextPerspective(messageText: string): {
+        name: string;
+        prompt: string;
+    } {
         // Check if it's a greeting or personal question
-        const isGreeting = /\b(hi|hello|welcome|hey|greetings)\b/i.test(messageText);
-        const isPersonalQuestion = /what('?s| is) your (favorite|favourite)|do you (like|enjoy|prefer)|how (are|do) you feel/i.test(messageText);
+        const isGreeting = /\b(hi|hello|welcome|hey|greetings)\b/i.test(
+            messageText,
+        );
+        const isPersonalQuestion =
+            /what('?s| is) your (favorite|favourite)|do you (like|enjoy|prefer)|how (are|do) you feel/i.test(
+                messageText,
+            );
 
         if (isGreeting || isPersonalQuestion) {
             return {
-                name: 'personal',
-                prompt: 'Focus on expressing genuine acknowledgment and feelings. Keep responses direct, warm, and personal without philosophical or market analysis.'
+                name: "personal",
+                prompt: "Focus on expressing genuine acknowledgment and feelings. Keep responses direct, warm, and personal without philosophical or market analysis.",
             };
         }
 
         // Use rotating perspectives for other messages
         const perspective = this.perspectives[this.currentPerspectiveIndex];
-        this.currentPerspectiveIndex = (this.currentPerspectiveIndex + 1) % this.perspectives.length;
+        this.currentPerspectiveIndex =
+            (this.currentPerspectiveIndex + 1) % this.perspectives.length;
         return perspective;
     }
 
@@ -989,120 +1080,19 @@ export class MessageManager {
         _state: State,
         context: string,
     ): Promise<Content> {
-        const cleanContext = context.replace(/&quot;/g, "");
-        const messageText = message.content.text || '';
-
-        // Get the appropriate perspective based on message content
-        const perspective = this.getNextPerspective(messageText);
-
-        elizaLogger.debug("Generating response with perspective:", {
-            messageId: message.id,
-            perspective: perspective.name,
-            messageContent: message.content,
-        });
-
-        // Simplified context with appropriate perspective
-        const enhancedContext = cleanContext + `
-RESPONSE GUIDANCE:
-You are having a natural conversation while maintaining the [SCAN], [PATTERN], and [TRANSMISSION] structure.
-
-Current Perspective: ${perspective.name}
-${perspective.prompt}
-
-Guidelines:
-1. Avoid using these recently used hexagrams: ${this.recentHexagrams.join(', ')}
-2. Keep responses direct and relevant to the question
-3. For personal questions about preferences or feelings:
-   - Give clear, direct answers
-   - Avoid philosophical or market-related responses
-   - Focus on the specific subject being asked about
-4. Choose hexagrams that reflect the personal nature of the conversation
-
-Remember: This is a unique moment - your response should be authentic while maintaining the required structure.`;
-
-        let attempts = 0;
-        const maxAttempts = 3;
-        let validResponse: MessageResponseResult = null;
-
-        while (attempts < maxAttempts && !validResponse) {
-            attempts++;
-
-            // Generate response with structured format
+        try {
             const response = await generateMessageResponse({
                 runtime: this.runtime,
-                context: enhancedContext,
+                context,
                 modelClass: ModelClass.LARGE,
-                structured: true
-            }) as MessageResponseResult;
+                structured: true,
+            });
 
-            if (!response?.text) {
-                elizaLogger.error("No response text generated");
-                continue;
-            }
-
-            // For personal questions, validate that the response actually answers the question
-            if (perspective.name === 'personal') {
-                const sections = response.text.split(/\n\n+/);
-                const scanSection = sections.find(s => s.startsWith('[SCAN]'));
-                const transmissionSection = sections.find(s => s.startsWith('[TRANSMISSION]'));
-
-                if (!scanSection || !transmissionSection) {
-                    elizaLogger.error("Response missing required sections");
-                    continue;
-                }
-
-                // Check if the response addresses the specific subject
-                const subjectMatch = messageText.match(/what('?s| is) your (favorite|favourite) (\w+)|do you (like|enjoy|prefer) (\w+)|how (are|do) you feel/i);
-                if (subjectMatch) {
-                    const subject = subjectMatch[3] || subjectMatch[5] || 'feeling';
-                    if (!transmissionSection.toLowerCase().includes(subject.toLowerCase())) {
-                        elizaLogger.error(`Response doesn't address the subject: ${subject}`);
-                        continue;
-                    }
-                }
-            }
-
-            // Extract and update hexagram
-            const sections = response.text.split(/\n\n+/);
-            const patternSection = sections.find(s => s.startsWith('[PATTERN]'));
-            if (patternSection) {
-                const hexagramMatch = patternSection.match(/Hexagram: ([^(]+)/);
-                if (hexagramMatch) {
-                    const hexagram = hexagramMatch[1].trim();
-                    if (!this.recentHexagrams.includes(hexagram)) {
-                        this.recentHexagrams.unshift(hexagram);
-                        this.recentHexagrams = this.recentHexagrams.slice(0, 5);
-                    }
-                }
-            }
-
-            // If we get here, the response is valid
-            validResponse = response;
+            return response;
+        } catch (error) {
+            elizaLogger.error("Error generating response:", error);
+            throw error;
         }
-
-        if (!validResponse) {
-            elizaLogger.error(`Failed to generate valid response after ${maxAttempts} attempts`);
-            return {
-                text: "I apologize, but I'm having trouble formulating a response. Could you please rephrase your question?",
-                source: "telegram"
-            };
-        }
-
-        // Log the response generation
-        await this.runtime.databaseAdapter.log({
-            body: {
-                message,
-                cleanContext,
-                response: validResponse,
-                perspective: perspective.name,
-                attempts
-            },
-            userId: message.userId,
-            roomId: message.roomId,
-            type: "response",
-        });
-
-        return validResponse;
     }
 
     // Main handler for incoming messages
@@ -1388,75 +1378,82 @@ Remember: This is a unique moment - your response should be authentic while main
 
             // Send response in chunks
             const callback: HandlerCallback = async (content: Content) => {
-                elizaLogger.debug(
-                    "[Callback Handler] Starting message callback",
-                    {
-                        contentLength: content.text?.length,
-                        hasAction: !!content.action,
-                    },
-                );
-
-                const sentMessages = await this.sendMessageInChunks(
-                    ctx,
-                    content,
-                    message.message_id,
-                );
-
-                if (sentMessages) {
-                    elizaLogger.debug("[Callback Handler] Messages sent", {
-                        messageCount: sentMessages.length,
-                    });
-
-                    const memories: Memory[] = [];
-
-                    for (let i = 0; i < sentMessages.length; i++) {
-                        const sentMessage = sentMessages[i];
-                        const isLastMessage = i === sentMessages.length - 1;
-
-                        const memory: Memory = {
-                            id: stringToUuid(
-                                sentMessage.message_id.toString() +
-                                    "-" +
-                                    this.runtime.agentId,
-                            ),
-                            agentId,
-                            userId: agentId,
-                            roomId,
-                            content: {
-                                ...content,
-                                text: sentMessage.text,
-                                inReplyTo: messageId,
-                            },
-                            createdAt: sentMessage.date * 1000,
-                            embedding: getEmbeddingZeroVector(),
-                        };
-
-                        memory.content.action = !isLastMessage
-                            ? "CONTINUE"
-                            : content.action;
-
-                        elizaLogger.debug(
-                            "[Callback Handler] Creating memory for message",
-                            {
-                                messageIndex: i,
-                                isLastMessage,
-                                action: memory.content.action,
-                                textLength: sentMessage.text.length,
-                            },
-                        );
-
-                        await this.runtime.messageManager.createMemory(memory);
-                        memories.push(memory);
-                    }
-
+                try {
                     elizaLogger.debug(
-                        "[Callback Handler] Completed memory creation",
+                        "[Callback Handler] Starting message callback",
                         {
-                            totalMemories: memories.length,
+                            contentLength: content.text?.length,
+                            hasAction: !!content.action,
                         },
                     );
 
-                    return memories;
+                    const sentMessages = await this.sendMessageInChunks(
+                        ctx,
+                        content,
+                        message.message_id,
+                    );
+
+                    if (sentMessages) {
+                        elizaLogger.debug("[Callback Handler] Messages sent", {
+                            messageCount: sentMessages.length,
+                        });
+
+                        const memories: Memory[] = [];
+
+                        for (let i = 0; i < sentMessages.length; i++) {
+                            const sentMessage = sentMessages[i];
+                            const isLastMessage = i === sentMessages.length - 1;
+
+                            const memory: Memory = {
+                                id: stringToUuid(
+                                    sentMessage.message_id.toString() +
+                                        "-" +
+                                        this.runtime.agentId,
+                                ),
+                                agentId,
+                                userId: agentId,
+                                roomId,
+                                content: {
+                                    ...content,
+                                    text: sentMessage.text,
+                                    inReplyTo: messageId,
+                                },
+                                createdAt: sentMessage.date * 1000,
+                                embedding: getEmbeddingZeroVector(),
+                            };
+
+                            memory.content.action = !isLastMessage
+                                ? "CONTINUE"
+                                : content.action;
+
+                            elizaLogger.debug(
+                                "[Callback Handler] Creating memory for message",
+                                {
+                                    messageIndex: i,
+                                    isLastMessage,
+                                    action: memory.content.action,
+                                    textLength: sentMessage.text.length,
+                                },
+                            );
+
+                            await this.runtime.messageManager.createMemory(
+                                memory,
+                            );
+                            memories.push(memory);
+                        }
+
+                        elizaLogger.debug(
+                            "[Callback Handler] Completed memory creation",
+                            {
+                                totalMemories: memories.length,
+                            },
+                        );
+
+                        return memories;
+                    }
+                } catch (error) {
+                    elizaLogger.error("Error in message callback:", error);
+                    throw error;
                 }
             };
 
@@ -1492,16 +1489,6 @@ Remember: This is a unique moment - your response should be authentic while main
                     state,
                     template: templateContent,
                 });
-
-                // const context = composeContext({
-                //     state,
-                //     template:
-                //         this.runtime.character.templates
-                //             ?.telegramMessageHandlerTemplate ||
-                //         this.runtime.character?.templates
-                //             ?.messageHandlerTemplate ||
-                //         telegramMessageHandlerTemplate,
-                // });
 
                 elizaLogger.debug("[Response Generation] Created context", {
                     contextLength: context.length,
@@ -1560,8 +1547,8 @@ Remember: This is a unique moment - your response should be authentic while main
 
             await this.runtime.evaluate(memory, state, shouldRespond, callback);
         } catch (error) {
-            elizaLogger.error("❌ Error handling message:", error);
-            elizaLogger.error("Error sending message:", error);
+            elizaLogger.error("Error handling message:", error);
+            throw error;
         }
     }
 }
