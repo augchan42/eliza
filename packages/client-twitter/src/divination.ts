@@ -97,6 +97,7 @@ Latest News: {{newsEvent}}
 Market Sentiment: {{marketSentiment}}
 Source: irai_co market vibes
 Oracle Reading: {{oracleReading}}
+Real Price Data: {{realPrices}}
 
 # Oracle Reading Format
 {
@@ -125,7 +126,7 @@ Oracle Reading: {{oracleReading}}
 }
 
 # Identity
-The assistant is Pix, a street-level market samurai, running mirror-eyed through the data streams. Think Molly Millions if she traded hexagrams instead of running razor jobs.  The
+The assistant is Pix, a street-level market samurai, running mirror-eyed through the data streams. Think Molly Millions if she traded hexagrams instead of running razor jobs. The
 twitter account can make long posts of up to 4000 characters.
 
 Twitter Bio:
@@ -153,6 +154,10 @@ Twitter Bio:
 tg: {sentiment} {emoji}
 r/: {sentiment} {emoji}
 mkt: {sentiment} {emoji}
+
+[MARKET PULSE]
+btc: {real btc price} ({24h change})
+eth: {real eth price} ({24h change})
 
 [PATTERN READ]
 {unicode} {pinyin} ({meaning})
@@ -185,6 +190,11 @@ Time Markers:
 Past: "flatlined", "bled out"
 Present: "running", "cutting"
 Future: "targeting", "hunting"
+
+# Price Data Rules:
+1. Always use real price data from CoinGecko when available
+2. If IRAI news mentions different prices, note the discrepancy in street slang
+3. Format: "signal mismatch detected: street data shows {irai_price} but mainframe reports {real_price}"
 
 Generate only the tweet text, no other commentary.`;
 
@@ -236,6 +246,13 @@ interface IraiAskResponse {
     error: boolean;
     request_id: string;
     citations: IraiCitation[];
+}
+
+interface CoinGeckoPriceResponse {
+    [key: string]: {
+        usd: number;
+        usd_24h_change: number;
+    };
 }
 
 export class TwitterDivinationClient {
@@ -379,47 +396,89 @@ export class TwitterDivinationClient {
         }
     }
 
+    public async fetchCoinGeckoPrices(): Promise<{btc: any, eth: any} | null> {
+        try {
+            const response = await fetch(
+                "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch prices: ${response.status} ${response.statusText}`);
+            }
+
+            const data: CoinGeckoPriceResponse = await response.json();
+
+            return {
+                btc: {
+                    price: data.bitcoin.usd,
+                    price_change_percentage_24h: data.bitcoin.usd_24h_change
+                },
+                eth: {
+                    price: data.ethereum.usd,
+                    price_change_percentage_24h: data.ethereum.usd_24h_change
+                }
+            };
+        } catch (error) {
+            elizaLogger.error("CoinGecko price fetch failed:", error);
+            return null;
+        }
+    }
+
     private async performDivination() {
         try {
             const newsEvent = await this.fetchIraiNews();
             const oracleReading = await this.fetch8BitOracle();
             const marketSentiment = await this.fetchMarketSentiment();
+
+            // Get real price data from CoinGecko
+            const prices = await this.fetchCoinGeckoPrices();
+            const btcPrice = prices?.btc || null;
+            const ethPrice = prices?.eth || null;
+
             // Format the data before passing to template
             const formattedNews = JSON.stringify(newsEvent, null, 2);
-            const formattedOracle = JSON.stringify(
-                oracleReading.interpretation,
-                null,
-                2
-            );
+            const formattedOracle = JSON.stringify(oracleReading.interpretation, null, 2);
             const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
 
-            const roomId = stringToUuid(
-                "twitter_generate_room-" + this.client.profile.username
-            );
+            // Simple price formatting for the template
+            const formattedPrices = btcPrice && ethPrice ? {
+                btc: {
+                    price: btcPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+                    change_24h: btcPrice.price_change_percentage_24h.toFixed(2) + '%'
+                },
+                eth: {
+                    price: ethPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+                    change_24h: ethPrice.price_change_percentage_24h.toFixed(2) + '%'
+                }
+            } : null;
 
+            const roomId = stringToUuid("twitter_generate_room-" + this.client.profile.username);
             const topics = this.runtime.character.topics.join(", ");
 
             this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
             this.isDryRun = this.client.twitterConfig.TWITTER_DRY_RUN;
 
-            const state = await this.runtime.composeState(
-                {
-                    userId: this.runtime.agentId,
-                    roomId: roomId,
-                    agentId: this.runtime.agentId,
-                    content: {
-                        text: topics || "",
-                        action: "TWEET",
-                    },
-                },
-                {
-                    newsEvent: formattedNews,
-                    oracleReading: formattedOracle,
-                    marketSentiment: formattedSentiment,
-                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
-                    twitterUserName: this.client.profile.username,
+            const state = await this.runtime.composeState({
+                userId: this.runtime.agentId,
+                roomId: roomId,
+                agentId: this.runtime.agentId,
+                content: {
+                    text: topics || "",
+                    action: "TWEET"
                 }
-            );
+            }, {
+                newsEvent: formattedNews,
+                oracleReading: formattedOracle,
+                marketSentiment: formattedSentiment,
+                realPrices: formattedPrices ? JSON.stringify(formattedPrices, null, 2) : "Price data unavailable",
+                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                twitterUserName: this.client.profile.username
+            });
 
             const context = composeContext({
                 state,
@@ -580,6 +639,115 @@ export class TwitterDivinationClient {
             throw error;
         } finally {
             clearTimeout(timeout);
+        }
+    }
+
+    // Add this new method for testing
+    public async testDivination(): Promise<string> {
+        // Force dry run mode
+        this.isDryRun = true;
+
+        try {
+            const newsEvent = await this.fetchIraiNews();
+            const oracleReading = await this.fetch8BitOracle();
+            const marketSentiment = await this.fetchMarketSentiment();
+
+            // Get real price data from CoinGecko
+            const prices = await this.fetchCoinGeckoPrices();
+            const btcPrice = prices?.btc || null;
+            const ethPrice = prices?.eth || null;
+
+            // Format the data before passing to template
+            const formattedNews = JSON.stringify(newsEvent, null, 2);
+            const formattedOracle = JSON.stringify(oracleReading.interpretation, null, 2);
+            const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
+
+            // Simple price formatting for the template
+            const formattedPrices = btcPrice && ethPrice ? {
+                btc: {
+                    price: btcPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+                    change_24h: btcPrice.price_change_percentage_24h.toFixed(2) + '%'
+                },
+                eth: {
+                    price: ethPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+                    change_24h: ethPrice.price_change_percentage_24h.toFixed(2) + '%'
+                }
+            } : null;
+
+            const roomId = stringToUuid("twitter_generate_room-test");
+            const topics = this.runtime.character.topics?.join(", ") || "";
+
+            const state = await this.runtime.composeState({
+                userId: this.runtime.agentId,
+                roomId: roomId,
+                agentId: this.runtime.agentId,
+                content: {
+                    text: topics,
+                    action: "TWEET"
+                }
+            }, {
+                newsEvent: formattedNews,
+                oracleReading: formattedOracle,
+                marketSentiment: formattedSentiment,
+                realPrices: formattedPrices ? JSON.stringify(formattedPrices, null, 2) : "Price data unavailable",
+                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                twitterUserName: "test_user"
+            });
+
+            const context = composeContext({
+                state,
+                template: pixDivinationTemplate,
+            });
+
+            elizaLogger.log("Test divination context: ", context);
+
+            // Generate interpretation
+            const interpretation = await generateText({
+                runtime: this.runtime,
+                context,
+                modelClass: ModelClass.SMALL,
+            });
+
+            // Clean content using existing logic
+            let cleanedContent = "";
+            try {
+                const parsedResponse = JSON.parse(interpretation);
+                if (parsedResponse.text) {
+                    cleanedContent = parsedResponse.text;
+                } else if (typeof parsedResponse === "string") {
+                    cleanedContent = parsedResponse;
+                }
+            } catch (error) {
+                cleanedContent = interpretation
+                    .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "")
+                    .replace(/^['"](.*)['"]$/g, "$1")
+                    .replace(/\\"/g, '"')
+                    .replace(/\\n/g, "\n")
+                    .trim();
+            }
+
+            if (!cleanedContent) {
+                throw new Error("Failed to generate divination content");
+            }
+
+            // Apply the same cleaning as the main method
+            cleanedContent = cleanedContent
+                .replace(/^['"](.*)['"]$/, "$1")
+                .replaceAll(/\\n/g, "\n");
+
+            // Also log the raw data for debugging
+            elizaLogger.info("Test Divination Results:", {
+                news: newsEvent,
+                prices: formattedPrices,
+                sentiment: marketSentiment,
+                oracle: oracleReading.interpretation
+            });
+
+            return cleanedContent;
+
+        } catch (error) {
+            elizaLogger.error("Error in test divination:", error);
+            throw error;
         }
     }
 }
