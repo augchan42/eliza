@@ -158,6 +158,7 @@ mkt: {sentiment} {emoji}
 [MARKET PULSE]
 btc: {real btc price} ({24h change})
 eth: {real eth price} ({24h change})
+sol: {real sol price} ({24h change})
 
 [PATTERN READ]
 {unicode} {pinyin} ({meaning})
@@ -396,10 +397,14 @@ export class TwitterDivinationClient {
         }
     }
 
-    public async fetchCoinGeckoPrices(): Promise<{btc: any, eth: any} | null> {
+    public async fetchCoinGeckoPrices(): Promise<{
+        btc: any;
+        eth: any;
+        sol: any;
+    } | null> {
         try {
             const response = await fetch(
-                "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",
+                "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true",
                 {
                     headers: {
                         "Content-Type": "application/json",
@@ -408,7 +413,9 @@ export class TwitterDivinationClient {
             );
 
             if (!response.ok) {
-                throw new Error(`Failed to fetch prices: ${response.status} ${response.statusText}`);
+                throw new Error(
+                    `Failed to fetch prices: ${response.status} ${response.statusText}`
+                );
             }
 
             const data: CoinGeckoPriceResponse = await response.json();
@@ -416,12 +423,16 @@ export class TwitterDivinationClient {
             return {
                 btc: {
                     price: data.bitcoin.usd,
-                    price_change_percentage_24h: data.bitcoin.usd_24h_change
+                    price_change_percentage_24h: data.bitcoin.usd_24h_change,
                 },
                 eth: {
                     price: data.ethereum.usd,
-                    price_change_percentage_24h: data.ethereum.usd_24h_change
-                }
+                    price_change_percentage_24h: data.ethereum.usd_24h_change,
+                },
+                sol: {
+                    price: data.solana.usd,
+                    price_change_percentage_24h: data.solana.usd_24h_change,
+                },
             };
         } catch (error) {
             elizaLogger.error("CoinGecko price fetch failed:", error);
@@ -439,46 +450,83 @@ export class TwitterDivinationClient {
             const prices = await this.fetchCoinGeckoPrices();
             const btcPrice = prices?.btc || null;
             const ethPrice = prices?.eth || null;
+            const solPrice = prices?.sol || null;
 
             // Format the data before passing to template
             const formattedNews = JSON.stringify(newsEvent, null, 2);
-            const formattedOracle = JSON.stringify(oracleReading.interpretation, null, 2);
+            const formattedOracle = JSON.stringify(
+                oracleReading.interpretation,
+                null,
+                2
+            );
             const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
 
             // Simple price formatting for the template
-            const formattedPrices = btcPrice && ethPrice ? {
-                btc: {
-                    price: btcPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-                    change_24h: btcPrice.price_change_percentage_24h.toFixed(2) + '%'
-                },
-                eth: {
-                    price: ethPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-                    change_24h: ethPrice.price_change_percentage_24h.toFixed(2) + '%'
-                }
-            } : null;
+            const formattedPrices =
+                btcPrice && ethPrice && solPrice
+                    ? {
+                          btc: {
+                              price: btcPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  btcPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                          eth: {
+                              price: ethPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  ethPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                          sol: {
+                              price: solPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  solPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                      }
+                    : null;
 
-            const roomId = stringToUuid("twitter_generate_room-" + this.client.profile.username);
+            const roomId = stringToUuid(
+                "twitter_generate_room-" + this.client.profile.username
+            );
             const topics = this.runtime.character.topics.join(", ");
 
             this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
             this.isDryRun = this.client.twitterConfig.TWITTER_DRY_RUN;
 
-            const state = await this.runtime.composeState({
-                userId: this.runtime.agentId,
-                roomId: roomId,
-                agentId: this.runtime.agentId,
-                content: {
-                    text: topics || "",
-                    action: "TWEET"
+            const state = await this.runtime.composeState(
+                {
+                    userId: this.runtime.agentId,
+                    roomId: roomId,
+                    agentId: this.runtime.agentId,
+                    content: {
+                        text: topics || "",
+                        action: "TWEET",
+                    },
+                },
+                {
+                    newsEvent: formattedNews,
+                    oracleReading: formattedOracle,
+                    marketSentiment: formattedSentiment,
+                    realPrices: formattedPrices
+                        ? JSON.stringify(formattedPrices, null, 2)
+                        : "Price data unavailable",
+                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                    twitterUserName: this.client.profile.username,
                 }
-            }, {
-                newsEvent: formattedNews,
-                oracleReading: formattedOracle,
-                marketSentiment: formattedSentiment,
-                realPrices: formattedPrices ? JSON.stringify(formattedPrices, null, 2) : "Price data unavailable",
-                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
-                twitterUserName: this.client.profile.username
-            });
+            );
 
             const context = composeContext({
                 state,
@@ -656,43 +704,78 @@ export class TwitterDivinationClient {
             const prices = await this.fetchCoinGeckoPrices();
             const btcPrice = prices?.btc || null;
             const ethPrice = prices?.eth || null;
+            const solPrice = prices?.sol || null;
 
             // Format the data before passing to template
             const formattedNews = JSON.stringify(newsEvent, null, 2);
-            const formattedOracle = JSON.stringify(oracleReading.interpretation, null, 2);
+            const formattedOracle = JSON.stringify(
+                oracleReading.interpretation,
+                null,
+                2
+            );
             const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
 
             // Simple price formatting for the template
-            const formattedPrices = btcPrice && ethPrice ? {
-                btc: {
-                    price: btcPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-                    change_24h: btcPrice.price_change_percentage_24h.toFixed(2) + '%'
-                },
-                eth: {
-                    price: ethPrice.price.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-                    change_24h: ethPrice.price_change_percentage_24h.toFixed(2) + '%'
-                }
-            } : null;
+            const formattedPrices =
+                btcPrice && ethPrice && solPrice
+                    ? {
+                          btc: {
+                              price: btcPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  btcPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                          eth: {
+                              price: ethPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  ethPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                          sol: {
+                              price: solPrice.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                              }),
+                              change_24h:
+                                  solPrice.price_change_percentage_24h.toFixed(
+                                      2
+                                  ) + "%",
+                          },
+                      }
+                    : null;
 
             const roomId = stringToUuid("twitter_generate_room-test");
             const topics = this.runtime.character.topics?.join(", ") || "";
 
-            const state = await this.runtime.composeState({
-                userId: this.runtime.agentId,
-                roomId: roomId,
-                agentId: this.runtime.agentId,
-                content: {
-                    text: topics,
-                    action: "TWEET"
+            const state = await this.runtime.composeState(
+                {
+                    userId: this.runtime.agentId,
+                    roomId: roomId,
+                    agentId: this.runtime.agentId,
+                    content: {
+                        text: topics,
+                        action: "TWEET",
+                    },
+                },
+                {
+                    newsEvent: formattedNews,
+                    oracleReading: formattedOracle,
+                    marketSentiment: formattedSentiment,
+                    realPrices: formattedPrices
+                        ? JSON.stringify(formattedPrices, null, 2)
+                        : "Price data unavailable",
+                    maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                    twitterUserName: "test_user",
                 }
-            }, {
-                newsEvent: formattedNews,
-                oracleReading: formattedOracle,
-                marketSentiment: formattedSentiment,
-                realPrices: formattedPrices ? JSON.stringify(formattedPrices, null, 2) : "Price data unavailable",
-                maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
-                twitterUserName: "test_user"
-            });
+            );
 
             const context = composeContext({
                 state,
@@ -740,11 +823,10 @@ export class TwitterDivinationClient {
                 news: newsEvent,
                 prices: formattedPrices,
                 sentiment: marketSentiment,
-                oracle: oracleReading.interpretation
+                oracle: oracleReading.interpretation,
             });
 
             return cleanedContent;
-
         } catch (error) {
             elizaLogger.error("Error in test divination:", error);
             throw error;

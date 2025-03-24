@@ -12,7 +12,11 @@
         },
         "build": {
             "outputs": ["dist/**"],
-            "dependsOn": ["^@elizaos/core#build"]
+            "dependsOn": ["^build"]
+        },
+        "@elizaos/client-twitter#build": {
+            "outputs": ["dist/**"],
+            "dependsOn": ["@elizaos/core#build"]
         },
         "@elizaos/plugin-solana#build": {
             "outputs": ["dist/**"],
