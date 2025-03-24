@@ -3,7 +3,6 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
-import { createDeepSeek } from "@ai-sdk/deepseek";
 
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import {
@@ -1218,75 +1217,19 @@ export async function generateText({
             }
 
             case ModelProviderName.DEEPSEEK: {
-                let initialReasoning = ""; //
-                const customFetch = async (
-                    input: RequestInfo | URL,
-                    init?: RequestInit,
-                ) => {
-                    const response = await runtime.fetch(input, init);
-                    const data = await response.json();
-                    // Capture reasoning from first call
-                    if (
-                        !initialReasoning &&
-                        data.choices?.[0]?.message?.reasoning_content
-                    ) {
-                        initialReasoning =
-                            data.choices[0].message.reasoning_content;
-                    }
-
-                    elizaLogger.debug("Extracted reasoning:", {
-                        value: initialReasoning,
-                        type: typeof initialReasoning,
-                        length: initialReasoning?.length,
-                        isEmpty: initialReasoning === "",
-                        isNull: initialReasoning === null,
-                        isUndefined: initialReasoning === undefined,
-                    });
-
-                    // Deep merge the metadata
-                    data.experimental_providerMetadata = {
-                        ...(data.experimental_providerMetadata || {}),
-                        deepseek: { reasoning_content: initialReasoning },
-                        openai:
-                            data.experimental_providerMetadata?.openai || {},
-                    };
-                    // Store reasoning in metadata
-                    // data.experimental_providerMetadata = {
-                    //     ...data.experimental_providerMetadata,
-                    //     deepseek: { reasoning_content: reasoning },
-                    // };
-                    elizaLogger.debug("Raw DeepSeek response:", data);
-
-                    return new Response(JSON.stringify(data));
-                };
                 elizaLogger.debug("Initializing Deepseek model.");
                 const serverUrl = models[provider].endpoint;
-                const deepseek = createDeepSeek({
+                const client = createOpenAI({
                     apiKey,
                     baseURL: serverUrl,
-                    // fetch: runtime.fetch,
-                    fetch: customFetch,
                 });
 
-                const {
-                    text: deepseekResponse,
-                    experimental_providerMetadata,
-                    response: dsResponse,
-                } = await aiGenerateText({
-                    model: deepseek.languageModel(model),
+                const result = await aiGenerateText({
+                    model: client.languageModel(model),
                     prompt: context,
                     temperature: temperature,
-                    system:
-                        runtime.character.system ??
-                        settings.SYSTEM_PROMPT ??
-                        undefined,
+                    system: runtime.character.system ?? settings.SYSTEM_PROMPT ?? undefined,
                     tools: tools,
-                    onStepFinish: (step) => {
-                        elizaLogger.debug("Step data:", {
-                            raw: step.response,
-                            rawStep: step,
-                        });
-                    }, //
                     maxSteps: maxSteps,
                     maxTokens: max_response_length,
                     frequencyPenalty: frequency_penalty,
@@ -1294,36 +1237,8 @@ export async function generateText({
                     experimental_telemetry: experimental_telemetry,
                 });
 
-                // response = deepseekResponse;
-
-                elizaLogger.debug("Full Response details:", {
-                    providerMetadata: experimental_providerMetadata,
-                    messages: dsResponse.messages,
-                    raw: dsResponse,
-                    rawKeys: Object.keys(dsResponse),
-                });
-
-                elizaLogger.debug("experimental_providerMetadata:", {
-                    type: typeof experimental_providerMetadata,
-                    keys: experimental_providerMetadata
-                        ? Object.keys(experimental_providerMetadata)
-                        : null,
-                    value: experimental_providerMetadata,
-                    reasoning: experimental_providerMetadata?.reasoning_content,
-                });
-
-                // const reasoning =
-                //     experimental_providerMetadata?.reasoning_content;
-                elizaLogger.debug("Reasoning:", initialReasoning);
-                elizaLogger.debug("Received response from Deepseek model.");
-
-                response = `${initialReasoning ? `Reasoning:\n${initialReasoning}\n\n` : ""}${deepseekResponse}`;
-                elizaLogger.debug("Final response construction:", {
-                    reasoningCheck: !!initialReasoning,
-                    reasoningValue: initialReasoning,
-                    responseLength: response.length,
-                });
-
+                response = result.text;
+                elizaLogger.debug("Successfully received response from Deepseek model");
                 break;
             }
 
@@ -2358,9 +2273,6 @@ export async function handleProvider(
         case ModelProviderName.OLLAMA: {
             return await handleOllama(options);
         }
-        case ModelProviderName.DEEPSEEK: {
-            return await handleDeepSeek(options);
-        }
         case ModelProviderName.LIVEPEER: {
             return await handleLivepeer(options);
         }
@@ -2617,32 +2529,6 @@ async function handleOllama({
     const ollama = ollamaProvider(model);
     return await aiGenerateObject({
         model: ollama,
-        schema,
-        schemaName,
-        schemaDescription,
-        mode,
-        ...modelOptions,
-    });
-}
-
-/**
- * Handles object generation for DeepSeek models.
- *
- * @param {ProviderOptions} options - Options specific to DeepSeek.
- * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
- */
-async function handleDeepSeek({
-    model,
-    apiKey,
-    schema,
-    schemaName,
-    schemaDescription,
-    mode,
-    modelOptions,
-}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
-    const openai = createOpenAI({ apiKey, baseURL: models.deepseek.endpoint });
-    return await aiGenerateObject({
-        model: openai.languageModel(model),
         schema,
         schemaName,
         schemaDescription,
