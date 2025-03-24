@@ -72,3 +72,6 @@ packages/plugin-nvidia-nim/docs
 
 # Private individual user cursor rules
 .cursor
+characters/knowledge
+characters/reference
+agent/characters
