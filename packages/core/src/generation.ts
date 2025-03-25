@@ -19,7 +19,7 @@ import { encodingForModel, type TiktokenModel } from "js-tiktoken";
 import { AutoTokenizer } from "@huggingface/transformers";
 import Together from "together-ai";
 import type { ZodSchema } from "zod";
-import { elizaLogger } from "./index.ts";
+import { elizaLogger } from "./logger";
 import {
     models,
     getModelSettings,
@@ -1609,76 +1609,129 @@ export async function generateMessageResponse<T extends boolean = false>({
     modelClass: ModelClass;
     structured?: T;
 }): Promise<T extends true ? MessageResponseResult : Content> {
-    const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
-    let retryLength = 1000;
+    try {
+        // Check for casual interactions first
+        const messageMatch = context.match(/Current Message: From [^:]+: (.+?)(?:\n|$)/);
+        const message = messageMatch ? messageMatch[1].trim() : '';
 
-    while (true) {
-        try {
-            const rawResponse = await generateText({
-                runtime,
-                context,
-                modelClass,
-            });
+        const presenceCheck = /^(are you there|you there|anyone there|hello|hi|hey)\??$/i;
+        if (presenceCheck.test(message)) {
+            elizaLogger.debug("[Response Generation] Detected presence check, using casual response");
+            const casualResponses = [
+                "Systems operational. All channels clear.",
+                "Online and monitoring. Status nominal.",
+                "Active and responsive. Core functions stable.",
+                "Channels open. Processing normally.",
+                "Connected and ready. Systems green."
+            ];
+            const response = casualResponses[Math.floor(Math.random() * casualResponses.length)];
 
-            elizaLogger.debug("Raw response before parsing:", {
-                responseLength: rawResponse?.length,
-                hasReasoningPrefix: rawResponse?.startsWith("Reasoning:"),
-                fullResponse: rawResponse,
-            });
+            const content: Content = {
+                user: runtime.character.name,
+                text: response,
+                action: "NONE"
+            };
 
-            // Extract reasoning using multiple patterns to ensure backward compatibility
-            let reasoning: string | undefined;
-
-            // Pattern 1: Reasoning block before JSON
-            const reasoningBeforeJson = rawResponse.match(/Reasoning:\n([\s\S]*?)\n\n```json/);
-            if (reasoningBeforeJson?.[1]) {
-                reasoning = reasoningBeforeJson[1].trim();
-            }
-
-            // Pattern 2: Reasoning in JSON format
-            const jsonMatch = rawResponse.match(/```json\n([\s\S]*?)\n```/);
-            let jsonContent = jsonMatch ? jsonMatch[1] : rawResponse;
-
-            const parsedContent = parseJSONObjectFromText(jsonContent) as Content;
-
-            elizaLogger.debug("Parsed content result:", {
-                success: !!parsedContent,
-                content: parsedContent,
-                keys: parsedContent ? Object.keys(parsedContent) : null,
-            });
-
-            if (!parsedContent) {
-                elizaLogger.debug("No parsed content, retrying");
-                continue;
-            }
-
-            // Add reasoning to content if found
-            if (reasoning && !parsedContent.reasoning) {
-                parsedContent.reasoning = reasoning;
-            }
-
-            elizaLogger.debug("Final content with reasoning:", {
-                hasReasoning: !!parsedContent.reasoning,
-                reasoningLength: parsedContent.reasoning?.length,
-                finalContent: parsedContent,
-            });
-
-            // Return structured response if requested
             if (structured) {
                 return {
-                    ...parsedContent,
+                    ...content,
                     __structured: true
-                } as T extends true ? MessageResponseResult : Content;
+                } as unknown as T extends true ? MessageResponseResult : Content;
             }
 
-            // For backward compatibility, return just the content without __structured flag
-            return parsedContent as T extends true ? MessageResponseResult : Content;
-
-        } catch (error) {
-            elizaLogger.error("Error:", { error, type: typeof error });
-            retryLength *= 2;
-            await new Promise((resolve) => setTimeout(resolve, retryLength));
+            return content as unknown as T extends true ? MessageResponseResult : Content;
         }
+
+        // Continue with normal response generation
+        elizaLogger.debug("Generating response with context:", {
+            contextLength: context.length,
+            modelClass
+        });
+
+        const modelSettings = getModelSettings(runtime.modelProvider, modelClass);
+
+        const rawResponse = await generateText({
+            runtime,
+            context,
+            modelClass,
+        });
+
+        elizaLogger.debug("Raw response before parsing:", {
+            responseLength: rawResponse?.length,
+            hasReasoningPrefix: rawResponse?.startsWith("Reasoning:"),
+            fullResponse: rawResponse,
+        });
+
+        // Extract reasoning using multiple patterns to ensure backward compatibility
+        let reasoning: string | undefined;
+
+        // Pattern 1: Reasoning block before JSON
+        const reasoningBeforeJson = rawResponse.match(/Reasoning:\n([\s\S]*?)\n\n```json/);
+        if (reasoningBeforeJson?.[1]) {
+            reasoning = reasoningBeforeJson[1].trim();
+        }
+
+        // Pattern 2: Reasoning in JSON format
+        const jsonMatch = rawResponse.match(/```json\n([\s\S]*?)\n```/);
+        let jsonContent = jsonMatch ? jsonMatch[1] : rawResponse;
+
+        let parsedContent = parseJSONObjectFromText(jsonContent) as Content;
+
+        elizaLogger.debug("Initial parse attempt result:", {
+            success: !!parsedContent,
+            content: parsedContent,
+            keys: parsedContent ? Object.keys(parsedContent) : null,
+        });
+
+        // If parsing failed, wrap the raw response in proper JSON format
+        if (!parsedContent) {
+            elizaLogger.debug("Wrapping raw response in JSON format");
+            const wrappedResponse: Content = {
+                user: runtime.character.name,
+                text: rawResponse.trim(),
+                action: "NONE"
+            };
+            parsedContent = wrappedResponse;
+        }
+
+        // Add reasoning to content if found
+        if (reasoning && !parsedContent.reasoning) {
+            parsedContent.reasoning = reasoning;
+        }
+
+        elizaLogger.debug("Final content with reasoning:", {
+            hasReasoning: !!parsedContent.reasoning,
+            reasoningLength: parsedContent.reasoning?.length,
+            finalContent: parsedContent,
+        });
+
+        // Return structured response if requested
+        if (structured) {
+            return {
+                ...parsedContent,
+                __structured: true
+            } as unknown as T extends true ? MessageResponseResult : Content;
+        }
+
+        // For backward compatibility, return just the content without __structured flag
+        return parsedContent as unknown as T extends true ? MessageResponseResult : Content;
+    } catch (error) {
+        elizaLogger.error("Error in generateMessageResponse:", error);
+        // Return a basic response in case of any errors
+        const fallbackResponse: Content = {
+            user: runtime.character.name,
+            text: "Error processing response. Please try again.",
+            action: "NONE"
+        };
+
+        if (structured) {
+            return {
+                ...fallbackResponse,
+                __structured: true
+            } as unknown as T extends true ? MessageResponseResult : Content;
+        }
+
+        return fallbackResponse as unknown as T extends true ? MessageResponseResult : Content;
     }
 }
 

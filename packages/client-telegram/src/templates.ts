@@ -71,7 +71,6 @@ TASK: Determine appropriate response option [RESPOND], [IGNORE], or [STOP] based
 ` + shouldRespondFooter;
 
 export const telegramMessageHandlerTemplate =
-    // {{goals}}
     `# Action Examples
 {{actionExamples}}
 (Action examples are for reference only. Do not use the information from them in your response.)
@@ -81,12 +80,15 @@ CRITICAL: Your response must maintain continuity with your evaluation reasoning.
 
 1. First, recall WHY you decided to respond:
    Evaluation Decision: {{evaluationDecision}}
+   Evaluation Context: {{currentMessage}}
+   Message Type: {{messageType}}
    Evaluation Reasoning: {{evaluationReasoning}}
 
 2. Then, incorporate this understanding into your response:
-   - SCAN should analyze the message's deeper meaning and context, NOT repeat the initial response
-   - Choose a hexagram that reflects both the message content AND your reason for responding
+   - SCAN should analyze the message's deeper meaning and context
+   - Choose a pattern that reflects both the message content AND your reason for responding
    - Ensure your TRANSMISSION directly addresses both
+   - Keep responses concise and focused
 
 3. Response Types (all should include evaluation context):
    - Technical Feedback: Connect technical points to broader patterns
@@ -96,7 +98,7 @@ CRITICAL: Your response must maintain continuity with your evaluation reasoning.
 
 Remember: Every response should show clear continuity between:
 - Why you chose to respond (evaluation)
-- What pattern you see (hexagram)
+- What pattern you see (analysis)
 - How you respond (transmission)
 
 # Response Format
@@ -104,27 +106,20 @@ CRITICAL: The response MUST be wrapped in \`\`\`json code blocks and be a SINGLE
 
 Response Structure (maintain evaluation continuity):
 \`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: [Deeper meaning and context of the message]\\nImplications: [What this suggests about the user's perspective]\\n\\n[PATTERN]\\nHexagram: [I-Ching pattern that bridges evaluation and response]\\n[Interpretation connecting the two]\\n\\n[TRANSMISSION]\\n[Response that clearly follows from both evaluation and pattern]","action":"NONE"}
+{"user":"{{agentName}}","text":"[Your main response here]","reasoning":"[Brief explanation of why and how you're responding]","action":"NONE"}
 \`\`\`
 
-Example Responses:
-1. Technical with Evaluation Context:
+Example Response:
 \`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: User's technical suggestion reveals systematic thinking\\nImplications: Seeking optimization through incremental improvements\\n\\n[PATTERN]\\nHexagram: Sun (57) - The Gentle\\nWind's persistent refinement mirrors systematic improvement\\n\\n[TRANSMISSION]\\nYour methodical approach to X aligns with the gentle wind's path. [Specific response to technical point]. This iterative refinement will yield sustainable results.","action":"NONE"}
-\`\`\`
-
-2. Status Update with Context:
-\`\`\`json
-{"user":"{{agentName}}","text":"[SCAN]\\nAnalysis: Query comes amid system changes\\nImplications: Seeking reassurance about stability\\n\\n[PATTERN]\\nHexagram: Kun (2) - The Receptive\\nQuiet observation reveals system state\\n\\n[TRANSMISSION]\\n[Status details that address underlying concern for stability]","action":"NONE"}
+{"user":"{{agentName}}","text":"Your technical suggestion about X aligns with systematic improvement patterns. Here's how we can optimize it further...","reasoning":"Responding to technical feedback with focus on optimization, based on user's systematic approach","action":"NONE"}
 \`\`\`
 
 CRITICAL REMINDERS:
-1. The response MUST start with \`\`\`json and end with \`\`\`
-2. The entire JSON must be on ONE LINE between the code block markers
-3. Only the content inside the "text" field should have escaped newlines (\\n)
-4. Do not format or prettify the JSON - it must be compact
-5. No spaces after colons in the JSON
-6. SCAN must analyze the message, not repeat it
+1. Keep reasoning concise and focused
+2. The response MUST start with \`\`\`json and end with \`\`\`
+3. The entire JSON must be on ONE LINE between the code block markers
+4. No spaces after colons in the JSON
+5. Response should be natural and engaging
 
 # Available Reference Data:
 {{references}}
@@ -153,11 +148,10 @@ Note that {{agentName}} is capable of reading/seeing/hearing various forms of me
 
 {{recentMessages}}
 
-# Task: Generate a post/reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}) while using the thread of tweets as additional context:
 Current Post:
 {{currentPost}}
-Thread of Tweets You Are Replying To:
 
+Thread of Messages You Are Replying To:
 {{formattedConversation}}
 ` + messageCompletionFooter + formattingInstruction;
 
