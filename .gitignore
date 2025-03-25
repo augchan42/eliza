@@ -75,3 +75,5 @@ packages/plugin-nvidia-nim/docs
 characters/knowledge
 characters/reference
 agent/characters
+
+agent.log

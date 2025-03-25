@@ -697,22 +697,22 @@ export class MessageManager {
         return isReplyToBot || isMentioned || (!this.runtime.character.clientConfig?.telegram?.shouldRespondOnlyToMentions && hasUsername);
     }
 
-    private _checkInterest(chatId: string): boolean {
-        const chatState = this.interestChats[chatId];
+    private _checkInterest(rawChatId: string): boolean {
+        const chatState = this.interestChats[rawChatId];
         if (!chatState) return false;
 
         const lastMessage = chatState.messages[chatState.messages.length - 1];
         const timeSinceLastMessage = Date.now() - chatState.lastMessageSent;
 
         if (timeSinceLastMessage > MESSAGE_CONSTANTS.INTEREST_DECAY_TIME) {
-            delete this.interestChats[chatId];
+            delete this.interestChats[rawChatId];
             return false;
         } else if (
             timeSinceLastMessage > MESSAGE_CONSTANTS.PARTIAL_INTEREST_DECAY
         ) {
             return this._isRelevantToTeamMember(
                 lastMessage?.content.text || "",
-                chatId,
+                rawChatId,
             );
         }
 
@@ -721,7 +721,7 @@ export class MessageManager {
             if (
                 !this._isRelevantToTeamMember(
                     lastMessage?.content.text || "",
-                    chatId,
+                    rawChatId,
                 )
             ) {
                 const recentTeamResponses = chatState.messages
@@ -733,7 +733,7 @@ export class MessageManager {
                     );
 
                 if (recentTeamResponses) {
-                    delete this.interestChats[chatId];
+                    delete this.interestChats[rawChatId];
                     return false;
                 }
             }
@@ -1177,16 +1177,19 @@ export class MessageManager {
             const userName =
                 ctx.from.username || ctx.from.first_name || "Unknown User";
 
-            // Get chat ID
-            const chatId = stringToUuid(
+            // Get chat ID for memory storage
+            const memoryChatId = stringToUuid(
                 ctx.chat?.id.toString() + "-" + this.runtime.agentId,
             ) as UUID;
+
+            // Get raw chat ID for interest tracking
+            const rawChatId = ctx.chat?.id.toString();
 
             // Get agent ID
             const agentId = this.runtime.agentId;
 
             // Get room ID
-            const roomId = chatId;
+            const roomId = memoryChatId;
 
             // Ensure connection
             await this.runtime.ensureConnection(
@@ -1250,15 +1253,16 @@ export class MessageManager {
             // Create memory
             await this.runtime.messageManager.createMemory(memory);
 
-            // Format the conversation thread
-            const formattedConversation = this.interestChats[chatId]?.messages
-                .map(msg => `${msg.userName}: ${msg.content.text}`)
+            // Format the conversation thread using raw chat ID
+            const formattedConversation = this.interestChats[rawChatId]?.messages
+                ?.map(msg => `${msg.userName}: ${msg.content.text}`)
                 .join('\n\n');
 
             // Update state with the new memory
             let state = await this.runtime.composeState(memory, {
                 currentPost: `From ${ctx.from.username || ctx.from.first_name || "Unknown"}: ${fullText}`,
-                formattedConversation
+                formattedConversation,
+                lastMessage: fullText
             });
 
             elizaLogger.debug("[State Composition] Initial state:", {
@@ -1302,7 +1306,7 @@ export class MessageManager {
                     id: stringToUuid(`telegram-${messages[0].message_id}`),
                     userId: this.runtime.agentId,
                     agentId: this.runtime.agentId,
-                    roomId: stringToUuid(`telegram-${chatId}`),
+                    roomId: stringToUuid(`telegram-${memoryChatId}`),
                     content: {
                         text: content.text,
                         action: content.action || "NONE",
