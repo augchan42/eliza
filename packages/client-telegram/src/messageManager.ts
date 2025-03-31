@@ -127,17 +127,14 @@ export class MessageManager {
         this._initializeTeamMemberUsernames().catch((error) =>
             elizaLogger.error(
                 "Error initializing team member usernames:",
-                error,
-            ),
+                error
+            )
         );
 
         // Set up periodic cleanup every hour
-        this.cleanupInterval = setInterval(
-            () => {
-                this.cleanup();
-            },
-            60 * 60 * 1000,
-        ); // Run cleanup every hour
+        this.cleanupInterval = setInterval(() => {
+            this.cleanup();
+        }, 60 * 60 * 1000); // Run cleanup every hour
 
         this.autoPostConfig = {
             enabled:
@@ -179,7 +176,7 @@ export class MessageManager {
         const now = Date.now();
         const dayInMs = 24 * 60 * 60 * 1000;
         for (const [channelId, lastActivity] of Object.entries(
-            this.lastChannelActivity,
+            this.lastChannelActivity
         )) {
             if (now - lastActivity > dayInMs) {
                 delete this.lastChannelActivity[channelId];
@@ -236,13 +233,13 @@ export class MessageManager {
                 if ("username" in chat && chat.username) {
                     this.teamMemberUsernames.set(id, chat.username);
                     elizaLogger.info(
-                        `Cached username for team member ${id}: ${chat.username}`,
+                        `Cached username for team member ${id}: ${chat.username}`
                     );
                 }
             } catch (error) {
                 elizaLogger.error(
                     `Error getting username for team member ${id}:`,
-                    error,
+                    error
                 );
             }
         }
@@ -252,16 +249,16 @@ export class MessageManager {
         // Wait for bot to be ready
         if (this.bot.botInfo) {
             elizaLogger.info(
-                "[AutoPost Telegram] Bot ready, starting monitoring",
+                "[AutoPost Telegram] Bot ready, starting monitoring"
             );
             this._initializeAutoPost();
         } else {
             elizaLogger.info(
-                "[AutoPost Telegram] Bot not ready, waiting for ready event",
+                "[AutoPost Telegram] Bot not ready, waiting for ready event"
             );
             this.bot.telegram.getMe().then(() => {
                 elizaLogger.info(
-                    "[AutoPost Telegram] Bot ready, starting monitoring",
+                    "[AutoPost Telegram] Bot ready, starting monitoring"
                 );
                 this._initializeAutoPost();
             });
@@ -278,30 +275,27 @@ export class MessageManager {
             // Get intervals from settings (in minutes)
             const minInterval = parseInt(
                 this.runtime.getSetting("DIVINATION_INTERVAL_MIN") || "1380",
-                10,
+                10
             ); // Default 23 hours
             const maxInterval = parseInt(
                 this.runtime.getSetting("DIVINATION_INTERVAL_MAX") || "1500",
-                10,
+                10
             ); // Default 25 hours
 
             // Convert to milliseconds and ensure valid values
             const minMs = Math.max(
                 minInterval * 60 * 1000,
-                23 * 60 * 60 * 1000,
+                23 * 60 * 60 * 1000
             ); // Minimum 23 hours
             const maxMs = Math.max(
                 maxInterval * 60 * 1000,
-                minMs + 2 * 60 * 60 * 1000,
+                minMs + 2 * 60 * 60 * 1000
             ); // At least 2 hours more than min
 
-            this.autoPostInterval = setInterval(
-                () => {
-                    // Check recent message volume
-                    this._checkChannelActivity();
-                },
-                Math.floor(Math.random() * (maxMs - minMs) + minMs),
-            );
+            this.autoPostInterval = setInterval(() => {
+                // Check recent message volume
+                this._checkChannelActivity();
+            }, Math.floor(Math.random() * (maxMs - minMs) + minMs));
         }, 5000);
     }
 
@@ -316,7 +310,7 @@ export class MessageManager {
                     roomId: stringToUuid(
                         this.autoPostConfig.mainChannelId +
                             "-" +
-                            this.runtime.agentId,
+                            this.runtime.agentId
                     ),
                     start: Date.now() - 60 * 60 * 1000, // Last hour
                 });
@@ -328,7 +322,7 @@ export class MessageManager {
         } catch (error) {
             elizaLogger.warn(
                 "[AutoPost Telegram] Error checking channel activity:",
-                error,
+                error
             );
         }
     }
@@ -336,7 +330,7 @@ export class MessageManager {
     private async _monitorPinnedMessages(ctx: Context): Promise<void> {
         if (!this.autoPostConfig.pinnedMessagesGroups.length) {
             elizaLogger.warn(
-                "[AutoPost Telegram] Auto post config no pinned message groups",
+                "[AutoPost Telegram] Auto post config no pinned message groups"
             );
             return;
         }
@@ -350,7 +344,7 @@ export class MessageManager {
 
         if (
             !this.autoPostConfig.pinnedMessagesGroups.includes(
-                ctx.chat.id.toString(),
+                ctx.chat.id.toString()
             )
         )
             return;
@@ -360,7 +354,7 @@ export class MessageManager {
 
         try {
             elizaLogger.info(
-                `[AutoPost Telegram] Processing pinned message in group ${ctx.chat.id}`,
+                `[AutoPost Telegram] Processing pinned message in group ${ctx.chat.id}`
             );
 
             // Explicitly type and handle message content
@@ -369,12 +363,12 @@ export class MessageManager {
                 typeof pinnedMessage.text === "string"
                     ? pinnedMessage.text
                     : "caption" in pinnedMessage &&
-                        typeof pinnedMessage.caption === "string"
-                      ? pinnedMessage.caption
-                      : "New pinned message";
+                      typeof pinnedMessage.caption === "string"
+                    ? pinnedMessage.caption
+                    : "New pinned message";
 
             const roomId = stringToUuid(
-                mainChannel + "-" + this.runtime.agentId,
+                mainChannel + "-" + this.runtime.agentId
             );
             const memory = {
                 id: stringToUuid(`pinned-${Date.now()}`),
@@ -411,19 +405,21 @@ export class MessageManager {
             const responseContent = await this._generateResponse(
                 memory,
                 state,
-                context,
+                context
             );
             if (!responseContent?.text) return;
 
             // Send message using telegram bot
             const messageText = responseContent.reasoning
-                ? `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`
+                ? `Reasoning: ${
+                      responseContent.reasoning
+                  }\n\n${responseContent.text.trim()}`
                 : responseContent.text.trim();
 
             const messages = await Promise.all(
                 this.splitMessage(messageText).map((chunk) =>
-                    this.bot.telegram.sendMessage(mainChannel, chunk),
-                ),
+                    this.bot.telegram.sendMessage(mainChannel, chunk)
+                )
             );
 
             elizaLogger.debug(
@@ -436,14 +432,16 @@ export class MessageManager {
                             : undefined,
                     textLength: responseContent.text?.length,
                     totalChunks: this.splitMessage(
-                        `Reasoning: ${responseContent.reasoning}\n\n${responseContent.text.trim()}`,
+                        `Reasoning: ${
+                            responseContent.reasoning
+                        }\n\n${responseContent.text.trim()}`
                     ).length,
-                },
+                }
             );
 
             const memories = messages.map((m) => ({
                 id: stringToUuid(
-                    m.message_id.toString() + "-" + this.runtime.agentId,
+                    m.message_id.toString() + "-" + this.runtime.agentId
                 ),
                 userId: this.runtime.agentId,
                 agentId: this.runtime.agentId,
@@ -465,7 +463,7 @@ export class MessageManager {
         } catch (error) {
             elizaLogger.warn(
                 `[AutoPost Telegram] Error processing pinned message:`,
-                error,
+                error
             );
         }
     }
@@ -484,7 +482,7 @@ export class MessageManager {
 
         const normalizedUserId = this._getNormalizedUserId(userId);
         return teamConfig.teamAgentIds.some(
-            (teamId) => this._getNormalizedUserId(teamId) === normalizedUserId,
+            (teamId) => this._getNormalizedUserId(teamId) === normalizedUserId
         );
     }
 
@@ -498,14 +496,14 @@ export class MessageManager {
     private _isTeamCoordinationRequest(content: string): boolean {
         const contentLower = content.toLowerCase();
         return TEAM_COORDINATION.KEYWORDS?.some((keyword) =>
-            contentLower.includes(keyword.toLowerCase()),
+            contentLower.includes(keyword.toLowerCase())
         );
     }
 
     private _isRelevantToTeamMember(
         content: string,
         chatId: string,
-        lastAgentMemory: Memory | null = null,
+        lastAgentMemory: Memory | null = null
     ): boolean {
         const teamConfig = this.runtime.character.clientConfig?.telegram;
 
@@ -518,7 +516,7 @@ export class MessageManager {
 
             const similarity = cosineSimilarity(
                 content.toLowerCase(),
-                lastAgentMemory.content.text.toLowerCase(),
+                lastAgentMemory.content.text.toLowerCase()
             );
 
             return (
@@ -534,14 +532,14 @@ export class MessageManager {
 
         // Check if content matches any team member keywords
         return teamConfig.teamMemberInterestKeywords.some((keyword) =>
-            content.toLowerCase().includes(keyword.toLowerCase()),
+            content.toLowerCase().includes(keyword.toLowerCase())
         );
     }
 
     private async _analyzeContextSimilarity(
         currentMessage: string,
         previousContext?: MessageContext,
-        agentLastMessage?: string,
+        agentLastMessage?: string
     ): Promise<number> {
         if (!previousContext) return 1;
 
@@ -551,7 +549,7 @@ export class MessageManager {
         const similarity = cosineSimilarity(
             currentMessage.toLowerCase(),
             previousContext.content.toLowerCase(),
-            agentLastMessage?.toLowerCase(),
+            agentLastMessage?.toLowerCase()
         );
 
         return similarity * timeWeight;
@@ -559,23 +557,26 @@ export class MessageManager {
 
     private async _shouldRespond(
         message: Message.CommonMessage,
-        state: State,
+        state: State
     ): Promise<boolean> {
         elizaLogger.debug(
             `[shouldRespond] Starting response evaluation for message`,
             {
                 messageType: message.chat.type,
                 chatId: message.chat.id,
-                hasText: 'text' in message,
-                hasPhoto: 'photo' in message,
-                isDocument: 'document' in message,
-            },
+                hasText: "text" in message,
+                hasPhoto: "photo" in message,
+                isDocument: "document" in message,
+            }
         );
 
         const messageText =
-            'text' in message ? (message as Message.TextMessage).text :
-            'caption' in message ? (message as Message.CaptionableMessage & { caption?: string }).caption || '' :
-            '';
+            "text" in message
+                ? (message as Message.TextMessage).text
+                : "caption" in message
+                ? (message as Message.CaptionableMessage & { caption?: string })
+                      .caption || ""
+                : "";
 
         // Store the original message for context
         state.currentMessage = messageText;
@@ -584,8 +585,14 @@ export class MessageManager {
 
         // Check for plugin keywords
         for (const [plugin, keywords] of Object.entries(this.PLUGIN_KEYWORDS)) {
-            if (keywords.some((keyword) => messageText.toLowerCase().includes(keyword))) {
-                elizaLogger.debug(`[shouldRespond] ${plugin} query detected, setting plugin flag`);
+            if (
+                keywords.some((keyword) =>
+                    messageText.toLowerCase().includes(keyword)
+                )
+            ) {
+                elizaLogger.debug(
+                    `[shouldRespond] ${plugin} query detected, setting plugin flag`
+                );
                 state.pluginQuery = plugin;
                 state.evaluationReasoning = `Responding to ${plugin} plugin query`;
                 return true;
@@ -599,23 +606,30 @@ export class MessageManager {
         }
 
         // Final context check with LLM
-        if ('text' in message || ('caption' in message && message.caption)) {
-            elizaLogger.debug(`[shouldRespond] Making final context-based decision`, {
-                hasText: 'text' in message,
-                hasCaption: 'caption' in message,
-                messageLength: messageText.length,
-            });
+        if ("text" in message || ("caption" in message && message.caption)) {
+            elizaLogger.debug(
+                `[shouldRespond] Making final context-based decision`,
+                {
+                    hasText: "text" in message,
+                    hasCaption: "caption" in message,
+                    messageLength: messageText.length,
+                }
+            );
 
-            const templateToUse = this.runtime.character.templates?.telegramShouldRespondTemplate ||
+            const templateToUse =
+                this.runtime.character.templates
+                    ?.telegramShouldRespondTemplate ||
                 this.runtime.character?.templates?.shouldRespondTemplate ||
                 telegramShouldRespondTemplate;
 
-            const baseTemplate = typeof templateToUse === 'string'
-                ? getTemplate(templateToUse)
-                : templateToUse({ state });
-            const templateWithRandomUsers = templateToUse === telegramShouldRespondTemplate
-                ? composeRandomUser(baseTemplate, 2)
-                : baseTemplate;
+            const baseTemplate =
+                typeof templateToUse === "string"
+                    ? getTemplate(templateToUse)
+                    : templateToUse({ state });
+            const templateWithRandomUsers =
+                templateToUse === telegramShouldRespondTemplate
+                    ? composeRandomUser(baseTemplate, 2)
+                    : baseTemplate;
 
             const shouldRespondContext = composeContext({
                 state,
@@ -627,31 +641,36 @@ export class MessageManager {
                 context: shouldRespondContext,
                 modelClass: ModelClass.SMALL,
                 structured: true,
-            })) as 'RESPOND' | 'IGNORE' | 'STOP' | null | ShouldRespondResult;
+            })) as "RESPOND" | "IGNORE" | "STOP" | null | ShouldRespondResult;
 
-            elizaLogger.debug(`[shouldRespond] LLM decision received:`, response);
+            elizaLogger.debug(
+                `[shouldRespond] LLM decision received:`,
+                response
+            );
 
             // Store reasoning in state
-            if (typeof response === 'object' && response?.reasoning) {
+            if (typeof response === "object" && response?.reasoning) {
                 state.evaluationReasoning = response.reasoning;
                 state.evaluationDecision = response.decision;
 
                 elizaLogger.debug("[shouldRespond] Stored evaluation data", {
                     reasoning: response.reasoning,
-                    decision: response.decision
+                    decision: response.decision,
                 });
             }
 
-            if (typeof response === 'string') {
+            if (typeof response === "string") {
                 state.evaluationDecision = response;
                 state.evaluationReasoning = `Simple decision: ${response}`;
-                return response === 'RESPOND';
+                return response === "RESPOND";
             }
 
-            return response?.decision === 'RESPOND';
+            return response?.decision === "RESPOND";
         }
 
-        elizaLogger.debug(`[shouldRespond] No text/caption content, defaulting to false`);
+        elizaLogger.debug(
+            `[shouldRespond] No text/caption content, defaulting to false`
+        );
         state.evaluationReasoning = "No text content to evaluate";
         state.evaluationDecision = "IGNORE";
         return false;
@@ -663,38 +682,59 @@ export class MessageManager {
         if (!botUsername) return false;
 
         const messageText =
-            'text' in message ? (message as Message.TextMessage).text :
-            'caption' in message ? (message as Message.CaptionableMessage & { caption?: string }).caption || '' :
-            '';
+            "text" in message
+                ? (message as Message.TextMessage).text
+                : "caption" in message
+                ? (message as Message.CaptionableMessage & { caption?: string })
+                      .caption || ""
+                : "";
         if (!messageText) return false;
 
-        const isReplyToBot = 'reply_to_message' in message &&
+        const isReplyToBot =
+            "reply_to_message" in message &&
             message.reply_to_message?.from?.is_bot === true &&
             message.reply_to_message.from?.username === botUsername;
 
-        const isMentioned = messageText.toLowerCase().split(/\s+/).some(word =>
-            word === botUsername.toLowerCase() ||
-            word === `@${botUsername.toLowerCase()}` ||
-            word === characterName.toLowerCase()
-        );
+        const isMentioned = messageText
+            .toLowerCase()
+            .split(/\s+/)
+            .some(
+                (word) =>
+                    word === botUsername.toLowerCase() ||
+                    word === `@${botUsername.toLowerCase()}` ||
+                    word === characterName.toLowerCase()
+            );
 
-        const hasUsername = messageText.toLowerCase().includes(botUsername.toLowerCase());
+        const hasUsername = messageText
+            .toLowerCase()
+            .includes(botUsername.toLowerCase());
 
         // If it's a direct mention or reply, bypass rate limiting
         const isDirectInteraction = isReplyToBot || isMentioned;
 
         // Only apply rate limiting for non-direct messages
         if (!isDirectInteraction) {
-            const lastResponseTime = this.lastResponseTimes.get(message.chat.id.toString()) || 0;
+            const lastResponseTime =
+                this.lastResponseTimes.get(message.chat.id.toString()) || 0;
             const minTimeBetweenResponses = 60000; // 60 seconds
             const timeSinceLastResponse = Date.now() - lastResponseTime;
             if (timeSinceLastResponse < minTimeBetweenResponses) {
-                elizaLogger.debug(`Rate limited: Last response was ${timeSinceLastResponse / 1000}s ago`);
+                elizaLogger.debug(
+                    `Rate limited: Last response was ${
+                        timeSinceLastResponse / 1000
+                    }s ago`
+                );
                 return false;
             }
         }
 
-        return isReplyToBot || isMentioned || (!this.runtime.character.clientConfig?.telegram?.shouldRespondOnlyToMentions && hasUsername);
+        return (
+            isReplyToBot ||
+            isMentioned ||
+            (!this.runtime.character.clientConfig?.telegram
+                ?.shouldRespondOnlyToMentions &&
+                hasUsername)
+        );
     }
 
     private _checkInterest(rawChatId: string): boolean {
@@ -712,7 +752,7 @@ export class MessageManager {
         ) {
             return this._isRelevantToTeamMember(
                 lastMessage?.content.text || "",
-                rawChatId,
+                rawChatId
             );
         }
 
@@ -721,7 +761,7 @@ export class MessageManager {
             if (
                 !this._isRelevantToTeamMember(
                     lastMessage?.content.text || "",
-                    rawChatId,
+                    rawChatId
                 )
             ) {
                 const recentTeamResponses = chatState.messages
@@ -729,7 +769,7 @@ export class MessageManager {
                     .some(
                         (m) =>
                             m.userId !== this.runtime.agentId &&
-                            this._isTeamMember(m.userId.toString()),
+                            this._isTeamMember(m.userId.toString())
                     );
 
                 if (recentTeamResponses) {
@@ -744,23 +784,32 @@ export class MessageManager {
 
     // Process image messages and generate descriptions
     private async processImage(
-        message: Message.CommonMessage,
+        message: Message.CommonMessage
     ): Promise<{ description: string } | null> {
         try {
             let imageUrl: string | null = null;
 
             elizaLogger.info(`Telegram Message: ${message}`);
 
-            if ('photo' in message && (message as Message.PhotoMessage).photo?.length > 0) {
-                const photo = (message as Message.PhotoMessage).photo[(message as Message.PhotoMessage).photo.length - 1];
-                const fileLink = await this.bot.telegram.getFileLink(photo.file_id);
+            if (
+                "photo" in message &&
+                (message as Message.PhotoMessage).photo?.length > 0
+            ) {
+                const photo = (message as Message.PhotoMessage).photo[
+                    (message as Message.PhotoMessage).photo.length - 1
+                ];
+                const fileLink = await this.bot.telegram.getFileLink(
+                    photo.file_id
+                );
                 imageUrl = fileLink.toString();
             } else if (
-                'document' in message &&
-                (message as Message.DocumentMessage).document?.mime_type?.startsWith('image/')
+                "document" in message &&
+                (
+                    message as Message.DocumentMessage
+                ).document?.mime_type?.startsWith("image/")
             ) {
                 const fileLink = await this.bot.telegram.getFileLink(
-                    (message as Message.DocumentMessage).document.file_id,
+                    (message as Message.DocumentMessage).document.file_id
                 );
                 imageUrl = fileLink.toString();
             }
@@ -768,7 +817,7 @@ export class MessageManager {
             if (imageUrl) {
                 const imageDescriptionService =
                     this.runtime.getService<IImageDescriptionService>(
-                        ServiceType.IMAGE_DESCRIPTION,
+                        ServiceType.IMAGE_DESCRIPTION
                     );
                 const { title, description } =
                     await imageDescriptionService.describeImage(imageUrl);
@@ -785,53 +834,102 @@ export class MessageManager {
     private async sendMessageInChunks(
         ctx: Context,
         content: Content,
-        replyToMessageId?: number,
+        replyToMessageId?: number
     ): Promise<Message.TextMessage[]> {
-        elizaLogger.debug("[Send Message] Starting message sending", {
-            hasText: !!content.text,
-            hasAttachments: !!content.attachments?.length,
-            hasReasoning: !!content.reasoning
-        });
-
-        // If we have reasoning, send it first
+        const chunks = this.splitMessage(content.text);
         const messages: Message.TextMessage[] = [];
-        if (content.reasoning) {
-            const reasoningText = `🤔 Reasoning: ${content.reasoning}`;
-            const reasoningChunks = this.splitMessage(reasoningText);
 
-            for (const chunk of reasoningChunks) {
-                const msg = await ctx.reply(chunk, {
-                    reply_parameters: replyToMessageId ? {
-                        message_id: replyToMessageId
-                    } : undefined,
-                    parse_mode: "Markdown",
-                });
-                messages.push(msg);
-            }
-        }
+        for (const chunk of chunks) {
+            // Send without parse mode to allow ASCII/Unicode formatting
+            const message = await ctx.reply(chunk, {
+                reply_parameters: replyToMessageId
+                    ? {
+                          message_id: replyToMessageId,
+                      }
+                    : undefined,
+                // No parse_mode - allow raw text formatting
+            });
 
-        // Then send the main message
-        if (content.text) {
-            const mainChunks = this.splitMessage(content.text);
-            for (const chunk of mainChunks) {
-                const msg = await ctx.reply(chunk, {
-                    reply_parameters: replyToMessageId ? {
-                        message_id: replyToMessageId
-                    } : undefined,
-                    parse_mode: "Markdown",
-                });
-                messages.push(msg);
-            }
+            messages.push(message);
         }
 
         return messages;
+    }
+
+    // Helper method to ensure proper spacing around formatting symbols
+    private formatSymbols(text: string): string {
+        // Ensure proper spacing around dividers
+        text = text.replace(/(?<=-=-=-)\s+|\s+(?=-=-=-)/g, "");
+
+        // Ensure proper spacing around system status indicators
+        text = text.replace(/(?<=::)\s*/, " ");
+
+        // Clean up multiple newlines
+        text = text.replace(/\n{3,}/g, "\n\n");
+
+        return text;
+    }
+
+    // Update splitMessage to handle new formatting
+    private splitMessage(text: string): string[] {
+        const MAX_LENGTH = 4096;
+        const chunks: string[] = [];
+        let currentChunk = "";
+
+        // Format symbols before splitting
+        text = this.formatSymbols(text);
+
+        const lines = text.split("\n");
+        for (const line of lines) {
+            if (currentChunk.length + line.length + 1 <= MAX_LENGTH) {
+                currentChunk += (currentChunk ? "\n" : "") + line;
+            } else {
+                // Try to split at a formatting boundary if possible
+                const splitIndex = this.findFormattingSplitPoint(currentChunk);
+                if (splitIndex > 0) {
+                    chunks.push(currentChunk.slice(0, splitIndex));
+                    currentChunk = currentChunk.slice(splitIndex) + "\n" + line;
+                } else {
+                    chunks.push(currentChunk);
+                    currentChunk = line;
+                }
+            }
+        }
+
+        if (currentChunk) {
+            chunks.push(currentChunk);
+        }
+
+        return chunks;
+    }
+
+    // Helper to find good split points at formatting boundaries
+    private findFormattingSplitPoint(text: string): number {
+        const formatBoundaries = [
+            "-=-=-",
+            "\n::",
+            "\n>>",
+            "\n===",
+            "\n//",
+            "\n||",
+        ];
+
+        let bestSplit = -1;
+        for (const boundary of formatBoundaries) {
+            const index = text.lastIndexOf(boundary);
+            if (index > bestSplit) {
+                bestSplit = index;
+            }
+        }
+
+        return bestSplit;
     }
 
     private async sendMedia(
         ctx: Context,
         mediaPath: string,
         type: MediaType,
-        caption?: string,
+        caption?: string
     ): Promise<void> {
         try {
             const isUrl = /^(http|https):\/\//.test(mediaPath);
@@ -839,11 +937,11 @@ export class MessageManager {
                 [MediaType.PHOTO]: ctx.telegram.sendPhoto.bind(ctx.telegram),
                 [MediaType.VIDEO]: ctx.telegram.sendVideo.bind(ctx.telegram),
                 [MediaType.DOCUMENT]: ctx.telegram.sendDocument.bind(
-                    ctx.telegram,
+                    ctx.telegram
                 ),
                 [MediaType.AUDIO]: ctx.telegram.sendAudio.bind(ctx.telegram),
                 [MediaType.ANIMATION]: ctx.telegram.sendAnimation.bind(
-                    ctx.telegram,
+                    ctx.telegram
                 ),
             };
 
@@ -868,7 +966,7 @@ export class MessageManager {
                     await sendFunction(
                         ctx.chat.id,
                         { source: fileStream },
-                        { caption },
+                        { caption }
                     );
                 } finally {
                     fileStream.destroy();
@@ -878,34 +976,15 @@ export class MessageManager {
             elizaLogger.info(
                 `${
                     type.charAt(0).toUpperCase() + type.slice(1)
-                } sent successfully: ${mediaPath}`,
+                } sent successfully: ${mediaPath}`
             );
         } catch (error) {
             elizaLogger.error(
-                `Failed to send ${type}. Path: ${mediaPath}. Error: ${error.message}`,
+                `Failed to send ${type}. Path: ${mediaPath}. Error: ${error.message}`
             );
             elizaLogger.debug(error.stack);
             throw error;
         }
-    }
-
-    // Split message into smaller parts
-    private splitMessage(text: string): string[] {
-        const chunks: string[] = [];
-        let currentChunk = "";
-
-        const lines = text.split("\n");
-        for (const line of lines) {
-            if (currentChunk.length + line.length + 1 <= MAX_MESSAGE_LENGTH) {
-                currentChunk += (currentChunk ? "\n" : "") + line;
-            } else {
-                if (currentChunk) chunks.push(currentChunk);
-                currentChunk = line;
-            }
-        }
-
-        if (currentChunk) chunks.push(currentChunk);
-        return chunks;
     }
 
     private getNextPerspective(messageText: string): {
@@ -914,11 +993,11 @@ export class MessageManager {
     } {
         // Check if it's a greeting or personal question
         const isGreeting = /\b(hi|hello|welcome|hey|greetings)\b/i.test(
-            messageText,
+            messageText
         );
         const isPersonalQuestion =
             /what('?s| is) your (favorite|favourite)|do you (like|enjoy|prefer)|how (are|do) you feel/i.test(
-                messageText,
+                messageText
             );
 
         if (isGreeting || isPersonalQuestion) {
@@ -939,7 +1018,7 @@ export class MessageManager {
     private async _generateResponse(
         message: Memory,
         state: State,
-        context: string,
+        context: string
     ): Promise<Content> {
         const responseContent = await generateMessageResponse({
             runtime: this.runtime,
@@ -947,20 +1026,23 @@ export class MessageManager {
             modelClass: ModelClass.LARGE,
         });
 
-        elizaLogger.debug(
-            "[Response Generation] Generated response content",
-            {
-                hasResponse: !!responseContent,
-                responseLength: responseContent?.text?.length,
-            },
-        );
+        elizaLogger.debug("[Response Generation] Generated response content", {
+            hasResponse: !!responseContent,
+            responseLength: responseContent?.text?.length,
+        });
 
         return responseContent;
     }
 
-    private async setMessageReaction(ctx: Context, messageId: number, emoji: "😎") {
+    private async setMessageReaction(
+        ctx: Context,
+        messageId: number,
+        emoji: "😎"
+    ) {
         try {
-            await this.bot.telegram.setMessageReaction(ctx.chat.id, messageId, [{ type: "emoji", emoji }]);
+            await this.bot.telegram.setMessageReaction(ctx.chat.id, messageId, [
+                { type: "emoji", emoji },
+            ]);
         } catch (error) {
             elizaLogger.error("Error setting message reaction:", error);
         }
@@ -974,7 +1056,7 @@ export class MessageManager {
             content: message.text,
             from: ctx.from?.username,
             messageType: message.chat.type,
-            isDirectMention: this._isMessageForMe(message)
+            isDirectMention: this._isMessageForMe(message),
         });
 
         if (this._isMessageForMe(message)) {
@@ -1022,14 +1104,17 @@ export class MessageManager {
                 "text" in message
                     ? "text"
                     : "caption" in message
-                      ? "caption"
-                      : "other",
+                    ? "caption"
+                    : "other",
         });
 
         const messageText =
-            'text' in message ? (message as Message.TextMessage).text :
-            'caption' in message ? (message as Message.CaptionableMessage & { caption?: string }).caption || '' :
-            '';
+            "text" in message
+                ? (message as Message.TextMessage).text
+                : "caption" in message
+                ? (message as Message.CaptionableMessage & { caption?: string })
+                      .caption || ""
+                : "";
 
         elizaLogger.debug("[Message Processing] Processed message text", {
             hasText: !!messageText,
@@ -1066,7 +1151,7 @@ export class MessageManager {
                 const lastSelfMemories =
                     await this.runtime.messageManager.getMemories({
                         roomId: stringToUuid(
-                            chatId + "-" + this.runtime.agentId,
+                            chatId + "-" + this.runtime.agentId
                         ),
                         unique: false,
                         count: 5,
@@ -1079,7 +1164,7 @@ export class MessageManager {
                 const isRelevant = this._isRelevantToTeamMember(
                     messageText,
                     chatId,
-                    lastSelfSortedMemories?.[0],
+                    lastSelfSortedMemories?.[0]
                 );
 
                 if (!isRelevant) {
@@ -1112,7 +1197,7 @@ export class MessageManager {
             // Check for other team member mentions using cached usernames
             const otherTeamMembers =
                 this.runtime.character.clientConfig.telegram.teamAgentIds.filter(
-                    (id) => id !== this.bot.botInfo?.id.toString(),
+                    (id) => id !== this.bot.botInfo?.id.toString()
                 );
 
             const mentionedTeamMember = otherTeamMembers.find((id) => {
@@ -1179,7 +1264,7 @@ export class MessageManager {
 
             // Get chat ID for memory storage
             const memoryChatId = stringToUuid(
-                ctx.chat?.id.toString() + "-" + this.runtime.agentId,
+                ctx.chat?.id.toString() + "-" + this.runtime.agentId
             ) as UUID;
 
             // Get raw chat ID for interest tracking
@@ -1197,12 +1282,12 @@ export class MessageManager {
                 roomId,
                 userName,
                 userName,
-                "telegram",
+                "telegram"
             );
 
             // Get message ID
             const messageId = stringToUuid(
-                message.message_id.toString() + "-" + this.runtime.agentId,
+                message.message_id.toString() + "-" + this.runtime.agentId
             ) as UUID;
 
             // Handle images
@@ -1213,7 +1298,12 @@ export class MessageManager {
             if ("text" in message) {
                 messageText = (message as Message.TextMessage).text;
             } else if ("caption" in message) {
-                messageText = (message as Message.CaptionableMessage & { caption?: string }).caption || "";
+                messageText =
+                    (
+                        message as Message.CaptionableMessage & {
+                            caption?: string;
+                        }
+                    ).caption || "";
             }
 
             // Combine text and image description
@@ -1234,7 +1324,7 @@ export class MessageManager {
                         ? stringToUuid(
                               message.reply_to_message.message_id.toString() +
                                   "-" +
-                                  this.runtime.agentId,
+                                  this.runtime.agentId
                           )
                         : undefined,
             };
@@ -1254,35 +1344,57 @@ export class MessageManager {
             await this.runtime.messageManager.createMemory(memory);
 
             // Format the conversation thread using raw chat ID
-            const formattedConversation = this.interestChats[rawChatId]?.messages
-                ?.map(msg => `${msg.userName}: ${msg.content.text}`)
-                .join('\n\n');
+            const formattedConversation = this.interestChats[
+                rawChatId
+            ]?.messages
+                ?.map((msg) => `${msg.userName}: ${msg.content.text}`)
+                .join("\n\n");
 
             // Update state with the new memory
             let state = await this.runtime.composeState(memory, {
-                currentPost: `From ${ctx.from.username || ctx.from.first_name || "Unknown"}: ${fullText}`,
+                currentPost: `From ${
+                    ctx.from.username || ctx.from.first_name || "Unknown"
+                }: ${fullText}`,
                 formattedConversation,
-                lastMessage: fullText
+                lastMessage: fullText,
             });
 
             elizaLogger.debug("[State Composition] Initial state:", {
                 stateKeys: Object.keys(state),
-                hasKnowledge: typeof state.knowledge === 'string' && state.knowledge.length > 0,
-                hasBio: typeof state.bio === 'string' && state.bio.length > 0,
-                hasLore: typeof state.lore === 'string' && state.lore.length > 0,
-                hasRecentMessages: typeof state.recentMessages === 'string' && state.recentMessages.length > 0,
-                hasActions: typeof state.actions === 'string' && state.actions.length > 0,
-                hasProviders: typeof state.providers === 'string' && state.providers.length > 0,
+                hasKnowledge:
+                    typeof state.knowledge === "string" &&
+                    state.knowledge.length > 0,
+                hasBio: typeof state.bio === "string" && state.bio.length > 0,
+                hasLore:
+                    typeof state.lore === "string" && state.lore.length > 0,
+                hasRecentMessages:
+                    typeof state.recentMessages === "string" &&
+                    state.recentMessages.length > 0,
+                hasActions:
+                    typeof state.actions === "string" &&
+                    state.actions.length > 0,
+                hasProviders:
+                    typeof state.providers === "string" &&
+                    state.providers.length > 0,
                 agentName: state.agentName,
                 senderName: state.senderName,
-                messageContent: state.currentMessage
+                messageContent: state.currentMessage,
             });
 
             state = await this.runtime.updateRecentMessageState(state);
             elizaLogger.debug("[State Update] After recent message update:", {
-                recentMessagesLength: typeof state.recentMessages === 'string' ? state.recentMessages.length : 0,
-                recentMessagesFirstLine: typeof state.recentMessages === 'string' ? state.recentMessages.split('\n')[0] : '',
-                recentPostsLength: typeof state.recentPosts === 'string' ? state.recentPosts.length : 0
+                recentMessagesLength:
+                    typeof state.recentMessages === "string"
+                        ? state.recentMessages.length
+                        : 0,
+                recentMessagesFirstLine:
+                    typeof state.recentMessages === "string"
+                        ? state.recentMessages.split("\n")[0]
+                        : "",
+                recentPostsLength:
+                    typeof state.recentPosts === "string"
+                        ? state.recentPosts.length
+                        : 0,
             });
 
             // Decide whether to respond
@@ -1290,12 +1402,19 @@ export class MessageManager {
 
             // Send response in chunks
             const callback: HandlerCallback = async (content: Content) => {
-                elizaLogger.debug("[Callback Handler] Starting message callback", {
-                    contentLength: content?.text?.length,
-                    hasAction: !!content?.action,
-                });
+                elizaLogger.debug(
+                    "[Callback Handler] Starting message callback",
+                    {
+                        contentLength: content?.text?.length,
+                        hasAction: !!content?.action,
+                    }
+                );
 
-                const messages = await this.sendMessageInChunks(ctx, content, message.message_id);
+                const messages = await this.sendMessageInChunks(
+                    ctx,
+                    content,
+                    message.message_id
+                );
 
                 elizaLogger.debug("[Callback Handler] Messages sent", {
                     messageCount: messages.length,
@@ -1317,13 +1436,20 @@ export class MessageManager {
                     },
                 };
 
-                elizaLogger.log("Creating Memory", memory.id, memory.content.text);
+                elizaLogger.log(
+                    "Creating Memory",
+                    memory.id,
+                    memory.content.text
+                );
 
                 await this.runtime.messageManager.createMemory(memory);
 
-                elizaLogger.debug("[Callback Handler] Completed memory creation", {
-                    memoryId: memory.id,
-                });
+                elizaLogger.debug(
+                    "[Callback Handler] Completed memory creation",
+                    {
+                        memoryId: memory.id,
+                    }
+                );
 
                 return [memory]; // Return array of memories as required by HandlerCallback type
             };
@@ -1334,7 +1460,7 @@ export class MessageManager {
                     {
                         memoryId: memory.id,
                         stateSize: Object.keys(state).length,
-                    },
+                    }
                 );
 
                 // Get the template path/name from the configuration
@@ -1345,12 +1471,14 @@ export class MessageManager {
                     telegramMessageHandlerTemplate;
 
                 elizaLogger.debug("[Template Selection] Using template:", {
-                    templateSource: this.runtime.character.templates?.telegramMessageHandlerTemplate
+                    templateSource: this.runtime.character.templates
+                        ?.telegramMessageHandlerTemplate
                         ? "telegram_specific"
-                        : this.runtime.character?.templates?.messageHandlerTemplate
+                        : this.runtime.character?.templates
+                              ?.messageHandlerTemplate
                         ? "character_default"
                         : "telegram_default",
-                    templateType: typeof templateToUse
+                    templateType: typeof templateToUse,
                 });
 
                 // Get the actual template content from the registry
@@ -1361,7 +1489,10 @@ export class MessageManager {
 
                 elizaLogger.debug("[Template Content] Raw template:", {
                     templateLength: templateContent?.length,
-                    firstLines: templateContent?.split('\n').slice(0, 3).join('\n')
+                    firstLines: templateContent
+                        ?.split("\n")
+                        .slice(0, 3)
+                        .join("\n"),
                 });
 
                 const context = composeContext({
@@ -1372,7 +1503,7 @@ export class MessageManager {
                 elizaLogger.debug("[Context Generation] Final context:", {
                     contextLength: context.length,
                     stateKeys: Object.keys(state),
-                    firstLines: context.split('\n').slice(0, 3).join('\n'),
+                    firstLines: context.split("\n").slice(0, 3).join("\n"),
                     hasKnowledge: state.knowledge?.length > 0,
                     hasBio: state.bio?.length > 0,
                     hasLore: state.lore?.length > 0,
@@ -1380,25 +1511,25 @@ export class MessageManager {
                     hasActions: state.actions?.length > 0,
                     hasProviders: state.providers?.length > 0,
                     context: context,
-                    evaluationReasoning: state.evaluationReasoning
+                    evaluationReasoning: state.evaluationReasoning,
                 });
 
                 const responseContent = await this._generateResponse(
                     memory,
                     state,
-                    context,
+                    context
                 );
                 elizaLogger.debug(
                     "[Response Generation] Generated response content",
                     {
                         hasResponse: !!responseContent,
                         responseLength: responseContent?.text?.length,
-                    },
+                    }
                 );
 
                 if (!responseContent?.text) {
                     elizaLogger.debug(
-                        "[Response Generation] No response text, skipping",
+                        "[Response Generation] No response text, skipping"
                     );
                     return;
                 }
@@ -1408,22 +1539,22 @@ export class MessageManager {
                     "[Response Generation] Sent response messages",
                     {
                         messageCount: responseMessages?.length,
-                    },
+                    }
                 );
 
                 state = await this.runtime.updateRecentMessageState(state);
                 elizaLogger.debug(
-                    "[Response Generation] Updated state after response",
+                    "[Response Generation] Updated state after response"
                 );
 
                 await this.runtime.processActions(
                     memory,
                     responseMessages,
                     state,
-                    callback,
+                    callback
                 );
                 elizaLogger.debug(
-                    "[Response Generation] Processed response actions",
+                    "[Response Generation] Processed response actions"
                 );
             }
 
@@ -1434,26 +1565,29 @@ export class MessageManager {
         }
     }
 
-    private async _evaluateResponse(message: Message.TextMessage, state: State): Promise<MessageResponseResult> {
+    private async _evaluateResponse(
+        message: Message.TextMessage,
+        state: State
+    ): Promise<MessageResponseResult> {
         elizaLogger.debug("[Template Evaluation] Starting evaluation:", {
             messageText: message.text,
             messageType: message.chat.type,
             isReply: !!message.reply_to_message,
-            hasEntities: message.entities?.length > 0
+            hasEntities: message.entities?.length > 0,
         });
 
         const shouldRespond = await this._shouldRespond(message, state);
 
         elizaLogger.debug("[Template Evaluation] Should respond result:", {
             shouldRespond,
-            evaluationReasoning: state.evaluationReasoning
+            evaluationReasoning: state.evaluationReasoning,
         });
 
         return {
             content: "",
             text: "",
             action: shouldRespond ? "CONTINUE" : "NONE",
-            reasoning: state.evaluationReasoning as string
+            reasoning: state.evaluationReasoning as string,
         };
     }
 }
