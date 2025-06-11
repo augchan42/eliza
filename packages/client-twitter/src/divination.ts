@@ -466,6 +466,14 @@ export class TwitterDivinationClient {
             const oracleReading = await this.fetch8BitOracle();
             const marketSentiment = await this.fetchMarketSentiment();
 
+            // Check if both news and sentiment are unavailable
+            const noNews = !newsEvent || (Array.isArray(newsEvent) && newsEvent.length === 1 && newsEvent[0].title === "News unavailable");
+            const noSentiment = !marketSentiment || (marketSentiment.telegram === "unknown" && marketSentiment.reddit === "unknown" && marketSentiment.market === "unknown");
+            if (noNews && noSentiment) {
+                elizaLogger.warn("Skipping post: No news and no sentiment data available.");
+                return;
+            }
+
             // Get real price data from CoinGecko
             const prices = await this.fetchCoinGeckoPrices();
             const btcPrice = prices?.btc || null;
