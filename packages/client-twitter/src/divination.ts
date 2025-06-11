@@ -553,8 +553,7 @@ export class TwitterDivinationClient {
                 } else if (typeof parsedResponse === "string") {
                     cleanedContent = parsedResponse;
                 }
-            } catch (error) {
-                error.linted = true; // make linter happy since catch needs a variable
+            } catch {
                 // If not JSON, clean the raw content
                 cleanedContent = interpretation
                     .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
@@ -800,7 +799,7 @@ export class TwitterDivinationClient {
                 } else if (typeof parsedResponse === "string") {
                     cleanedContent = parsedResponse;
                 }
-            } catch (error) {
+            } catch {
                 cleanedContent = interpretation
                     .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "")
                     .replace(/^['"](.*)['"]$/g, "$1")

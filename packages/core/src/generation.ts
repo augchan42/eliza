@@ -190,6 +190,7 @@ export async function generateText({
             case ModelProviderName.NANOGPT:
             case ModelProviderName.HYPERBOLIC:
             case ModelProviderName.TOGETHER:
+            case ModelProviderName.OPENROUTER:
             case ModelProviderName.AKASH_CHAT_API: {
                 elizaLogger.debug("Initializing OpenAI model.");
                 const openai = createOpenAI({
@@ -390,33 +391,6 @@ export async function generateText({
 
                 response = redpillResponse;
                 elizaLogger.debug("Received response from redpill model.");
-                break;
-            }
-
-            case ModelProviderName.OPENROUTER: {
-                elizaLogger.debug("Initializing OpenRouter model.");
-                const serverUrl = models[provider].endpoint;
-                const openrouter = createOpenAI({
-                    apiKey,
-                    baseURL: serverUrl,
-                    fetch: runtime.fetch,
-                });
-
-                const { text: openrouterResponse } = await aiGenerateText({
-                    model: openrouter.languageModel(model),
-                    prompt: context,
-                    temperature: temperature,
-                    system:
-                        runtime.character.system ??
-                        settings.SYSTEM_PROMPT ??
-                        undefined,
-                    maxTokens: max_response_length,
-                    frequencyPenalty: frequency_penalty,
-                    presencePenalty: presence_penalty,
-                });
-
-                response = openrouterResponse;
-                elizaLogger.debug("Received response from OpenRouter model.");
                 break;
             }
 
@@ -1482,8 +1456,6 @@ export async function handleProvider(
             return await handleGoogle(options);
         case ModelProviderName.REDPILL:
             return await handleRedPill(options);
-        case ModelProviderName.OPENROUTER:
-            return await handleOpenRouter(options);
         case ModelProviderName.OLLAMA:
             return await handleOllama(options);
         default: {
@@ -1639,42 +1611,17 @@ async function handleRedPill({
     mode,
     modelOptions,
 }: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
-    const redPill = createOpenAI({ apiKey, baseURL: models.redpill.endpoint });
-    return await aiGenerateObject({
-        model: redPill.languageModel(model),
-        schema,
-        schemaName,
-        schemaDescription,
-        mode,
-        ...modelOptions,
-    });
-}
-
-/**
- * Handles object generation for OpenRouter models.
- *
- * @param {ProviderOptions} options - Options specific to OpenRouter.
- * @returns {Promise<GenerateObjectResult<unknown>>} - A promise that resolves to generated objects.
- */
-async function handleOpenRouter({
-    model,
-    apiKey,
-    schema,
-    schemaName,
-    schemaDescription,
-    mode,
-    modelOptions,
-}: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
-    const openRouter = createOpenAI({
+    const redpill = createOpenAI({
         apiKey,
-        baseURL: models.openrouter.endpoint,
+        baseURL: models[ModelProviderName.REDPILL].endpoint,
     });
+
     return await aiGenerateObject({
-        model: openRouter.languageModel(model),
-        schema,
-        schemaName,
-        schemaDescription,
-        mode,
+        model: redpill.languageModel(model),
+        schema: schema,
+        mode: mode,
+        system: schemaName,
+        prompt: schemaDescription,
         ...modelOptions,
     });
 }

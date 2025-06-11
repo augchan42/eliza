@@ -163,7 +163,6 @@ const mockRuntime = {
     handleGroq: async () => ({ success: true, text: "", data: {} }),
     handleGoogle: async () => ({ success: true, text: "", data: {} }),
     handleRedPill: async () => ({ success: true, text: "", data: {} }),
-    handleOpenRouter: async () => ({ success: true, text: "", data: {} }),
     handleOllama: async () => ({ success: true, text: "", data: {} })
 } as unknown as IAgentRuntime;
 
