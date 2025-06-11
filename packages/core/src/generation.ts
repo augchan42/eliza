@@ -902,10 +902,14 @@ export async function generateText({
             case ModelProviderName.OPENROUTER: {
                 elizaLogger.debug("Initializing OpenRouter model.");
                 const serverUrl = getEndpoint(provider);
+                const headers: Record<string, string> = {};
+                headers["X-Title"] = `${runtime.character.name} (8-Bit Oracle)`;
+                headers["HTTP-Referer"] = "8bitoracle.ai";
                 const openrouter = createOpenAI({
                     apiKey,
                     baseURL: serverUrl,
                     fetch: runtime.fetch,
+                    headers,
                 });
 
                 const { text: openrouterResponse } = await aiGenerateText({
