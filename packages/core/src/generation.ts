@@ -904,7 +904,7 @@ export async function generateText({
                 const serverUrl = getEndpoint(provider);
                 const headers: Record<string, string> = {};
                 headers["X-Title"] = `${runtime.character.name} (8-Bit Oracle)`;
-                headers["HTTP-Referer"] = "8bitoracle.ai";
+                headers["HTTP-Referer"] = "https://8bitoracle.ai";
                 const openrouter = createOpenAI({
                     apiKey,
                     baseURL: serverUrl,
