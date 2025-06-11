@@ -475,7 +475,7 @@ export const models: Models = {
                 name:
                     settings.SMALL_OPENROUTER_MODEL ||
                     settings.OPENROUTER_MODEL ||
-                    "nousresearch/hermes-3-llama-3.1-405b",
+                    "deepseek/deepseek-chat-v3-0324",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
@@ -487,7 +487,7 @@ export const models: Models = {
                 name:
                     settings.MEDIUM_OPENROUTER_MODEL ||
                     settings.OPENROUTER_MODEL ||
-                    "nousresearch/hermes-3-llama-3.1-405b",
+                    "deepseek/deepseek-chat-v3-0324",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
@@ -499,7 +499,7 @@ export const models: Models = {
                 name:
                     settings.LARGE_OPENROUTER_MODEL ||
                     settings.OPENROUTER_MODEL ||
-                    "nousresearch/hermes-3-llama-3.1-405b",
+                    "deepseek/deepseek-chat-v3-0324",
                 stop: [],
                 maxInputTokens: 128000,
                 maxOutputTokens: 8192,
