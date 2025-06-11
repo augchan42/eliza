@@ -193,10 +193,18 @@ export async function generateText({
             case ModelProviderName.OPENROUTER:
             case ModelProviderName.AKASH_CHAT_API: {
                 elizaLogger.debug("Initializing OpenAI model.");
+
+                const headers: Record<string, string> = {};
+                if (provider === ModelProviderName.OPENROUTER) {
+                    headers["X-Title"] = `${runtime.character.name} (8-Bit Oracle)`;
+                    headers["HTTP-Referer"] = "8bitoracle.ai";
+                }
+
                 const openai = createOpenAI({
                     apiKey,
                     baseURL: endpoint,
                     fetch: runtime.fetch,
+                    headers,
                 });
 
                 const { text: openaiResponse } = await aiGenerateText({
@@ -1479,9 +1487,17 @@ async function handleOpenAI({
     schemaDescription,
     mode,
     modelOptions,
+    provider,
+    runtime,
 }: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
-    const baseURL = models.openai.endpoint || undefined;
-    const openai = createOpenAI({ apiKey, baseURL });
+    const baseURL = models[provider].endpoint || undefined;
+
+    const headers: Record<string, string> = {};
+    if (provider === ModelProviderName.OPENROUTER) {
+        headers["X-Title"] = `${runtime.character.name} (8-Bit Oracle)`;
+        headers["HTTP-Referer"] = "8bitoracle.ai";
+    }
+    const openai = createOpenAI({ apiKey, baseURL, headers });
     return await aiGenerateObject({
         model: openai.languageModel(model),
         schema,

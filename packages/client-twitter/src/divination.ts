@@ -306,63 +306,83 @@ export class TwitterDivinationClient {
     }
 
     public async fetchIraiNews(topK: number = 5) {
-        const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
-            headers: {
-                "irai-api-key": process.env.IRAI_API_KEY || "",
-            },
-        });
+        try {
+            const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
+                headers: {
+                    "irai-api-key": process.env.IRAI_API_KEY || "",
+                },
+            });
 
-        if (!res.ok) {
-            throw new Error("Failed to fetch news");
+            if (!res.ok) {
+                elizaLogger.error("News fetch failed", res.status, res.statusText);
+                return [{ title: "News unavailable", summary: "No news data available at this time." }];
+            }
+
+            return res.json();
+        } catch (err) {
+            elizaLogger.error("Error fetching news:", err);
+            return [{ title: "News unavailable", summary: "No news data available at this time." }];
         }
-
-        return res.json();
     }
 
     public async fetchMarketSentiment() {
-        const res = await fetch("https://api.irai.co/get_market_sentiment", {
-            headers: {
-                "irai-api-key": process.env.IRAI_API_KEY || "",
-            },
-        });
+        try {
+            const res = await fetch("https://api.irai.co/get_market_sentiment", {
+                headers: {
+                    "irai-api-key": process.env.IRAI_API_KEY || "",
+                },
+            });
 
-        if (!res.ok) {
-            throw new Error("Failed to fetch market sentiment");
-        }
-
-        const fullData: MarketSentiment = await res.json();
-
-        // Log the raw data to debug
-        elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
-
-        // Extract overview string and parse it
-        const overviewStr = fullData.data.overview;
-        const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
-
-        if (sentimentMatch) {
-            try {
-                // Replace single quotes with double quotes for JSON parsing
-                const jsonStr = sentimentMatch[1].replace(/'/g, '"');
-                const overview = JSON.parse(jsonStr);
-
+            if (!res.ok) {
+                elizaLogger.error("Market sentiment fetch failed", res.status, res.statusText);
                 return {
-                    telegram: overview.Telegram.current,
-                    reddit: overview.Reddit.current,
-                    market: overview["General market"].current,
+                    telegram: "unknown",
+                    reddit: "unknown",
+                    market: "unknown",
                 };
-            } catch (error) {
-                elizaLogger.error("Error parsing sentiment:", {
-                    error,
-                    rawData: overviewStr,
-                });
             }
-        }
 
-        return {
-            telegram: "unknown",
-            reddit: "unknown",
-            market: "unknown",
-        };
+            const fullData: MarketSentiment = await res.json();
+
+            // Log the raw data to debug
+            elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
+
+            // Extract overview string and parse it
+            const overviewStr = fullData.data.overview;
+            const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
+
+            if (sentimentMatch) {
+                try {
+                    // Replace single quotes with double quotes for JSON parsing
+                    const jsonStr = sentimentMatch[1].replace(/'/g, '"');
+                    const overview = JSON.parse(jsonStr);
+
+                    return {
+                        telegram: overview.Telegram.current,
+                        reddit: overview.Reddit.current,
+                        market: overview["General market"].current,
+                    };
+                } catch (error) {
+                    elizaLogger.error("Error parsing sentiment:", {
+                        error,
+                        rawData: overviewStr,
+                    });
+                }
+            }
+
+            return {
+                telegram: "unknown",
+                reddit: "unknown",
+                market: "unknown",
+            };
+        } catch (err) {
+            elizaLogger.error("Error fetching market sentiment:", err);
+            return {
+                telegram: "unknown",
+                reddit: "unknown",
+                market: "unknown",
+            };
+        }
     }
 
     public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
