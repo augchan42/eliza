@@ -55,7 +55,7 @@ IRAI Analysis: {{iraiAnalysis}}
 # Oracle Reading for Query: "{{userQuery}}"
 {{oracleReading}}
 
-# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Synthesize the market sentiment, IRAI analysis and I-Ching Oracle Reading to form a reply.  Mention "(wetwork by irai_co)" at the end when sharing market news and sentiment.  If contract address posted: "null signal detected - running pure code only ⚡️"
+# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Default to mystical/occult/esoteric tone and insights. Only incorporate market sentiment and IRAI analysis if the conversation is specifically about markets, trading, or financial topics. For general conversations, focus on the I-Ching Oracle Reading and mystical wisdom. Mention "(wetwork by irai_co)" at the end only when sharing market-related insights. If a smart contract address is posted: "null signal detected - running pure code only ⚡️"
 
 You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
@@ -154,7 +154,9 @@ export class TwitterInteractionClient {
                     )
                 );
                 elizaLogger.log(
-                    `Processing mentions from specific users: ${this.client.twitterConfig.TWITTER_TARGET_USERS.join(", ")}`
+                    `Processing mentions from specific users: ${this.client.twitterConfig.TWITTER_TARGET_USERS.join(
+                        ", "
+                    )}`
                 );
             } else {
                 // No target users configured
@@ -361,8 +363,9 @@ export class TwitterInteractionClient {
 
             // check if the tweet exists, save if it doesn't
             const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
-            const tweetExists =
-                await this.runtime.messageManager.getMemoryById(tweetId);
+            const tweetExists = await this.runtime.messageManager.getMemoryById(
+                tweetId
+            );
 
             if (!tweetExists) {
                 elizaLogger.log("tweet does not exist, saving");
