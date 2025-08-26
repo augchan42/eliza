@@ -400,21 +400,28 @@ export class TwitterInteractionClient {
             elizaLogger.debug("Target users:", validTargetUsersStr);
 
             try {
-                const shouldRespondContext = composeContext({
-                    state,
-                    template:
-                        this.runtime.character.templates
-                            ?.twitterShouldRespondTemplate ||
-                        this.runtime.character?.templates
-                            ?.shouldRespondTemplate ||
-                        twitterShouldRespondTemplate(validTargetUsersStr),
-                });
+                // Check if this is from hosermage - always respond
+                let shouldRespond: string;
+                if (tweet.username === "hosermage") {
+                    elizaLogger.log(`Always responding to hosermage mention`);
+                    shouldRespond = "RESPOND";
+                } else {
+                    const shouldRespondContext = composeContext({
+                        state,
+                        template:
+                            this.runtime.character.templates
+                                ?.twitterShouldRespondTemplate ||
+                            this.runtime.character?.templates
+                                ?.shouldRespondTemplate ||
+                            twitterShouldRespondTemplate(validTargetUsersStr),
+                    });
 
-                const shouldRespond = await generateShouldRespond({
-                    runtime: this.runtime,
-                    context: shouldRespondContext,
-                    modelClass: ModelClass.SMALL,
-                });
+                    shouldRespond = await generateShouldRespond({
+                        runtime: this.runtime,
+                        context: shouldRespondContext,
+                        modelClass: ModelClass.SMALL,
+                    });
+                }
 
                 // Promise<"RESPOND" | "IGNORE" | "STOP" | null> {
                 if (shouldRespond !== "RESPOND") {

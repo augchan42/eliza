@@ -73,6 +73,7 @@ const __dirname = path.dirname(__filename); // get the name of the directory
 
 // Add at module level
 let db: IDatabaseAdapter & IDatabaseCacheAdapter;
+let globalDirectClient: DirectClient;
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
@@ -392,6 +393,47 @@ process.on("SIGTERM", cleanup);
 async function cleanup() {
     elizaLogger.info("Gracefully shutting down...");
     try {
+        // Stop all clients first
+        if (globalDirectClient && globalDirectClient.agents) {
+            elizaLogger.info("Stopping all agent clients...");
+            for (const [agentId, runtime] of globalDirectClient.agents) {
+                try {
+                    elizaLogger.info(`Stopping clients for agent ${agentId}...`);
+                    if (runtime.clients) {
+                        for (const [clientType, client] of Object.entries(runtime.clients)) {
+                            try {
+                                elizaLogger.info(`Stopping ${clientType} client...`);
+                                
+                                // Check if client has a stop method
+                                if (typeof client?.stop === 'function') {
+                                    await client.stop();
+                                    elizaLogger.success(`✅ ${clientType} client stopped`);
+                                } else if (clientType === 'telegram' && client) {
+                                    // Special handling for Telegram client
+                                    await TelegramClientInterface.stop(runtime, client);
+                                } else if (clientType === 'twitter' && client) {
+                                    // Special handling for Twitter client
+                                    await TwitterClientInterface.stop(runtime, client);
+                                } else {
+                                    elizaLogger.warn(`${clientType} client does not have a stop method`);
+                                }
+                            } catch (clientError) {
+                                elizaLogger.error(`Error stopping ${clientType} client:`, clientError);
+                            }
+                        }
+                    }
+                } catch (agentError) {
+                    elizaLogger.error(`Error stopping agent ${agentId}:`, agentError);
+                }
+            }
+        }
+
+        // Stop the DirectClient HTTP server
+        if (globalDirectClient) {
+            elizaLogger.info("Stopping DirectClient HTTP server...");
+            globalDirectClient.stop();
+        }
+
         elizaLogger.debug("Database type:", {
             isInstance: db instanceof SqliteDatabaseAdapter,
             type: db?.constructor?.name,
@@ -411,7 +453,7 @@ async function cleanup() {
             elizaLogger.warn("Database is not SQLite:", db?.constructor?.name);
         }
     } catch (err) {
-        elizaLogger.error("Error closing SQLite connection:", err);
+        elizaLogger.error("Error during cleanup:", err);
         if (err instanceof Error) {
             elizaLogger.error("Stack trace:", err.stack);
         }
@@ -781,6 +823,7 @@ const checkPortAvailable = (port: number): Promise<boolean> => {
 
 const startAgents = async () => {
     const directClient = new DirectClient();
+    globalDirectClient = directClient; // Store reference for cleanup
     let serverPort = parseInt(settings.SERVER_PORT || "3000");
     const args = parseArguments();
     let charactersArg = args.characters || args.character;
