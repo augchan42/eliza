@@ -609,6 +609,10 @@ export class DirectClient {
     public unregisterAgent(runtime: AgentRuntime) {
         this.agents.delete(runtime.agentId);
     }
+    
+    public getAgents(): Map<string, AgentRuntime> {
+        return this.agents;
+    }
 
     public start(port: number) {
         this.server = this.app.listen(port, () => {

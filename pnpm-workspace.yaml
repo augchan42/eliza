@@ -1,6 +1,7 @@
 packages:
     - "docs"
     - "packages/*"
+    - "!packages/plugin-story.disabled"
     - "client"
     - "web-agent"
     - "agent"

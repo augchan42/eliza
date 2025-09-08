@@ -44,7 +44,7 @@ import {
 } from "@elizaos/plugin-coinbase";
 import { confluxPlugin } from "@elizaos/plugin-conflux";
 import { evmPlugin } from "@elizaos/plugin-evm";
-import { storyPlugin } from "@elizaos/plugin-story";
+// import { storyPlugin } from "@elizaos/plugin-story";
 import { flowPlugin } from "@elizaos/plugin-flow";
 import { fuelPlugin } from "@elizaos/plugin-fuel";
 import { imageGenerationPlugin } from "@elizaos/plugin-image-generation";
@@ -394,9 +394,9 @@ async function cleanup() {
     elizaLogger.info("Gracefully shutting down...");
     try {
         // Stop all clients first
-        if (globalDirectClient && globalDirectClient.agents) {
+        if (globalDirectClient && globalDirectClient.getAgents()) {
             elizaLogger.info("Stopping all agent clients...");
-            for (const [agentId, runtime] of globalDirectClient.agents) {
+            for (const [agentId, runtime] of globalDirectClient.getAgents()) {
                 try {
                     elizaLogger.info(`Stopping clients for agent ${agentId}...`);
                     if (runtime.clients) {
@@ -406,14 +406,14 @@ async function cleanup() {
                                 
                                 // Check if client has a stop method
                                 if (typeof client?.stop === 'function') {
-                                    await client.stop();
+                                    await client.stop(runtime);
                                     elizaLogger.success(`✅ ${clientType} client stopped`);
                                 } else if (clientType === 'telegram' && client) {
                                     // Special handling for Telegram client
-                                    await TelegramClientInterface.stop(runtime, client);
+                                    await TelegramClientInterface.stop(runtime);
                                 } else if (clientType === 'twitter' && client) {
                                     // Special handling for Twitter client
-                                    await TwitterClientInterface.stop(runtime, client);
+                                    await TwitterClientInterface.stop(runtime);
                                 } else {
                                     elizaLogger.warn(`${clientType} client does not have a stop method`);
                                 }
@@ -676,7 +676,7 @@ export async function createAgent(
                 : null,
             getSecret(character, "TON_PRIVATE_KEY") ? tonPlugin : null,
             getSecret(character, "SUI_PRIVATE_KEY") ? suiPlugin : null,
-            getSecret(character, "STORY_PRIVATE_KEY") ? storyPlugin : null,
+            // getSecret(character, "STORY_PRIVATE_KEY") ? storyPlugin : null,
             getSecret(character, "FUEL_PRIVATE_KEY") ? fuelPlugin : null,
             getSecret(character, "AVALANCHE_PRIVATE_KEY")
                 ? avalanchePlugin
