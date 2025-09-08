@@ -243,11 +243,11 @@ export class TranscriptionService
             const convertedBuffer = await this.convertAudio(audioBuffer);
 
             await this.saveDebugAudio(
-                convertedBuffer,
+                convertedBuffer.buffer as ArrayBuffer,
                 "openai_input_converted"
             );
 
-            const file = new File([convertedBuffer], "audio.wav", {
+            const file = new File([convertedBuffer.buffer], "audio.wav", {
                 type: "audio/wav",
             });
 
@@ -290,7 +290,7 @@ export class TranscriptionService
 
             const convertedBuffer = await this.convertAudio(audioBuffer);
 
-            await this.saveDebugAudio(convertedBuffer, "local_input_converted");
+            await this.saveDebugAudio(convertedBuffer.buffer as ArrayBuffer, "local_input_converted");
 
             const tempWavFile = path.join(
                 this.CONTENT_CACHE_DIR,
