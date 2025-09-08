@@ -437,14 +437,11 @@ export class TwitterInteractionClient {
                     this.client,
                     this.runtime
                 );
-                const marketSentiment =
-                    await divinationClient.fetchMarketSentiment();
-                // const newsEvent = await divinationClient.fetchIraiNews();
-                const oracleReading = await divinationClient.fetch8BitOracle();
-
-                // Fetch Google News analysis
+                // Fetch Google News and generate sentiment analysis
                 const googleNews = await divinationClient.fetchGoogleNews();
+                const marketSentiment = await divinationClient.generateSentimentFromNews(googleNews);
                 const newsAnalysis = googleNews.length > 0 ? JSON.stringify(googleNews[0], null, 2) : "News feeds temporarily unavailable. Oracle wisdom active.";
+                const oracleReading = await divinationClient.fetch8BitOracle();
 
                 elizaLogger.debug("Divination context fetched:", {
                     sentiment: marketSentiment,
@@ -455,7 +452,7 @@ export class TwitterInteractionClient {
                 // Update state with divination data
                 state = await this.runtime.composeState(message, {
                     ...state,
-                    marketSentiment: JSON.stringify(marketSentiment, null, 2),
+                    marketSentiment: marketSentiment,
                     newsAnalysis: newsAnalysis,
                     oracleReading: JSON.stringify(
                         {

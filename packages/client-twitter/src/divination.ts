@@ -198,55 +198,6 @@ Future: "targeting", "hunting"
 
 Generate only the tweet text, no other commentary.`;
 
-interface MarketSentiment {
-    data: {
-        overview: string;
-        // ... other fields we don't need
-    };
-}
-
-interface IraiAskRequest {
-    question: string;
-    citations?: boolean;
-    lang?: string;
-    features?: {
-        news?: boolean;
-        trending?: boolean;
-        market_sentiment?: boolean;
-        coin_sentiment?: boolean;
-        price_actions?: boolean;
-        technical_analysis?: boolean;
-        market_update?: boolean;
-        stop_loss_take_profit?: boolean;
-        top_movers?: boolean;
-        ath_atl?: boolean;
-    };
-}
-
-interface IraiCitationData {
-    y_axis_label: string;
-    time: number[];
-    value: number[];
-    y_axis_units: string;
-    thresholds: Array<{
-        label: string;
-        value: number;
-    }>;
-}
-
-interface IraiCitation {
-    name: string;
-    description: string;
-    data: IraiCitationData;
-}
-
-interface IraiAskResponse {
-    user_query: string;
-    output: string;
-    error: boolean;
-    request_id: string;
-    citations: IraiCitation[];
-}
 
 interface CoinGeckoPriceResponse {
     [key: string]: {
@@ -501,14 +452,36 @@ Return only the number of the selected article (e.g., "2"):`;
         return articles;
     }
 
-    public async fetchMarketSentiment() {
-        // IRAI integration disabled - returning placeholder data
-        elizaLogger.debug("IRAI market sentiment integration disabled, returning placeholder");
-        return {
-            telegram: "unknown",
-            reddit: "unknown", 
-            market: "unknown",
-        };
+    public async generateSentimentFromNews(articles: any[]) {
+        if (!articles || articles.length === 0) {
+            return "neutral - no news data available";
+        }
+
+        const headlinesText = articles.slice(0, 10).map(article => 
+            `${article.title} - ${article.summary?.substring(0, 100) || ''}`
+        ).join('\n');
+
+        const sentimentPrompt = `Analyze the overall sentiment/vibe from these current news headlines. Consider AI developments, crypto/Web3 trends, tech advances, and weird phenomena.
+
+Headlines:
+${headlinesText}
+
+Respond with a brief sentiment analysis (1-2 sentences) describing the overall vibe/energy from these headlines:`;
+
+        try {
+            const response = await generateText({
+                runtime: this.runtime,
+                context: sentimentPrompt,
+                modelClass: ModelClass.SMALL,
+            });
+
+            elizaLogger.debug("LLM sentiment analysis response:", response);
+            return response.trim();
+
+        } catch (error) {
+            elizaLogger.error("Error in LLM sentiment analysis:", error);
+            return "mixed vibes - processing errors detected";
+        }
     }
 
     public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
@@ -590,13 +563,13 @@ Return only the number of the selected article (e.g., "2"):`;
         try {
             const newsEvent = await this.fetchGoogleNews();
             const oracleReading = await this.fetch8BitOracle();
-            const marketSentiment = await this.fetchMarketSentiment();
+            // Generate sentiment from Google News headlines
+            const marketSentiment = await this.generateSentimentFromNews(newsEvent);
 
-            // Check if both news and sentiment are unavailable
-            const noNews = !newsEvent || (Array.isArray(newsEvent) && newsEvent.length === 1 && newsEvent[0].title === "News unavailable");
-            const noSentiment = !marketSentiment || (marketSentiment.telegram === "unknown" && marketSentiment.reddit === "unknown" && marketSentiment.market === "unknown");
-            if (noNews && noSentiment) {
-                elizaLogger.warn("Skipping post: No news and no sentiment data available.");
+            // Check if news is unavailable
+            const noNews = !newsEvent || (Array.isArray(newsEvent) && newsEvent.length === 1 && (newsEvent[0].title === "News unavailable" || newsEvent[0].title === "News feeds unavailable"));
+            if (noNews) {
+                elizaLogger.warn("Skipping post: No news data available.");
                 return;
             }
 
@@ -613,7 +586,7 @@ Return only the number of the selected article (e.g., "2"):`;
                 null,
                 2
             );
-            const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
+            const formattedSentiment = marketSentiment;
 
             // Simple price formatting for the template
             const formattedPrices =
@@ -794,20 +767,6 @@ Return only the number of the selected article (e.g., "2"):`;
         }
     }
 
-    public async askIrai(
-        question: string,
-        features?: IraiAskRequest["features"]
-    ): Promise<IraiAskResponse> {
-        // IRAI integration disabled - returning placeholder response
-        elizaLogger.debug("IRAI ask integration disabled, returning placeholder response");
-        return {
-            user_query: question,
-            output: "IRAI service is no longer active. Market analysis unavailable.",
-            error: false,
-            request_id: "disabled",
-            citations: []
-        };
-    }
 
     // Add this new method for testing
     public async testDivination(): Promise<string> {
@@ -832,7 +791,7 @@ Return only the number of the selected article (e.g., "2"):`;
                 null,
                 2
             );
-            const formattedSentiment = JSON.stringify(marketSentiment, null, 2);
+            const formattedSentiment = marketSentiment;
 
             // Simple price formatting for the template
             const formattedPrices =

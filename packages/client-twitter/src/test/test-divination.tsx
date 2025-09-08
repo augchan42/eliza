@@ -137,8 +137,7 @@ const mockRuntime = {
     fetch: () => Promise.resolve(new Response()),
     getSetting: (key: string) => {
         const settings: Record<string, string> = {
-            OPENAI_API_KEY: "test-openai-key",
-            IRAI_API_KEY: "test-irai-key"
+            OPENAI_API_KEY: "test-openai-key"
         };
         return settings[key] || null;
     },
