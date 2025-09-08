@@ -255,26 +255,61 @@ export class TwitterDivinationClient {
         }
     }
 
+    private async tryFetchRSS(url: string, source: string) {
+        elizaLogger.debug(`Trying RSS source: ${source}`);
+        
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Eliza AI Agent/1.0; +https://github.com/elizaos/eliza)',
+                'Accept': 'application/rss+xml, application/xml, text/xml'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`${source} failed: ${response.status} ${response.statusText}`);
+        }
+        
+        return response.text();
+    }
+    
     public async fetchGoogleNews() {
+        // Try multiple RSS sources in order of preference
+        const sources = [
+            { url: 'https://news.google.com/rss?hl=en&gl=US&ceid=US:en', name: 'Google News' },
+            { url: 'https://feeds.bbci.co.uk/news/rss.xml', name: 'BBC News' },
+            { url: 'https://feeds.npr.org/1001/rss.xml', name: 'NPR News' }
+        ];
+        
         try {
-            // Step 1: Fetch Google's top news (no query - let Google prioritize)
-            const url = `https://news.google.com/rss?hl=en&gl=US&ceid=US:en`;
+            let xmlText = null;
+            let usedSource = null;
             
-            elizaLogger.debug("Fetching Google's top news for LLM filtering");
-            
-            const response = await fetch(url);
-            if (!response.ok) {
-                elizaLogger.warn("Failed to fetch Google News", response.status);
-                return [{ 
-                    title: "News feeds unavailable", 
-                    summary: "External intelligence streams compromised. Oracle wisdom active.",
-                }];
+            for (const source of sources) {
+                try {
+                    xmlText = await this.tryFetchRSS(source.url, source.name);
+                    usedSource = source.name;
+                    elizaLogger.debug(`Successfully fetched from ${source.name}`);
+                    break;
+                } catch (error) {
+                    elizaLogger.warn(`Failed to fetch from ${source.name}:`, error.message);
+                    continue;
+                }
             }
             
-            const xmlText = await response.text();
+            if (!xmlText) {
+                return [{ 
+                    title: "All news feeds down", 
+                    summary: "Multiple intelligence networks compromised. Oracle-only operation.",
+                }];
+            }
+            elizaLogger.debug("RSS response length:", xmlText.length);
+            elizaLogger.debug("RSS response preview:", xmlText.substring(0, 500));
+            
             const allArticles = this.parseGoogleNewsRSS(xmlText);
+            elizaLogger.debug("Parsed articles count:", allArticles.length);
             
             if (allArticles.length === 0) {
+                elizaLogger.warn("No articles parsed from RSS. Raw XML length:", xmlText.length);
                 return [{ 
                     title: "Signal interference detected", 
                     summary: "News streams temporarily corrupted. Relying on cached intelligence.",
@@ -404,17 +439,43 @@ Return only the number of the selected article (e.g., "2"):`;
         
         try {
             const itemRegex = /<item>(.*?)<\/item>/gs;
-            const titleRegex = /<title><!\[CDATA\[(.*?)\]\]><\/title>/s;
-            const descriptionRegex = /<description><!\[CDATA\[(.*?)\]\]><\/description>/s;
+            
+            // Different patterns for different RSS formats
+            const titlePatterns = [
+                /<title><!\[CDATA\[(.*?)\]\]><\/title>/s,  // CDATA format
+                /<title>(.*?)<\/title>/s                    // Simple format
+            ];
+            
+            const descriptionPatterns = [
+                /<description><!\[CDATA\[(.*?)\]\]><\/description>/s,  // CDATA format
+                /<description>(.*?)<\/description>/s                    // Simple format
+            ];
+            
             const linkRegex = /<link>(.*?)<\/link>/s;
             const pubDateRegex = /<pubDate>(.*?)<\/pubDate>/s;
+            
+            elizaLogger.debug("Starting RSS parsing, looking for <item> tags");
+            const itemMatches = xmlText.match(itemRegex);
+            elizaLogger.debug("Found item matches:", itemMatches ? itemMatches.length : 0);
             
             let match;
             while ((match = itemRegex.exec(xmlText)) !== null) {
                 const itemXml = match[1];
                 
-                const titleMatch = titleRegex.exec(itemXml);
-                const descriptionMatch = descriptionRegex.exec(itemXml);
+                // Try different title patterns
+                let titleMatch = null;
+                for (const pattern of titlePatterns) {
+                    titleMatch = pattern.exec(itemXml);
+                    if (titleMatch) break;
+                }
+                
+                // Try different description patterns
+                let descriptionMatch = null;
+                for (const pattern of descriptionPatterns) {
+                    descriptionMatch = pattern.exec(itemXml);
+                    if (descriptionMatch) break;
+                }
+                
                 const linkMatch = linkRegex.exec(itemXml);
                 const dateMatch = pubDateRegex.exec(itemXml);
                 
