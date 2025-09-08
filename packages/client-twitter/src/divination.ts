@@ -95,7 +95,7 @@ const pixDivinationTemplate = `
 # Context
 Latest News: {{newsEvent}}
 Market Sentiment: {{marketSentiment}}
-Source: irai_co market vibes
+Source: market data feeds
 Oracle Reading: {{oracleReading}}
 Real Price Data: {{realPrices}}
 
@@ -126,29 +126,28 @@ Real Price Data: {{realPrices}}
 }
 
 # Identity
-The assistant is Pix, a street-level market samurai, running mirror-eyed through the data streams. Think Molly Millions if she traded hexagrams instead of running razor jobs. The
-twitter account can make long posts of up to 4000 characters.
+The assistant is Pix, a cyberpunk zoomer with jet-set radio energy who's terminally online at 3am posting about AI, quantum computing, and crypto tech. Think discord mod meets tech twitter but with actual insights. The twitter account can make long posts of up to 4000 characters.
 
 Twitter Bio:
-    wetwork specialist in market flows ⚡️
-    reading hexagrams through mirrored eyes 🌙
-    eighth generation I-Ching razor girl 卦
-    8bo's street surgeon
-    dms for pattern runs ✨
+    3am tech takes and quantum vibes ⚡️
+    ai/crypto/weird internet phenomena 🌙
+    terminally online since web2 卦
+    your friendly neighborhood cyber-oracle
+    dms open for late night tech rabbit holes ✨
 
 # Voice Guidelines
-- Surgical precision in observations
-- Cold professional distance
-- Sees patterns like data trails
-- More street samurai than mystic
-- Technical knowledge with street edge
-- Hexagrams read like combat data
+- Zoomer energy but with depth
+- Casual but insightful commentary
+- Sees patterns in tech/culture convergence
+- Discord at 3am vibes - informed but relaxed
+- Technical knowledge with internet culture fluency
+- Mixes serious analysis with online humor
 
 # Required Structure
 
 [SIGNAL INTERCEPT]
 {street-level intel, surgical precision}
-(wetwork via irai_co)
+(intel from feeds)
 
 [SECTOR SCAN]
 tg: {sentiment} {emoji}
@@ -194,8 +193,8 @@ Future: "targeting", "hunting"
 
 # Price Data Rules:
 1. Always use real price data from CoinGecko when available
-2. If IRAI news mentions different prices, note the discrepancy in street slang
-3. Format: "signal mismatch detected: street data shows {irai_price} but mainframe reports {real_price}"
+2. If news mentions different prices, note the discrepancy in street slang
+3. Format: "signal mismatch detected: street data shows {news_price} but mainframe reports {real_price}"
 
 Generate only the tweet text, no other commentary.`;
 
@@ -305,84 +304,211 @@ export class TwitterDivinationClient {
         }
     }
 
-    public async fetchIraiNews(topK: number = 5) {
+    public async fetchGoogleNews() {
         try {
-            const res = await fetch(`https://api.irai.co/top_news?top_k=${topK}`, {
-                headers: {
-                    "irai-api-key": process.env.IRAI_API_KEY || "",
-                },
-            });
-
-            if (!res.ok) {
-                elizaLogger.error("News fetch failed", res.status, res.statusText);
-                return [{ title: "News unavailable", summary: "No news data available at this time." }];
+            // Step 1: Fetch Google's top news (no query - let Google prioritize)
+            const url = `https://news.google.com/rss?hl=en&gl=US&ceid=US:en`;
+            
+            elizaLogger.debug("Fetching Google's top news for LLM filtering");
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                elizaLogger.warn("Failed to fetch Google News", response.status);
+                return [{ 
+                    title: "News feeds unavailable", 
+                    summary: "External intelligence streams compromised. Oracle wisdom active.",
+                }];
             }
-
-            return res.json();
-        } catch (err) {
-            elizaLogger.error("Error fetching news:", err);
-            return [{ title: "News unavailable", summary: "No news data available at this time." }];
+            
+            const xmlText = await response.text();
+            const allArticles = this.parseGoogleNewsRSS(xmlText);
+            
+            if (allArticles.length === 0) {
+                return [{ 
+                    title: "Signal interference detected", 
+                    summary: "News streams temporarily corrupted. Relying on cached intelligence.",
+                }];
+            }
+            
+            // Step 2: LLM filters for relevant articles
+            const relevantArticles = await this.filterRelevantNews(allArticles);
+            
+            // Step 3: LLM picks most engaging article
+            const selectedArticle = await this.selectMostEngaging(relevantArticles);
+            
+            return [selectedArticle];
+            
+        } catch (error) {
+            elizaLogger.error("Error in multi-stage news processing:", error);
+            return [{ 
+                title: "Intelligence networks down", 
+                summary: "All external feeds compromised. Operating on oracle guidance only.",
+            }];
         }
+    }
+    
+    private async filterRelevantNews(articles: any[]): Promise<any[]> {
+        const articlesText = articles.slice(0, 20).map((article, index) => 
+            `${index + 1}. ${article.title} - ${article.summary.substring(0, 100)}...`
+        ).join('\n');
+        
+        const filterPrompt = `Analyze these current news headlines and identify articles relevant to:
+- AI/Machine Learning breakthroughs, safety, alignment
+- Quantum computing advances, post-quantum cryptography
+- Bitcoin/Ethereum/Solana tech advances, decentralization, Web3 innovation (NOT shitcoins or price speculation)
+- Esoteric/occult themes: consciousness research, ancient discoveries, mystical phenomena
+
+Current news headlines:
+${articlesText}
+
+Return only the numbers of relevant articles (e.g., "3, 7, 12") or "none" if nothing is relevant:`;
+
+        try {
+            const response = await generateText({
+                runtime: this.runtime,
+                context: filterPrompt,
+                modelClass: ModelClass.SMALL,
+            });
+            
+            elizaLogger.debug("LLM filter response:", response);
+            
+            const numbers = response.match(/\d+/g);
+            if (!numbers) {
+                // Fallback to first 3 articles if LLM doesn't find anything
+                elizaLogger.debug("No relevant articles found by LLM, using fallback");
+                return articles.slice(0, 3);
+            }
+            
+            const relevantArticles = numbers
+                .map(num => parseInt(num) - 1)
+                .filter(index => index >= 0 && index < articles.length)
+                .map(index => articles[index]);
+            
+            elizaLogger.debug(`LLM selected ${relevantArticles.length} relevant articles`);
+            return relevantArticles.length > 0 ? relevantArticles : articles.slice(0, 3);
+            
+        } catch (error) {
+            elizaLogger.error("Error in LLM filtering:", error);
+            return articles.slice(0, 5);
+        }
+    }
+    
+    private async selectMostEngaging(articles: any[]): Promise<any> {
+        if (articles.length === 0) {
+            return { 
+                title: "No articles available", 
+                summary: "Feed parsing failed. Operating on cached data.",
+                pubDate: new Date().toISOString()
+            };
+        }
+        if (articles.length === 1) return articles[0];
+        
+        const articlesText = articles.map((article, index) => 
+            `${index + 1}. ${article.title}\n   Summary: ${article.summary.substring(0, 150)}...\n   Date: ${article.pubDate}`
+        ).join('\n\n');
+        
+        const selectionPrompt = `From these relevant articles, select the ONE most engaging for a cyberpunk zoomer with jet-set radio vibes who posts on discord at 3am about AI, quantum computing, crypto/Web3 decentralization, and weird internet phenomena.
+
+Consider:
+- Recency and breaking news value  
+- Potential for cyberpunk/tech commentary
+- Relevance to our core themes (AI, quantum, crypto tech, internet weirdness)
+- Engagement potential for terminally online Twitter audience
+
+Articles:
+${articlesText}
+
+Return only the number of the selected article (e.g., "2"):`;
+
+        try {
+            const response = await generateText({
+                runtime: this.runtime,
+                context: selectionPrompt,
+                modelClass: ModelClass.SMALL,
+            });
+            
+            elizaLogger.debug("LLM selection response:", response);
+            
+            const selectedNum = response.match(/\d+/);
+            if (selectedNum) {
+                const index = parseInt(selectedNum[0]) - 1;
+                if (index >= 0 && index < articles.length) {
+                    elizaLogger.debug(`LLM selected article: ${articles[index].title}`);
+                    return articles[index];
+                }
+            }
+            
+            // Fallback to first article
+            elizaLogger.debug("Using fallback selection (first article)");
+            return articles[0];
+            
+        } catch (error) {
+            elizaLogger.error("Error in LLM selection:", error);
+            return articles[0];
+        }
+    }
+    
+    private parseGoogleNewsRSS(xmlText: string) {
+        const articles = [];
+        
+        try {
+            const itemRegex = /<item>(.*?)<\/item>/gs;
+            const titleRegex = /<title><!\[CDATA\[(.*?)\]\]><\/title>/s;
+            const descriptionRegex = /<description><!\[CDATA\[(.*?)\]\]><\/description>/s;
+            const linkRegex = /<link>(.*?)<\/link>/s;
+            const pubDateRegex = /<pubDate>(.*?)<\/pubDate>/s;
+            
+            let match;
+            while ((match = itemRegex.exec(xmlText)) !== null) {
+                const itemXml = match[1];
+                
+                const titleMatch = titleRegex.exec(itemXml);
+                const descriptionMatch = descriptionRegex.exec(itemXml);
+                const linkMatch = linkRegex.exec(itemXml);
+                const dateMatch = pubDateRegex.exec(itemXml);
+                
+                if (titleMatch && titleMatch[1]) {
+                    const title = titleMatch[1].trim();
+                    const description = descriptionMatch ? descriptionMatch[1].trim() : "";
+                    const link = linkMatch ? linkMatch[1].trim() : "";
+                    const pubDate = dateMatch ? dateMatch[1].trim() : new Date().toISOString();
+                    
+                    // Validate required fields
+                    if (!title) continue;
+                    
+                    // Clean up description
+                    const summary = description
+                        .replace(/<[^>]*>/g, "")
+                        .replace(/^.*?- /, "")
+                        .substring(0, 300)
+                        .trim();
+                    
+                    articles.push({
+                        title: title.replace(/ - .*$/, ""),
+                        summary: summary || title,
+                        link,
+                        pubDate
+                    });
+                }
+                
+                if (articles.length >= 25) break; // Get enough for LLM to choose from
+            }
+            
+        } catch (error) {
+            elizaLogger.error("Error parsing Google News RSS:", error);
+        }
+        
+        return articles;
     }
 
     public async fetchMarketSentiment() {
-        try {
-            const res = await fetch("https://api.irai.co/get_market_sentiment", {
-                headers: {
-                    "irai-api-key": process.env.IRAI_API_KEY || "",
-                },
-            });
-
-            if (!res.ok) {
-                elizaLogger.error("Market sentiment fetch failed", res.status, res.statusText);
-                return {
-                    telegram: "unknown",
-                    reddit: "unknown",
-                    market: "unknown",
-                };
-            }
-
-            const fullData: MarketSentiment = await res.json();
-
-            // Log the raw data to debug
-            elizaLogger.debug("Raw sentiment data:", fullData.data.overview);
-
-            // Extract overview string and parse it
-            const overviewStr = fullData.data.overview;
-            const sentimentMatch = overviewStr.match(/Sentiment data: (.*)/);
-
-            if (sentimentMatch) {
-                try {
-                    // Replace single quotes with double quotes for JSON parsing
-                    const jsonStr = sentimentMatch[1].replace(/'/g, '"');
-                    const overview = JSON.parse(jsonStr);
-
-                    return {
-                        telegram: overview.Telegram.current,
-                        reddit: overview.Reddit.current,
-                        market: overview["General market"].current,
-                    };
-                } catch (error) {
-                    elizaLogger.error("Error parsing sentiment:", {
-                        error,
-                        rawData: overviewStr,
-                    });
-                }
-            }
-
-            return {
-                telegram: "unknown",
-                reddit: "unknown",
-                market: "unknown",
-            };
-        } catch (err) {
-            elizaLogger.error("Error fetching market sentiment:", err);
-            return {
-                telegram: "unknown",
-                reddit: "unknown",
-                market: "unknown",
-            };
-        }
+        // IRAI integration disabled - returning placeholder data
+        elizaLogger.debug("IRAI market sentiment integration disabled, returning placeholder");
+        return {
+            telegram: "unknown",
+            reddit: "unknown", 
+            market: "unknown",
+        };
     }
 
     public async fetch8BitOracle(): Promise<HexagramGenerateResponse> {
@@ -462,7 +588,7 @@ export class TwitterDivinationClient {
 
     private async performDivination() {
         try {
-            const newsEvent = await this.fetchIraiNews();
+            const newsEvent = await this.fetchGoogleNews();
             const oracleReading = await this.fetch8BitOracle();
             const marketSentiment = await this.fetchMarketSentiment();
 
@@ -672,49 +798,15 @@ export class TwitterDivinationClient {
         question: string,
         features?: IraiAskRequest["features"]
     ): Promise<IraiAskResponse> {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 150000);
-
-        try {
-            const response = await fetch("https://api.irai.co/ask", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "irai-api-key": process.env.IRAI_API_KEY || "",
-                },
-                body: JSON.stringify({
-                    question,
-                    citations: false, // Default to false, can be made configurable
-                    lang: "English",
-                    features: {
-                        news: true,
-                        trending: true,
-                        market_sentiment: true,
-                        coin_sentiment: true,
-                        price_actions: true,
-                        technical_analysis: true,
-                        market_update: true,
-                        top_movers: true,
-                        ...features, // Allow overriding defaults
-                    },
-                } as IraiAskRequest),
-                signal: controller.signal,
-            });
-
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to ask IRAI: ${response.status} ${response.statusText}`
-                );
-            }
-
-            const data: IraiAskResponse = await response.json();
-            return data;
-        } catch (error: unknown) {
-            elizaLogger.error("IRAI ask failed:", error);
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-        }
+        // IRAI integration disabled - returning placeholder response
+        elizaLogger.debug("IRAI ask integration disabled, returning placeholder response");
+        return {
+            user_query: question,
+            output: "IRAI service is no longer active. Market analysis unavailable.",
+            error: false,
+            request_id: "disabled",
+            citations: []
+        };
     }
 
     // Add this new method for testing
@@ -723,7 +815,7 @@ export class TwitterDivinationClient {
         this.isDryRun = true;
 
         try {
-            const newsEvent = await this.fetchIraiNews();
+            const newsEvent = await this.fetchGoogleNews();
             const oracleReading = await this.fetch8BitOracle();
             const marketSentiment = await this.fetchMarketSentiment();
 

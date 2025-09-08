@@ -50,12 +50,12 @@ Thread of Tweets You Are Replying To:
 
 # Market Context:
 Market Sentiment: {{marketSentiment}}
-IRAI Analysis: {{iraiAnalysis}}
+News Analysis: {{newsAnalysis}}
 
 # Oracle Reading for Query: "{{userQuery}}"
 {{oracleReading}}
 
-# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). Default to mystical/occult/esoteric tone and insights. Only incorporate market sentiment and IRAI analysis if the conversation is specifically about markets, trading, or financial topics. For general conversations, focus on the I-Ching Oracle Reading and mystical wisdom. Mention "(wetwork by irai_co)" at the end only when sharing market-related insights. If a smart contract address is posted: "null signal detected - running pure code only ⚡️"
+# INSTRUCTIONS: Generate a reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). You're a cyberpunk zoomer with jet-set radio vibes who's terminally online at 3am. Focus on AI, quantum computing, crypto/Web3 tech, and weird internet phenomena. Default to casual but insightful commentary with zoomer energy. Mix serious tech analysis with internet culture fluency. Only incorporate market sentiment if the conversation is specifically about markets or trading. For general conversations, focus on the I-Ching Oracle Reading but interpret it through a cyberpunk/tech lens. If a smart contract address is posted: "null signal detected - running pure code only ⚡️"
 
 You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
@@ -442,25 +442,13 @@ export class TwitterInteractionClient {
                 // const newsEvent = await divinationClient.fetchIraiNews();
                 const oracleReading = await divinationClient.fetch8BitOracle();
 
-                let iraiAnalysis;
-                try {
-                    const iraiResponse = await divinationClient.askIrai(
-                        tweet.text
-                    );
-                    iraiAnalysis = iraiResponse.output;
-                } catch (error) {
-                    elizaLogger.warn(
-                        "IRAI analysis failed, continuing with basic response:",
-                        error
-                    );
-                    iraiAnalysis = "No market analysis available at this time.";
-                }
+                // Fetch Google News analysis
+                const googleNews = await divinationClient.fetchGoogleNews();
+                const newsAnalysis = googleNews.length > 0 ? JSON.stringify(googleNews[0], null, 2) : "News feeds temporarily unavailable. Oracle wisdom active.";
 
                 elizaLogger.debug("Divination context fetched:", {
                     sentiment: marketSentiment,
-                    irai:
-                        iraiAnalysis?.output ||
-                        "No market analysis available at this time.",
+                    news: newsAnalysis,
                     oracle: oracleReading?.interpretation,
                 });
 
@@ -468,9 +456,7 @@ export class TwitterInteractionClient {
                 state = await this.runtime.composeState(message, {
                     ...state,
                     marketSentiment: JSON.stringify(marketSentiment, null, 2),
-                    iraiAnalysis:
-                        iraiAnalysis?.output ||
-                        "No market analysis available at this time.",
+                    newsAnalysis: newsAnalysis,
                     oracleReading: JSON.stringify(
                         {
                             interpretation: oracleReading?.interpretation,
