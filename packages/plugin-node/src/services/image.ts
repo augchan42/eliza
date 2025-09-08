@@ -18,6 +18,7 @@ import {
     type Tensor,
 } from "@huggingface/transformers";
 import fs from "fs";
+// @ts-ignore - gif-frames doesn't have type definitions
 import gifFrames from "gif-frames";
 import os from "os";
 import path from "path";
