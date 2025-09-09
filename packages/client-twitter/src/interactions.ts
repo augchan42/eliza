@@ -123,6 +123,7 @@ export class TwitterInteractionClient {
             const twitterUsername = this.client.profile.username;
 
             // Get mentions using search
+            elizaLogger.log(`🔍 Searching for mentions of @${twitterUsername}...`);
             const mentionCandidates = (
                 await this.client.fetchSearchTweets(
                     `@${twitterUsername}`,
@@ -131,56 +132,82 @@ export class TwitterInteractionClient {
                 )
             ).tweets;
 
-            elizaLogger.debug("Found mentions:", {
+            elizaLogger.log("📋 Found mentions:", {
                 count: mentionCandidates.length,
                 targetUsers: this.client.twitterConfig.TWITTER_TARGET_USERS,
                 hasWildcard:
                     this.client.twitterConfig.TWITTER_TARGET_USERS.includes(
                         "*"
                     ),
+                lastCheckedTweetId: this.client.lastCheckedTweetId?.toString(),
+            });
+
+            // Log details of each mention found
+            mentionCandidates.forEach((tweet, index) => {
+                elizaLogger.log(`📝 Mention ${index + 1}:`, {
+                    id: tweet.id,
+                    username: tweet.username,
+                    text: tweet.text.substring(0, 100) + (tweet.text.length > 100 ? '...' : ''),
+                    isOwnTweet: tweet.userId === this.client.profile.id,
+                    isNewer: !this.client.lastCheckedTweetId || BigInt(tweet.id) > this.client.lastCheckedTweetId,
+                    url: tweet.permanentUrl
+                });
             });
 
             // Process all mentions if wildcard is present
             if (this.client.twitterConfig.TWITTER_TARGET_USERS.includes("*")) {
-                elizaLogger.log("Wildcard configured, processing all mentions");
+                elizaLogger.log("✅ Wildcard (*) configured, processing all mentions");
                 uniqueTweetCandidates = mentionCandidates;
             } else if (
                 this.client.twitterConfig.TWITTER_TARGET_USERS.length > 0
             ) {
                 // Filter by specific target users
-                uniqueTweetCandidates = mentionCandidates.filter((tweet) =>
-                    this.client.twitterConfig.TWITTER_TARGET_USERS.includes(
-                        tweet.username
-                    )
-                );
                 elizaLogger.log(
-                    `Processing mentions from specific users: ${this.client.twitterConfig.TWITTER_TARGET_USERS.join(
+                    `🎯 Filtering mentions to specific target users: [${this.client.twitterConfig.TWITTER_TARGET_USERS.join(
                         ", "
-                    )}`
+                    )}]`
                 );
+                uniqueTweetCandidates = mentionCandidates.filter((tweet) => {
+                    const isTargetUser = this.client.twitterConfig.TWITTER_TARGET_USERS.includes(
+                        tweet.username
+                    );
+                    elizaLogger.log(`🔍 Checking @${tweet.username}: ${isTargetUser ? '✅ ALLOWED' : '❌ FILTERED OUT'}`);
+                    return isTargetUser;
+                });
             } else {
                 // No target users configured
                 elizaLogger.log(
-                    "No target users configured, processing all mentions"
+                    "⚠️ No target users configured, processing all mentions"
                 );
                 uniqueTweetCandidates = mentionCandidates;
             }
 
             // Filter out own tweets and sort
+            elizaLogger.log(`📋 Before filtering own tweets: ${uniqueTweetCandidates.length} candidates`);
             uniqueTweetCandidates = uniqueTweetCandidates
-                .filter((tweet) => tweet.userId !== this.client.profile.id)
+                .filter((tweet) => {
+                    const isOwnTweet = tweet.userId === this.client.profile.id;
+                    if (isOwnTweet) {
+                        elizaLogger.log(`🚫 Filtering out own tweet: ${tweet.id}`);
+                    }
+                    return !isOwnTweet;
+                })
                 .sort((a, b) => a.id.localeCompare(b.id));
 
             elizaLogger.log(
-                `Processing ${uniqueTweetCandidates.length} valid mentions`
+                `🎯 Final processing queue: ${uniqueTweetCandidates.length} valid mentions`
             );
 
             // for each tweet candidate, handle the tweet
             for (const tweet of uniqueTweetCandidates) {
-                if (
-                    !this.client.lastCheckedTweetId ||
-                    BigInt(tweet.id) > this.client.lastCheckedTweetId
-                ) {
+                const isNewer = !this.client.lastCheckedTweetId || BigInt(tweet.id) > this.client.lastCheckedTweetId;
+                elizaLogger.log(`🔄 Processing tweet ${tweet.id} from @${tweet.username}:`, {
+                    isNewer,
+                    lastCheckedId: this.client.lastCheckedTweetId?.toString(),
+                    currentId: tweet.id,
+                });
+                
+                if (isNewer) {
                     // Generate the tweetId UUID the same way it's done in handleTweet
                     const tweetId = stringToUuid(
                         tweet.id + "-" + this.runtime.agentId
@@ -198,6 +225,11 @@ export class TwitterInteractionClient {
                         await this.runtime.messageManager.getMemoryById(
                             tweetId
                         );
+                    
+                    elizaLogger.log(`💾 Memory check for tweet ${tweet.id}:`, {
+                        tweetId,
+                        hasExistingResponse: !!existingResponse,
+                    });
 
                     if (existingResponse) {
                         // Check if this is actually a response or just the original tweet
@@ -279,6 +311,8 @@ export class TwitterInteractionClient {
 
                     // Update the last checked tweet ID after processing each tweet
                     this.client.lastCheckedTweetId = BigInt(tweet.id);
+                } else {
+                    elizaLogger.log(`⏭️ Skipping tweet ${tweet.id} from @${tweet.username} - not newer than last checked (${this.client.lastCheckedTweetId?.toString()})`);
                 }
             }
 
@@ -402,8 +436,14 @@ export class TwitterInteractionClient {
             try {
                 // Check if this is from hosermage - always respond
                 let shouldRespond: string;
-                if (tweet.username === "hosermage") {
-                    elizaLogger.log(`Always responding to hosermage mention`);
+                elizaLogger.log(`🤖 Checking if should respond to @${tweet.username}:`, {
+                    username: tweet.username,
+                    isHostermage: tweet.username === "hosermage_",
+                    text: tweet.text.substring(0, 100) + (tweet.text.length > 100 ? '...' : ''),
+                });
+                
+                if (tweet.username === "hosermage_") {
+                    elizaLogger.log(`🎯 PRIORITY USER: Always responding to hosermage_ mention!`);
                     shouldRespond = "RESPOND";
                 } else {
                     const shouldRespondContext = composeContext({
@@ -424,13 +464,16 @@ export class TwitterInteractionClient {
                 }
 
                 // Promise<"RESPOND" | "IGNORE" | "STOP" | null> {
+                elizaLogger.log(`📋 Response decision for @${tweet.username}: ${shouldRespond}`);
                 if (shouldRespond !== "RESPOND") {
-                    elizaLogger.log("Not responding to message");
+                    elizaLogger.log(`❌ NOT responding to @${tweet.username}'s message - Decision: ${shouldRespond}`);
                     return {
                         text: "Response Decision:",
                         action: shouldRespond,
                     };
                 }
+                
+                elizaLogger.log(`✅ WILL respond to @${tweet.username}'s mention!`);
 
                 elizaLogger.log("Will respond - fetching divination context");
                 const divinationClient = new TwitterDivinationClient(
