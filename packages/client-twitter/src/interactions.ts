@@ -493,6 +493,19 @@ export class TwitterInteractionClient {
 
                 response.text = removeQuotes(response.text);
 
+                // Add dry run check before posting
+                if (this.client.twitterConfig.TWITTER_DRY_RUN) {
+                    elizaLogger.info(
+                        `[DRY RUN] Would have replied to ${tweet.username}'s tweet:`,
+                        {
+                            replyTo: tweet.text,
+                            wouldReplyWith: response.text,
+                            tweetUrl: tweet.permanentUrl,
+                        }
+                    );
+                    return { text: response.text, action: "DRY_RUN" };
+                }
+
                 if (response.text) {
                     try {
                         const callback: HandlerCallback = async (
@@ -548,19 +561,6 @@ export class TwitterInteractionClient {
                             `Error sending response tweet: ${error}`
                         );
                     }
-                }
-
-                // Add dry run check before posting
-                if (this.client.twitterConfig.TWITTER_DRY_RUN) {
-                    elizaLogger.info(
-                        `[DRY RUN] Would have replied to ${tweet.username}'s tweet:`,
-                        {
-                            replyTo: tweet.text,
-                            wouldReplyWith: response,
-                            tweetUrl: tweet.permanentUrl,
-                        }
-                    );
-                    return { text: response, action: "DRY_RUN" };
                 }
 
                 return { text: response, action: "RESPOND" };
