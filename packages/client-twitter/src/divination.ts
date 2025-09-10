@@ -476,11 +476,13 @@ Return only the number of the selected article (e.g., "2"):`;
             
             elizaLogger.debug("LLM selection response:", response);
             
-            const selectedNum = response.match(/\d+/);
-            if (selectedNum) {
-                const index = parseInt(selectedNum[0]) - 1;
+            const allNumbers = response.match(/\d+/g);
+            if (allNumbers) {
+                // Use the last number in the response as the final selection
+                const lastNumber = allNumbers[allNumbers.length - 1];
+                const index = parseInt(lastNumber) - 1;
                 if (index >= 0 && index < articles.length) {
-                    elizaLogger.debug(`LLM selected article: ${articles[index].title}`);
+                    elizaLogger.debug(`LLM selected article (last number ${lastNumber}): ${articles[index].title}`);
                     return articles[index];
                 }
             }
