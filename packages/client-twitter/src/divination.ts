@@ -695,6 +695,32 @@ Respond with a brief sentiment analysis (1-2 sentences) describing the overall v
                 return;
             }
 
+            // Check for headline similarity to avoid repetition
+            const selectedArticle = Array.isArray(newsEvent) ? newsEvent[0] : newsEvent;
+            const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
+                `twitter/${this.client.profile.username}/lastDivinationHeadlines`
+            ) || [];
+
+            if (lastHeadlines.length > 0) {
+                const similarityCheck = `Is "${selectedArticle.title}" covering the same story as any of these recent headlines?
+
+Recent headlines:
+${lastHeadlines.map((h, i) => `${i+1}. ${h}`).join('\n')}
+
+Respond: "YES" if same story, "NO" if different.`;
+
+                const response = await generateText({
+                    runtime: this.runtime,
+                    context: similarityCheck,
+                    modelClass: ModelClass.SMALL,
+                });
+
+                if (response.toLowerCase().includes("yes")) {
+                    elizaLogger.warn(`Skipping duplicate story: "${selectedArticle.title}"`);
+                    return;
+                }
+            }
+
             // Get real price data from CoinGecko
             const prices = await this.fetchCoinGeckoPrices();
             const btcPrice = prices?.btc || null;
@@ -858,6 +884,31 @@ Respond with a brief sentiment analysis (1-2 sentences) describing the overall v
                     roomId,
                     interpretation,
                     this.twitterUsername
+                );
+
+                // Update headline cache after successful post
+                const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
+                    `twitter/${this.client.profile.username}/lastDivinationHeadlines`
+                ) || [];
+                
+                lastHeadlines.unshift(selectedArticle.title);
+                if (lastHeadlines.length > 10) {
+                    lastHeadlines.pop();
+                }
+                
+                await this.runtime.cacheManager.set(
+                    `twitter/${this.client.profile.username}/lastDivinationHeadlines`,
+                    lastHeadlines
+                );
+                
+                elizaLogger.debug(`Updated headline cache with: "${selectedArticle.title}"`);
+
+                // Also update the divination timestamp cache for interval management
+                await this.runtime.cacheManager.set(
+                    "twitter/" + this.client.profile.username + "/lastDivination",
+                    {
+                        timestamp: Date.now(),
+                    }
                 );
             } catch (error) {
                 elizaLogger.error("Error sending Divination tweet:", {
