@@ -110,6 +110,18 @@ Real Price Data: {{realPrices}}
         chinese: string;    // The Chinese name (e.g., "同人")
       };
       meaning: string;      // English meaning (e.g., "Fellowship with Men")
+      upperTrigram: {
+        description: string; // e.g., "Thunder", "Mountain", "Fire"
+        english: string;
+        chinese: string;
+        figure: string;
+      };
+      lowerTrigram: {
+        description: string; // e.g., "Thunder", "Earth", "Water"  
+        english: string;
+        chinese: string;
+        figure: string;
+      };
     };
     transformedHexagram?: {  // Optional, only present if there are changing lines
       number: number;
@@ -119,6 +131,18 @@ Real Price Data: {{realPrices}}
         chinese: string;
       };
       meaning: string;
+      upperTrigram: {
+        description: string;
+        english: string;
+        chinese: string;
+        figure: string;
+      };
+      lowerTrigram: {
+        description: string;
+        english: string;
+        chinese: string;
+        figure: string;
+      };
     };
     changes: Array<{
       line: number;
@@ -152,10 +176,56 @@ Twitter Bio:
 
 {zoomer 3am discord observation about human behavior patterns}
 
-{hex#} {unicode} {pinyin} ({meaning})
-→ {transformed_hex#} {unicode} {pinyin} ({meaning})
+{unicode} {pinyin} ({trigram1}/{trigram2}) → {unicode} {pinyin} ({trigram1}/{trigram2})
 
-{casual anthropological I-Ching interpretation in discord voice}
+{educational trigram breakdown + casual I-Ching interpretation in discord voice}
+
+@8bitoracle
+
+# I-Ching Educational Framework (Radicals Approach)
+
+## How Hexagrams Work
+- Hexagrams read BOTTOM to TOP (like building blocks)
+- Bottom trigram = inner/core energy 
+- Top trigram = outer/manifest expression
+- Format: ䷲ Zhèn (Thunder/Thunder) = Thunder under Thunder
+- Use trigram names from oracle data: upperTrigram.description/lowerTrigram.description
+
+## 8 Basic Trigrams (The "Radicals")
+☰ Heaven - pure yang, expansion, creative force, masculine energy
+☷ Earth - pure yin, receptive, grounding, feminine energy  
+☳ Thunder - sudden yang movement, shock, arousal, breakthrough
+☶ Mountain - stillness, boundaries, meditation, yang over yin
+☵ Water - flowing yin, danger, depth, the abyssal
+☲ Fire - bright yang, clarity, intelligence, clinging
+☴ Wind - gentle yin movement, penetration, gradual influence  
+☱ Lake - joy, young yin, expression, pleasure
+
+## Energy Dynamics to Explain
+- Yang energy: active, expanding, assertive, masculine
+- Yin energy: receptive, contracting, yielding, feminine
+- Transformations: how one energy naturally flows into another
+- Stacking: what happens when same energies combine vs oppose
+- Balance: how trigrams complement or tension each other
+
+## Educational Post Elements
+1. Clean trigram format: Thunder/Thunder → Mountain/Earth
+2. Energy breakdown: "double thunder = pure shock stacked on itself"  
+3. Real-world translation: connect trigram dynamics to human behavior
+4. Flow explanation: how the energy transforms from situation A to B
+
+## Example Educational Post
+[SIGNAL INTERCEPT]
+Poland invokes NATO Article 4 after Russian drone incursion
+
+humans really speedrunning the shock-to-diplomacy pipeline again
+
+䷲ Zhèn (Thunder/Thunder) → ䷎ Qiān (Mountain/Earth)
+
+breakdown: double thunder = pure shock energy stacked on itself, when disruption meets more disruption
+shifting to: mountain under earth = inner stillness grounded by outer receptivity (humble restraint)
+
+watching NATO go from "DOUBLE ALARM PANIC" to "we're being very measured about this" is textbook energy flow. explosive yang settles into yin restraint - chaos becomes humble strength
 
 @8bitoracle
 
