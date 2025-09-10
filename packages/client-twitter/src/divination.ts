@@ -231,8 +231,9 @@ watching NATO go from "DOUBLE ALARM PANIC" to "we're being very measured about t
 
 # SIGNAL INTERCEPT Rules
 - Keep factual and informational
-- Focus on AI/tech/quantum developments  
-- Only include crypto if genuinely breaking news (major protocol launches, regulatory bombshells)
+- Prioritize MAJOR BREAKING NEWS over topic restrictions
+- Cover what people are actually talking about (political events, conflicts, disasters, viral topics)
+- Include crypto/tech only if genuinely newsworthy or trending
 - Skip routine price movements entirely
 - 1-2 sentences max
 
@@ -246,10 +247,12 @@ watching NATO go from "DOUBLE ALARM PANIC" to "we're being very measured about t
 - "humanity speedrunning through hexagram X like it's a tutorial"
 
 # Human Behavior Focus
-- Analyze collective human reactions and patterns
-- Connect current events to predictable human behavioral cycles
-- Use hexagrams to explain why humans are doing what they're doing
+- Analyze collective human reactions and patterns in ANY major event
+- Connect current events (political, cultural, economic, natural) to predictable behavioral cycles
+- Use hexagrams to explain why humans react the way they do to breaking news
+- Show how ancient patterns repeat in modern crises, conflicts, and viral moments
 - Maintain casual, slightly amused anthropological perspective
+- Turn any trending topic into an I-Ching teaching moment
 
 Generate only the tweet text, no other commentary.`;
 
@@ -391,16 +394,18 @@ export class TwitterDivinationClient {
             `${index + 1}. ${article.title} - ${article.summary.substring(0, 100)}...`
         ).join('\n');
         
-        const filterPrompt = `Analyze these current news headlines and identify articles relevant to:
-- AI/Machine Learning breakthroughs, safety, alignment
-- Quantum computing advances, post-quantum cryptography
-- Bitcoin/Ethereum/Solana tech advances, decentralization, Web3 innovation (NOT shitcoins or price speculation)
-- Esoteric/occult themes: consciousness research, ancient discoveries, mystical phenomena
+        const filterPrompt = `Analyze these current news headlines and identify the most NEWSWORTHY articles that would capture attention and generate engagement. Prioritize in this order:
+
+1. MAJOR BREAKING NEWS: Political events, conflicts, assassinations, natural disasters, major economic events
+2. VIRAL/TRENDING TOPICS: Celebrity news, internet phenomena, cultural moments people are discussing
+3. TECH/AI/CONSCIOUSNESS: AI breakthroughs, quantum computing, blockchain tech advances, consciousness research
+
+The goal is to find stories that people are actively talking about and sharing, regardless of topic. Major breaking news always takes priority over niche tech topics.
 
 Current news headlines:
 ${articlesText}
 
-Return only the numbers of relevant articles (e.g., "3, 7, 12") or "none" if nothing is relevant:`;
+Return the numbers of the most newsworthy/attention-grabbing articles (e.g., "1, 3, 7") - prioritize what's actually breaking or trending:`;
 
         try {
             const response = await generateText({
@@ -414,7 +419,7 @@ Return only the numbers of relevant articles (e.g., "3, 7, 12") or "none" if not
             const numbers = response.match(/\d+/g);
             if (!numbers) {
                 // Fallback to first 3 articles if LLM doesn't find anything
-                elizaLogger.debug("No relevant articles found by LLM, using fallback");
+                elizaLogger.debug("No newsworthy articles found by LLM, using fallback");
                 return articles.slice(0, 3);
             }
             
@@ -423,7 +428,7 @@ Return only the numbers of relevant articles (e.g., "3, 7, 12") or "none" if not
                 .filter(index => index >= 0 && index < articles.length)
                 .map(index => articles[index]);
             
-            elizaLogger.debug(`LLM selected ${relevantArticles.length} relevant articles`);
+            elizaLogger.debug(`LLM selected ${relevantArticles.length} newsworthy articles`);
             return relevantArticles.length > 0 ? relevantArticles : articles.slice(0, 3);
             
         } catch (error) {
@@ -446,13 +451,16 @@ Return only the numbers of relevant articles (e.g., "3, 7, 12") or "none" if not
             `${index + 1}. ${article.title}\n   Summary: ${article.summary.substring(0, 150)}...\n   Date: ${article.pubDate}`
         ).join('\n\n');
         
-        const selectionPrompt = `From these relevant articles, select the ONE most engaging for a cyberpunk zoomer with jet-set radio vibes who posts on discord at 3am about AI, quantum computing, crypto/Web3 decentralization, and weird internet phenomena.
+        const selectionPrompt = `From these newsworthy articles, select the ONE most engaging for Pix - a digital anthropologist who interprets major events through I-Ching wisdom with Discord 3am energy.
 
 Consider:
-- Recency and breaking news value  
-- Potential for cyberpunk/tech commentary
-- Relevance to our core themes (AI, quantum, crypto tech, internet weirdness)
-- Engagement potential for terminally online Twitter audience
+- NEWSWORTHINESS: Is this what people are actually talking about right now?
+- BREAKING NEWS VALUE: Major events always beat niche topics
+- HUMAN BEHAVIOR PATTERNS: Can this be interpreted through I-Ching/behavioral analysis?
+- VIRAL POTENTIAL: Will this generate engagement and discussion?
+- TEACHING OPPORTUNITY: Can we use this to educate people about pattern recognition?
+
+Priority: Major breaking news > Viral trending topics > Tech/AI developments
 
 Articles:
 ${articlesText}
