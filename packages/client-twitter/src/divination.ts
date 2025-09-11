@@ -738,38 +738,61 @@ Respond with a brief sentiment analysis (1-2 sentences) describing the overall v
                 return;
             }
 
-            // Filter out articles similar to recent headlines BEFORE LLM selection
+            // Two-tier deduplication system to prevent duplicate posts
             let filteredArticles = Array.isArray(newsEvent) ? newsEvent : [newsEvent];
             const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
                 `twitter/${this.client.profile.username}/lastDivinationHeadlines`
             ) || [];
 
             if (lastHeadlines.length > 0) {
-                // Filter out articles that are similar to cached headlines
                 const uniqueArticles = [];
                 
                 for (const article of filteredArticles) {
-                    const similarityCheck = `Is "${article.title}" covering the same story as any of these recent headlines?
+                    let isDuplicate = false;
+                    const articleTitle = article.title.toLowerCase().trim();
+                    
+                    // Tier 1: Exact string matching (catches identical headlines)
+                    for (const cachedHeadline of lastHeadlines) {
+                        if (articleTitle === cachedHeadline.toLowerCase().trim()) {
+                            elizaLogger.debug(`EXACT MATCH duplicate filtered: "${article.title}"`);
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!isDuplicate) {
+                        // Tier 2: LLM similarity check (for nuanced story variations)
+                        const similarityCheck = `Is "${article.title}" covering the same story as any of these recent headlines?
 
 Recent headlines:
 ${lastHeadlines.map((h, i) => `${i+1}. ${h}`).join('\n')}
 
-Respond: "YES" if same story, "NO" if different.`;
+Respond ONLY with "YES" if covering the exact same story/event, "NO" if different stories.`;
 
-                    const response = await generateText({
-                        runtime: this.runtime,
-                        context: similarityCheck,
-                        modelClass: ModelClass.SMALL,
-                    });
+                        try {
+                            const response = await generateText({
+                                runtime: this.runtime,
+                                context: similarityCheck,
+                                modelClass: ModelClass.SMALL,
+                            });
 
-                    if (!response.toLowerCase().includes("yes")) {
+                            if (response.toLowerCase().includes("yes")) {
+                                elizaLogger.debug(`LLM SIMILARITY duplicate filtered: "${article.title}"`);
+                                isDuplicate = true;
+                            }
+                        } catch (error) {
+                            elizaLogger.warn(`LLM similarity check failed for "${article.title}":`, error);
+                            // Continue without LLM check if it fails
+                        }
+                    }
+                    
+                    if (!isDuplicate) {
                         uniqueArticles.push(article);
-                    } else {
-                        elizaLogger.debug(`Filtering out duplicate story: "${article.title}"`);
                     }
                 }
                 
                 filteredArticles = uniqueArticles;
+                elizaLogger.debug(`Deduplication results: ${filteredArticles.length} unique articles from ${Array.isArray(newsEvent) ? newsEvent.length : 1} candidates`);
             }
 
             // If all articles were filtered out as duplicates, skip this cycle
