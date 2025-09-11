@@ -163,3 +163,6 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Workspace dependencies use `workspace:*` protocol
 - Turbo handles build orchestration and caching (`turbo.json`)
 - Package manager version: `pnpm@9.12.3` (defined in packageManager field)
+## Sessions System Behaviors
+
+@CLAUDE.sessions.md
