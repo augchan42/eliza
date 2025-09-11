@@ -16,7 +16,7 @@ export async function postTweet(
     roomId: UUID,
     newTweetContent: string,
     twitterUsername: string
-) {
+): Promise<string> {
     elizaLogger.log(`Posting new tweet:\n`);
 
     try {
@@ -37,9 +37,49 @@ export async function postTweet(
             roomId,
             newTweetContent
         );
+        
+        // Return the tweet ID for threading
+        return tweet.id;
     } catch (error) {
         elizaLogger.error("Error sending tweet:", error);
         throw error;
+    }
+}
+
+export async function postReplyTweet(
+    runtime: IAgentRuntime,
+    client: ClientBase,
+    replyContent: string,
+    originalTweetId: string,
+    roomId: UUID,
+    twitterUsername: string
+): Promise<string | null> {
+    elizaLogger.log(`Posting reply tweet to ${originalTweetId}:\n${replyContent}`);
+
+    try {
+        let result;
+
+        if (replyContent.length > DEFAULT_MAX_TWEET_LENGTH) {
+            result = await handleNoteTweet(client, runtime, replyContent, originalTweetId);
+        } else {
+            result = await sendStandardTweet(client, replyContent, originalTweetId);
+        }
+
+        const tweet = createTweetObject(result, client, twitterUsername);
+
+        await processAndCacheTweet(
+            runtime,
+            client,
+            tweet,
+            roomId,
+            replyContent
+        );
+        
+        elizaLogger.log(`Reply tweet posted: ${tweet.permanentUrl}`);
+        return tweet.id;
+    } catch (error) {
+        elizaLogger.error("Error sending reply tweet:", error);
+        return null;
     }
 }
 

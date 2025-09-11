@@ -10,7 +10,7 @@ import {
     getEmbeddingZeroVector,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
-import { postTweet, truncateToCompleteSentence } from "./tweet-utils";
+import { postTweet, postReplyTweet, truncateToCompleteSentence } from "./tweet-utils";
 
 export interface HexagramGenerateResponse {
     fullHexagramData: {
@@ -920,7 +920,7 @@ Respond: "YES" if same story, "NO" if different.`;
                 elizaLogger.log(
                     `Posting new tweet (${cleanedContent.length} chars):\n ${cleanedContent}`
                 );
-                await postTweet(
+                const tweetId = await postTweet(
                     this.runtime,
                     this.client,
                     cleanedContent,
@@ -980,11 +980,40 @@ Respond: "YES" if same story, "NO" if different.`;
                         newsEvent: formattedNews,            // JSON string  
                         interpretation: cleanedContent,      // Final tweet text
                         userId: this.runtime.agentId,
-                        userIdentifier: this.client.profile.username
+                        userIdentifier: this.client.profile.username,
+                        tweetId: tweetId,                    // Original tweet ID for threading
+                        roomId: roomId                       // Room ID for reply posting
                     };
 
-                    // Process action asynchronously - don't await to avoid blocking divination flow
-                    this.runtime.processActions(actionMemory, [actionMemory], dkgState)
+                    // Create callback to handle reply tweet posting
+                    const dkgCallback = async (response: any) => {
+                        try {
+                            if (response.action === "REPLY_TWEET" && response.metadata) {
+                                elizaLogger.info("DKG returned akashic record, posting reply tweet...");
+                                
+                                const replyTweetId = await postReplyTweet(
+                                    this.runtime,
+                                    this.client,
+                                    response.metadata.replyContent,
+                                    response.metadata.originalTweetId,
+                                    response.metadata.roomId,
+                                    this.twitterUsername
+                                );
+                                
+                                if (replyTweetId) {
+                                    elizaLogger.info("Successfully posted akashic record reply tweet");
+                                } else {
+                                    elizaLogger.warn("Failed to post akashic record reply tweet");
+                                }
+                            }
+                        } catch (error) {
+                            elizaLogger.error("Error posting akashic record reply:", error);
+                        }
+                        return []; // Return empty array as required by HandlerCallback type
+                    };
+
+                    // Process action asynchronously with callback - don't await to avoid blocking divination flow
+                    this.runtime.processActions(actionMemory, [actionMemory], dkgState, dkgCallback)
                         .then(() => {
                             elizaLogger.info("Successfully processed DKG storage action");
                         })

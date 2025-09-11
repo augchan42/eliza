@@ -125,14 +125,27 @@ export const dkgDivinationInsert: Action = {
 
             if (createAssetResult.UAL) {
                 const explorerLink = `https://dkg.${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/`;
+                const akashicRecordUrl = `@origin_trail akashic record: ${explorerLink}${createAssetResult.UAL}`;
+                
                 elizaLogger.info("Successfully persisted divination to DKG:", {
                     UAL: createAssetResult.UAL,
                     explorer_link: `${explorerLink}${createAssetResult.UAL}`,
-                    hexagram: hexagramData.interpretation.currentHexagram.number
+                    hexagram: hexagramData.interpretation.currentHexagram.number,
+                    akashic_record: akashicRecordUrl
                 });
-                callback({
-                    text: `Created a new divination memory!\n\nRead my mind on @origin_trail Decentralized Knowledge Graph ${explorerLink}${createAssetResult.UAL}`,
-                });
+                
+                // Call callback only if provided (for interactive use or reply posting)
+                if (callback) {
+                    callback({
+                        text: akashicRecordUrl,
+                        action: "REPLY_TWEET", // Signal to post as reply
+                        metadata: {
+                            originalTweetId: state.tweetId,
+                            roomId: state.roomId,
+                            replyContent: akashicRecordUrl
+                        }
+                    });
+                }
                 return true;
             } else {
                 throw new Error("No UAL returned from DKG");
