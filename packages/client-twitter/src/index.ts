@@ -28,6 +28,7 @@ class TwitterManager {
 
         this.interaction = new TwitterInteractionClient(this.client, runtime);
         this.divination = new TwitterDivinationClient(this.client, runtime);
+        elizaLogger.log("📱 Twitter manager initialized with divination client");
     }
 }
 
@@ -48,7 +49,12 @@ export const TwitterClientInterface: Client = {
 
         await manager.interaction.start();
 
-        if (manager.divination) await manager.divination.start();
+        if (manager.divination) {
+            elizaLogger.log("🎯 Starting Twitter divination client...");
+            await manager.divination.start();
+        } else {
+            elizaLogger.warn("❌ No divination client found - this shouldn't happen");
+        }
 
         return manager;
     },
