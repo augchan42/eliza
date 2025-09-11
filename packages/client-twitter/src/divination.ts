@@ -738,31 +738,48 @@ Respond with a brief sentiment analysis (1-2 sentences) describing the overall v
                 return;
             }
 
-            // Check for headline similarity to avoid repetition
-            const selectedArticle = Array.isArray(newsEvent) ? newsEvent[0] : newsEvent;
+            // Filter out articles similar to recent headlines BEFORE LLM selection
+            let filteredArticles = Array.isArray(newsEvent) ? newsEvent : [newsEvent];
             const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
                 `twitter/${this.client.profile.username}/lastDivinationHeadlines`
             ) || [];
 
             if (lastHeadlines.length > 0) {
-                const similarityCheck = `Is "${selectedArticle.title}" covering the same story as any of these recent headlines?
+                // Filter out articles that are similar to cached headlines
+                const uniqueArticles = [];
+                
+                for (const article of filteredArticles) {
+                    const similarityCheck = `Is "${article.title}" covering the same story as any of these recent headlines?
 
 Recent headlines:
 ${lastHeadlines.map((h, i) => `${i+1}. ${h}`).join('\n')}
 
 Respond: "YES" if same story, "NO" if different.`;
 
-                const response = await generateText({
-                    runtime: this.runtime,
-                    context: similarityCheck,
-                    modelClass: ModelClass.SMALL,
-                });
+                    const response = await generateText({
+                        runtime: this.runtime,
+                        context: similarityCheck,
+                        modelClass: ModelClass.SMALL,
+                    });
 
-                if (response.toLowerCase().includes("yes")) {
-                    elizaLogger.warn(`Skipping duplicate story: "${selectedArticle.title}"`);
-                    return;
+                    if (!response.toLowerCase().includes("yes")) {
+                        uniqueArticles.push(article);
+                    } else {
+                        elizaLogger.debug(`Filtering out duplicate story: "${article.title}"`);
+                    }
                 }
+                
+                filteredArticles = uniqueArticles;
             }
+
+            // If all articles were filtered out as duplicates, skip this cycle
+            if (filteredArticles.length === 0) {
+                elizaLogger.warn("Skipping divination: All articles are duplicates of recent headlines");
+                return;
+            }
+
+            // Now select the best article from the unique articles
+            const selectedArticle = await this.selectMostEngaging(filteredArticles);
 
             // Get real price data from CoinGecko
             const prices = await this.fetchCoinGeckoPrices();
@@ -773,7 +790,7 @@ Respond: "YES" if same story, "NO" if different.`;
             // Format the data before passing to template
             const formattedNews = JSON.stringify(newsEvent, null, 2);
             const formattedOracle = JSON.stringify(
-                oracleReading.interpretation,
+                oracleReading,
                 null,
                 2
             );
@@ -1089,7 +1106,7 @@ Respond: "YES" if same story, "NO" if different.`;
             // Format the data before passing to template
             const formattedNews = JSON.stringify(newsEvent, null, 2);
             const formattedOracle = JSON.stringify(
-                oracleReading.interpretation,
+                oracleReading,
                 null,
                 2
             );
