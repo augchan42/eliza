@@ -57,7 +57,7 @@ import { createNodePlugin } from "@elizaos/plugin-node";
 import { suiPlugin } from "@elizaos/plugin-sui";
 import { TEEMode, teePlugin } from "@elizaos/plugin-tee";
 import { tonPlugin } from "@elizaos/plugin-ton";
-import { zksyncEraPlugin } from "@elizaos/plugin-zksync-era";
+// import { zksyncEraPlugin } from "@elizaos/plugin-zksync-era"; // Disabled for Node v23.3.0 compatibility
 import { cronosZkEVMPlugin } from "@elizaos/plugin-cronoszkevm";
 // import { abstractPlugin } from "@elizaos/plugin-abstract";
 import { avalanchePlugin } from "@elizaos/plugin-avalanche";
@@ -670,7 +670,7 @@ export async function createAgent(
                 : null,
             getSecret(character, "APTOS_PRIVATE_KEY") ? aptosPlugin : null,
             getSecret(character, "MVX_PRIVATE_KEY") ? multiversxPlugin : null,
-            getSecret(character, "ZKSYNC_PRIVATE_KEY") ? zksyncEraPlugin : null,
+            // getSecret(character, "ZKSYNC_PRIVATE_KEY") ? zksyncEraPlugin : null, // Disabled for Node v23.3.0 compatibility
             getSecret(character, "CRONOSZKEVM_PRIVATE_KEY")
                 ? cronosZkEVMPlugin
                 : null,

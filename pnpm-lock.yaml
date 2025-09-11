@@ -216,9 +216,6 @@ importers:
       '@elizaos/plugin-twitter':
         specifier: workspace:*
         version: link:../packages/plugin-twitter
-      '@elizaos/plugin-zksync-era':
-        specifier: workspace:*
-        version: link:../packages/plugin-zksync-era
       readline:
         specifier: 1.3.0
         version: 1.3.0
