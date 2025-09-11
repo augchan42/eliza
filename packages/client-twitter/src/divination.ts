@@ -5,6 +5,7 @@ import {
     elizaLogger,
     generateText,
     stringToUuid,
+    parseJSONObjectFromText,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { postTweet, truncateToCompleteSentence } from "./tweet-utils";
@@ -465,7 +466,11 @@ Priority: Major breaking news > Viral trending topics > Tech/AI developments
 Articles:
 ${articlesText}
 
-Return only the number of the selected article (e.g., "2"):`;
+Respond with JSON in this exact format:
+{
+  "selectedArticle": 2,
+  "reasoning": "Brief explanation of why this article was selected"
+}`;
 
         try {
             const response = await generateText({
@@ -476,19 +481,45 @@ Return only the number of the selected article (e.g., "2"):`;
             
             elizaLogger.debug("LLM selection response:", response);
             
-            const allNumbers = response.match(/\d+/g);
-            if (allNumbers) {
-                // Use the last number in the response as the final selection
-                const lastNumber = allNumbers[allNumbers.length - 1];
-                const index = parseInt(lastNumber) - 1;
+            // Try to parse structured JSON response
+            try {
+                const jsonResponse = parseJSONObjectFromText(response);
+                if (jsonResponse && jsonResponse.selectedArticle && typeof jsonResponse.selectedArticle === 'number') {
+                    const index = jsonResponse.selectedArticle - 1;
+                    if (index >= 0 && index < articles.length) {
+                        elizaLogger.debug(`LLM selected article (JSON format ${jsonResponse.selectedArticle}): ${articles[index].title}`);
+                        elizaLogger.debug(`Selection reasoning: ${jsonResponse.reasoning}`);
+                        return articles[index];
+                    }
+                }
+            } catch (jsonError) {
+                elizaLogger.debug("Failed to parse JSON response, falling back to text parsing");
+            }
+            
+            // Fallback: Look for the first standalone number at the beginning of response
+            const firstLineMatch = response.trim().match(/^(\d+)/);
+            if (firstLineMatch) {
+                const selectedNumber = firstLineMatch[1];
+                const index = parseInt(selectedNumber) - 1;
                 if (index >= 0 && index < articles.length) {
-                    elizaLogger.debug(`LLM selected article (last number ${lastNumber}): ${articles[index].title}`);
+                    elizaLogger.debug(`LLM selected article (fallback first line number ${selectedNumber}): ${articles[index].title}`);
                     return articles[index];
                 }
             }
             
-            // Fallback to first article
-            elizaLogger.debug("Using fallback selection (first article)");
+            // Final fallback: try to find any number
+            const allNumbers = response.match(/\d+/g);
+            if (allNumbers) {
+                const firstNumber = allNumbers[0];
+                const index = parseInt(firstNumber) - 1;
+                if (index >= 0 && index < articles.length) {
+                    elizaLogger.debug(`LLM selected article (fallback any number ${firstNumber}): ${articles[index].title}`);
+                    return articles[index];
+                }
+            }
+            
+            // Ultimate fallback to first article
+            elizaLogger.debug("Using ultimate fallback selection (first article)");
             return articles[0];
             
         } catch (error) {
