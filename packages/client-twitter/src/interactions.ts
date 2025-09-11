@@ -592,6 +592,68 @@ export class TwitterInteractionClient {
                             callback
                         );
 
+                        // Integrate with DKG - store reply interaction to OriginTrail DKG  
+                        try {
+                            elizaLogger.info("Attempting to store Twitter reply to DKG...");
+                            
+                            // Create synthetic memory for DKG action processing
+                            const dkgActionMemory: Memory = {
+                                id: stringToUuid(`reply-action-${tweet.id}-${Date.now()}`),
+                                userId: this.runtime.agentId,
+                                agentId: this.runtime.agentId,
+                                roomId: message.roomId,
+                                content: {
+                                    text: "Store reply interaction to DKG",
+                                    action: "INSERT_DIVINATION_MEMORY"
+                                },
+                                createdAt: Date.now(),
+                                embedding: getEmbeddingZeroVector()
+                            };
+
+                            // Prepare structured state for DKG action (reply-specific)
+                            const dkgReplyState = {
+                                ...state,
+                                oracleReading: state.oracleReading,          // Already JSON string
+                                marketSentiment: state.marketSentiment,      // Plain text string
+                                newsEvent: state.newsAnalysis,              // JSON string from news
+                                interpretation: response.text,              // The reply text
+                                userQuery: state.userQuery,                // Original mention
+                                userId: this.runtime.agentId,
+                                userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
+                                replyToUser: tweet.username,               // Who we're replying to
+                                originalTweetId: tweet.id                  // Reference to original tweet
+                            };
+
+                            // Process DKG action asynchronously - don't await to avoid blocking
+                            this.runtime.processActions(dkgActionMemory, [dkgActionMemory], dkgReplyState)
+                                .then(() => {
+                                    elizaLogger.info("Successfully processed DKG storage for reply");
+                                })
+                                .catch((dkgError) => {
+                                    // Log warning but don't throw - DKG failure shouldn't break replies
+                                    elizaLogger.warn("DKG storage failed for reply, but reply was successful:", {
+                                        error: dkgError instanceof Error ? {
+                                            message: dkgError.message,
+                                            stack: dkgError.stack
+                                        } : dkgError,
+                                        originalTweet: tweet.id,
+                                        replyText: response.text.substring(0, 100) + "...",
+                                        userQuery: tweet.text.substring(0, 100) + "..."
+                                    });
+                                });
+                            
+                        } catch (dkgError) {
+                            // Log warning but don't throw - DKG failure shouldn't break replies
+                            elizaLogger.warn("Failed to initiate DKG storage for reply, but reply was successful:", {
+                                error: dkgError instanceof Error ? {
+                                    message: dkgError.message,
+                                    stack: dkgError.stack
+                                } : dkgError,
+                                originalTweet: tweet.id,
+                                replyText: response.text.substring(0, 100) + "..."
+                            });
+                        }
+
                         const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${tweet.id} - ${tweet.username}: ${tweet.text}\nAgent's Output:\n${response.text}`;
 
                         await this.runtime.cacheManager.set(

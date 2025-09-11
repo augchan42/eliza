@@ -6,6 +6,8 @@ import {
     generateText,
     stringToUuid,
     parseJSONObjectFromText,
+    Memory,
+    getEmbeddingZeroVector,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { postTweet, truncateToCompleteSentence } from "./tweet-utils";
@@ -951,6 +953,62 @@ Respond: "YES" if same story, "NO" if different.`;
                         timestamp: Date.now(),
                     }
                 );
+
+                // Integrate with DKG - store divination to OriginTrail DKG
+                try {
+                    elizaLogger.info("Attempting to store divination to DKG...");
+                    
+                    // Create synthetic memory for action processing
+                    const actionMemory: Memory = {
+                        id: stringToUuid(`divination-action-${Date.now()}`),
+                        userId: this.runtime.agentId,
+                        agentId: this.runtime.agentId,
+                        roomId: roomId,
+                        content: {
+                            text: "Store divination to DKG",
+                            action: "INSERT_DIVINATION_MEMORY"
+                        },
+                        createdAt: Date.now(),
+                        embedding: getEmbeddingZeroVector()
+                    };
+
+                    // Prepare structured state for DKG action
+                    const dkgState = {
+                        ...state,
+                        oracleReading: formattedOracle,      // Already JSON string
+                        marketSentiment: formattedSentiment,  // Plain text string
+                        newsEvent: formattedNews,            // JSON string  
+                        interpretation: cleanedContent,      // Final tweet text
+                        userId: this.runtime.agentId,
+                        userIdentifier: this.client.profile.username
+                    };
+
+                    // Process action asynchronously - don't await to avoid blocking divination flow
+                    this.runtime.processActions(actionMemory, [actionMemory], dkgState)
+                        .then(() => {
+                            elizaLogger.info("Successfully processed DKG storage action");
+                        })
+                        .catch((dkgError) => {
+                            // Log warning but don't throw - DKG failure shouldn't break divination
+                            elizaLogger.warn("DKG storage failed, but tweet was successful:", {
+                                error: dkgError instanceof Error ? {
+                                    message: dkgError.message,
+                                    stack: dkgError.stack
+                                } : dkgError,
+                                tweet_content: cleanedContent.substring(0, 100) + "..."
+                            });
+                        });
+                    
+                } catch (dkgError) {
+                    // Log warning but don't throw - DKG failure shouldn't break divination
+                    elizaLogger.warn("Failed to initiate DKG storage, but tweet was successful:", {
+                        error: dkgError instanceof Error ? {
+                            message: dkgError.message,
+                            stack: dkgError.stack
+                        } : dkgError,
+                        tweet_content: cleanedContent.substring(0, 100) + "..."
+                    });
+                }
             } catch (error) {
                 elizaLogger.error("Error sending Divination tweet:", {
                     error:

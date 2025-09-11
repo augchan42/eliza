@@ -71,7 +71,7 @@ export const dkgDivinationInsert: Action = {
 
             // Extract data from state
             const hexagramData = JSON.parse(state.oracleReading as string);
-            const marketSentiment = JSON.parse(state.marketSentiment as string);
+            const marketSentiment = state.marketSentiment as string; // Plain text sentiment analysis
             const newsEvents = JSON.parse(state.newsEvent as string);
             const interpretation = state.interpretation as string;
 
