@@ -14,3 +14,5 @@ export const dkgDivinationPlugin: Plugin = {
     providers: [graphSearch],
     evaluators: []
 };
+
+export default dkgDivinationPlugin;

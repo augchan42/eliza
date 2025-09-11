@@ -1,7 +1,7 @@
 ---
 task: m-implement-dkg-twitter-integration
 branch: feature/dkg-twitter-integration
-status: pending
+status: in-progress
 created: 2025-09-11
 modules: [client-twitter, plugin-dkg-divination]
 ---

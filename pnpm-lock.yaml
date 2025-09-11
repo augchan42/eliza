@@ -159,9 +159,9 @@ importers:
       '@elizaos/plugin-conflux':
         specifier: workspace:*
         version: link:../packages/plugin-conflux
-      '@elizaos/plugin-cronoszkevm':
+      '@elizaos/plugin-dkg-divination':
         specifier: workspace:*
-        version: link:../packages/plugin-cronoszkevm
+        version: link:../packages/plugin-dkg-divination
       '@elizaos/plugin-evm':
         specifier: workspace:*
         version: link:../packages/plugin-evm

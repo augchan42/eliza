@@ -58,7 +58,7 @@ import { suiPlugin } from "@elizaos/plugin-sui";
 import { TEEMode, teePlugin } from "@elizaos/plugin-tee";
 import { tonPlugin } from "@elizaos/plugin-ton";
 // import { zksyncEraPlugin } from "@elizaos/plugin-zksync-era"; // Disabled for Node v23.3.0 compatibility
-import { cronosZkEVMPlugin } from "@elizaos/plugin-cronoszkevm";
+// import { cronosZkEVMPlugin } from "@elizaos/plugin-cronoszkevm"; // Disabled for Node v23.3.0 compatibility
 // import { abstractPlugin } from "@elizaos/plugin-abstract";
 import { avalanchePlugin } from "@elizaos/plugin-avalanche";
 import Database from "better-sqlite3";
@@ -671,9 +671,9 @@ export async function createAgent(
             getSecret(character, "APTOS_PRIVATE_KEY") ? aptosPlugin : null,
             getSecret(character, "MVX_PRIVATE_KEY") ? multiversxPlugin : null,
             // getSecret(character, "ZKSYNC_PRIVATE_KEY") ? zksyncEraPlugin : null, // Disabled for Node v23.3.0 compatibility
-            getSecret(character, "CRONOSZKEVM_PRIVATE_KEY")
-                ? cronosZkEVMPlugin
-                : null,
+            // getSecret(character, "CRONOSZKEVM_PRIVATE_KEY")
+            //     ? cronosZkEVMPlugin
+            //     : null, // Disabled for Node v23.3.0 compatibility
             getSecret(character, "TON_PRIVATE_KEY") ? tonPlugin : null,
             getSecret(character, "SUI_PRIVATE_KEY") ? suiPlugin : null,
             // getSecret(character, "STORY_PRIVATE_KEY") ? storyPlugin : null,
