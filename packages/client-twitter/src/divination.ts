@@ -277,6 +277,7 @@ export class TwitterDivinationClient {
     }
 
     async start() {
+        elizaLogger.log("🔮 Starting Twitter divination client...");
         this.divinationLoop();
     }
 
@@ -296,8 +297,14 @@ export class TwitterDivinationClient {
                 minMinutes;
             const delay = randomMinutes * 60 * 1000;
 
+            const timeSinceLastPost = Date.now() - lastPostTimestamp;
+            elizaLogger.debug(`Divination timing check: last post ${Math.floor(timeSinceLastPost / 60000)} minutes ago, delay needed: ${Math.floor(delay / 60000)} minutes`);
+
             if (Date.now() > lastPostTimestamp + delay) {
+                elizaLogger.log("🔮 Performing divination now...");
                 await this.performDivination();
+            } else {
+                elizaLogger.debug(`Waiting ${Math.floor((lastPostTimestamp + delay - Date.now()) / 60000)} more minutes before next divination`);
             }
 
             setTimeout(() => {
