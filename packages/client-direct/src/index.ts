@@ -136,7 +136,7 @@ export class DirectClient {
                 }
 
                 const formData = new FormData();
-                const audioBlob = new Blob([audioFile.buffer], {
+                const audioBlob = new Blob([audioFile.buffer as any], {
                     type: audioFile.mimetype,
                 });
                 formData.append("file", audioBlob, audioFile.originalname);
@@ -609,7 +609,7 @@ export class DirectClient {
     public unregisterAgent(runtime: AgentRuntime) {
         this.agents.delete(runtime.agentId);
     }
-    
+
     public getAgents(): Map<string, AgentRuntime> {
         return this.agents;
     }
