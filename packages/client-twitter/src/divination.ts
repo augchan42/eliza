@@ -311,8 +311,9 @@ export class TwitterDivinationClient {
                 this.divinationLoop();
             }, delay);
 
+            const timeUntilNext = Math.max(0, Math.ceil((lastPostTimestamp + delay - Date.now()) / 60000));
             elizaLogger.log(
-                `Next divination scheduled in ${randomMinutes} minutes`
+                `🔮 Next divination scheduled in ${timeUntilNext} minutes`
             );
         } catch (err) {
             elizaLogger.error("Divination loop error:", err);
