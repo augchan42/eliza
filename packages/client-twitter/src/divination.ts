@@ -177,7 +177,7 @@ Twitter Bio:
 
 {zoomer 3am discord observation about human behavior patterns}
 
-{unicode} {pinyin} ({trigram1}/{trigram2}) → {unicode} {pinyin} ({trigram1}/{trigram2})
+{unicode} {meaning} / {pinyin} ({trigram1}/{trigram2}) → {unicode} {meaning} / {pinyin} ({trigram1}/{trigram2})
 
 {educational trigram breakdown + casual I-Ching interpretation in discord voice}
 
@@ -221,7 +221,7 @@ Poland invokes NATO Article 4 after Russian drone incursion
 
 humans really speedrunning the shock-to-diplomacy pipeline again
 
-䷲ Zhèn (Thunder/Thunder) → ䷎ Qiān (Mountain/Earth)
+䷲ Shock / Zhèn (Thunder/Thunder) → ䷎ Humility / Qiān (Mountain/Earth)
 
 breakdown: double thunder = pure shock energy stacked on itself, when disruption meets more disruption
 shifting to: mountain under earth = inner stillness grounded by outer receptivity (humble restraint)
@@ -501,7 +501,7 @@ Respond with JSON in this exact format:
                     }
                 }
             } catch (jsonError) {
-                elizaLogger.debug("Failed to parse JSON response, falling back to text parsing");
+                elizaLogger.debug("Failed to parse JSON response, falling back to text parsing. Error:", jsonError);
             }
             
             // Fallback: Look for the first standalone number at the beginning of response
