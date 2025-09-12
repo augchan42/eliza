@@ -9,8 +9,7 @@
       "@id": "schema:Person"
     },
     "name": {
-      "@id": "schema:name",
-      "@type": "@id"
+      "@id": "schema:name"
     },
     "identifier": {
       "@id": "schema:identifier"
@@ -20,8 +19,7 @@
       "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
     },
     "author": {
-      "@id": "schema:author",
-      "@type": "@id"
+      "@id": "schema:author"
     },
     "headline": {
       "@id": "schema:headline"
@@ -33,8 +31,7 @@
       "@id": "schema:keywords"
     },
     "about": {
-      "@id": "schema:about",
-      "@type": "@id"
+      "@id": "schema:about"
     },
     "SocialMediaPosting": {
       "@id": "schema:SocialMediaPosting"
@@ -42,8 +39,7 @@
     "hexagram": "urn:8bitoracle:hexagram:",
     "divination": "urn:8bitoracle:divination:",
     "hexagram:data": {
-      "@id": "urn:8bitoracle:hexagram:data",
-      "@type": "@id"
+      "@id": "urn:8bitoracle:hexagram:data"
     },
     "hexagram:Hexagram": {
       "@id": "urn:8bitoracle:hexagram:Hexagram"
@@ -59,26 +55,22 @@
       "@id": "urn:8bitoracle:hexagram:unicode"
     },
     "hexagram:name": {
-      "@id": "urn:8bitoracle:hexagram:name",
-      "@type": "@id"
+      "@id": "urn:8bitoracle:hexagram:name"
     },
     "hexagram:trigrams": {
-      "@id": "urn:8bitoracle:hexagram:trigrams",
-      "@type": "@id"
+      "@id": "urn:8bitoracle:hexagram:trigrams"
     },
     "hexagram:lines": {
       "@id": "urn:8bitoracle:hexagram:lines"
     },
     "hexagram:computation": {
-      "@id": "urn:8bitoracle:hexagram:computation",
-      "@type": "@id"
+      "@id": "urn:8bitoracle:hexagram:computation"
     },
     "divination:Reading": {
       "@id": "urn:8bitoracle:divination:Reading"
     },
     "divination:context": {
-      "@id": "urn:8bitoracle:divination:context",
-      "@type": "@id"
+      "@id": "urn:8bitoracle:divination:context"
     }
   }
 }
