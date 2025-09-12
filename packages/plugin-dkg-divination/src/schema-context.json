@@ -1,0 +1,84 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "schema": "https://schema.org/",
+    "CreativeWork": {
+      "@id": "schema:CreativeWork"
+    },
+    "Person": {
+      "@id": "schema:Person"
+    },
+    "name": {
+      "@id": "schema:name",
+      "@type": "@id"
+    },
+    "identifier": {
+      "@id": "schema:identifier"
+    },
+    "dateCreated": {
+      "@id": "schema:dateCreated",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "author": {
+      "@id": "schema:author",
+      "@type": "@id"
+    },
+    "headline": {
+      "@id": "schema:headline"
+    },
+    "articleBody": {
+      "@id": "schema:articleBody"
+    },
+    "keywords": {
+      "@id": "schema:keywords"
+    },
+    "about": {
+      "@id": "schema:about",
+      "@type": "@id"
+    },
+    "SocialMediaPosting": {
+      "@id": "schema:SocialMediaPosting"
+    },
+    "hexagram": "urn:8bitoracle:hexagram:",
+    "divination": "urn:8bitoracle:divination:",
+    "hexagram:data": {
+      "@id": "urn:8bitoracle:hexagram:data",
+      "@type": "@id"
+    },
+    "hexagram:Hexagram": {
+      "@id": "urn:8bitoracle:hexagram:Hexagram"
+    },
+    "hexagram:number": {
+      "@id": "urn:8bitoracle:hexagram:number",
+      "@type": "http://www.w3.org/2001/XMLSchema#integer"
+    },
+    "hexagram:binary": {
+      "@id": "urn:8bitoracle:hexagram:binary"
+    },
+    "hexagram:unicode": {
+      "@id": "urn:8bitoracle:hexagram:unicode"
+    },
+    "hexagram:name": {
+      "@id": "urn:8bitoracle:hexagram:name",
+      "@type": "@id"
+    },
+    "hexagram:trigrams": {
+      "@id": "urn:8bitoracle:hexagram:trigrams",
+      "@type": "@id"
+    },
+    "hexagram:lines": {
+      "@id": "urn:8bitoracle:hexagram:lines"
+    },
+    "hexagram:computation": {
+      "@id": "urn:8bitoracle:hexagram:computation",
+      "@type": "@id"
+    },
+    "divination:Reading": {
+      "@id": "urn:8bitoracle:divination:Reading"
+    },
+    "divination:context": {
+      "@id": "urn:8bitoracle:divination:context",
+      "@type": "@id"
+    }
+  }
+}

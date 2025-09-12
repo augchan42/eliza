@@ -6,8 +6,11 @@ import {
     elizaLogger,
     HandlerCallback,
     type Action,
+    ModelClass,
+    generateText,
 } from "@elizaos/core";
 import DKG from "dkg.js";
+import schemaContext from "../schema-context.json";
 
 export const dkgDivinationInsert: Action = {
     name: "INSERT_DIVINATION_MEMORY",
@@ -69,10 +72,29 @@ export const dkgDivinationInsert: Action = {
                 nodeApiVersion: "/v1",
             });
 
-            // Extract data from state
-            const hexagramData = JSON.parse(state.oracleReading as string);
+            // Extract data from state with error handling
+            let hexagramData, newsEvents;
+            try {
+                hexagramData = JSON.parse(state.oracleReading as string);
+            } catch (error) {
+                elizaLogger.error("Failed to parse oracleReading JSON:", {
+                    error: error.message,
+                    data: state.oracleReading
+                });
+                throw new Error(`Invalid oracleReading JSON: ${error.message}`);
+            }
+            
+            try {
+                newsEvents = JSON.parse(state.newsEvent as string);
+            } catch (error) {
+                elizaLogger.error("Failed to parse newsEvent JSON:", {
+                    error: error.message,
+                    data: state.newsEvent
+                });
+                throw new Error(`Invalid newsEvent JSON: ${error.message}`);
+            }
+            
             const marketSentiment = state.marketSentiment as string; // Plain text sentiment analysis
-            const newsEvents = JSON.parse(state.newsEvent as string);
             const interpretation = state.interpretation as string;
 
             elizaLogger.info("Parsed state data for knowledge graph:", {
@@ -84,14 +106,19 @@ export const dkgDivinationInsert: Action = {
                 has_interpretation: !!interpretation,
             });
 
+            // Create a clean, essential-only hexagram data structure
+            const cleanHexagramData = {
+                hexagramLineValues: hexagramData.hexagramLineValues,
+                interpretation: {
+                    currentHexagram: hexagramData.interpretation.currentHexagram,
+                    transformedHexagram: hexagramData.interpretation.transformedHexagram,
+                    changes: hexagramData.interpretation.changes
+                }
+                // Exclude fullHexagramData (computation details) to reduce size
+            };
+
             const memoryKnowledgeGraph = {
-                "@context": [
-                    "https://schema.org",
-                    {
-                        hexagram: "https://app.8bitoracle.ai/schema/hexagram#",
-                        divination: "https://app.8bitoracle.ai/schema/divination#",
-                    },
-                ],
+                "@context": schemaContext["@context"],
                 "@type": ["CreativeWork", "divination:Reading"],
                 "@id": `urn:hexagram:${hexagramData.interpretation.currentHexagram.number}`,
                 name: `${hexagramData.interpretation.currentHexagram.name.pinyin} - ${hexagramData.interpretation.currentHexagram.name.chinese}`,
@@ -101,7 +128,7 @@ export const dkgDivinationInsert: Action = {
                     "@id": state.userId,
                     identifier: state.userIdentifier || state.userId,
                 },
-                "hexagram:data": hexagramData,
+                "hexagram:data": cleanHexagramData,
                 "divination:context": {
                     marketSentiment,
                     newsEvents,
@@ -116,14 +143,86 @@ export const dkgDivinationInsert: Action = {
                 asset_template: JSON.stringify(memoryKnowledgeGraph, null, 2)
             });
 
-            const createAssetResult = await DkgClient.asset.create(
-                {
-                    public: memoryKnowledgeGraph,
-                },
-                { epochsNum: 12 },
-            );
+            let createAssetResult;
 
-            if (createAssetResult.UAL) {
+            try {
+                elizaLogger.log("Publishing divination to DKG");
+                elizaLogger.log(
+                    `Knowledge Asset: ${JSON.stringify(memoryKnowledgeGraph, null, 2)}`
+                );
+
+                createAssetResult = await DkgClient.asset.create(
+                    {
+                        public: memoryKnowledgeGraph,
+                    },
+                    { epochsNum: 12 },
+                );
+
+                elizaLogger.log("======================== DIVINATION ASSET CREATED");
+                elizaLogger.log(JSON.stringify(createAssetResult));
+            } catch (error) {
+                elizaLogger.error(
+                    "Error occurred while publishing divination to DKG:",
+                    error.message,
+                );
+
+                if (error.stack) {
+                    elizaLogger.error("Stack trace:", error.stack);
+                }
+                if (error.response) {
+                    elizaLogger.error(
+                        "Response data:",
+                        JSON.stringify(error.response.data, null, 2),
+                    );
+                }
+
+                // LLM-powered JSON fix retry logic
+                if (
+                    error.message.includes("Unexpected") ||
+                    error.message.includes("JSON") ||
+                    error.message.includes("schema") ||
+                    error.message.includes("malformed")
+                ) {
+                    elizaLogger.warn(
+                        "Detected JSON/schema formatting issue. Attempting LLM fix...",
+                    );
+                    try {
+                        const fixedJSON = await generateText({
+                            runtime,
+                            context: `Fix this malformed JSON-LD and return ONLY the corrected JSON:
+
+${JSON.stringify(memoryKnowledgeGraph, null, 2)}
+
+Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
+                            modelClass: ModelClass.SMALL, // Use smaller model for simple JSON fixes
+                        });
+
+                        elizaLogger.log(
+                            `Fixed JSON generated by LLM: ${fixedJSON}. Retrying...`,
+                        );
+
+                        createAssetResult = await DkgClient.asset.create(
+                            { public: JSON.parse(fixedJSON) },
+                            { epochsNum: 12 },
+                        );
+
+                        elizaLogger.log(
+                            "======================== DIVINATION ASSET CREATED AFTER LLM FIX",
+                        );
+                        elizaLogger.log(JSON.stringify(createAssetResult));
+                    } catch (llmError) {
+                        elizaLogger.error(
+                            "Failed to fix divination JSON using LLM:",
+                            llmError.message,
+                        );
+                        throw error; // Re-throw original error
+                    }
+                } else {
+                    throw error; // Re-throw non-JSON errors
+                }
+            }
+
+            if (createAssetResult?.UAL) {
                 const explorerLink = `https://dkg.${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/`;
                 const akashicRecordUrl = `@origin_trail akashic record: ${explorerLink}${createAssetResult.UAL}`;
                 
@@ -148,7 +247,7 @@ export const dkgDivinationInsert: Action = {
                 }
                 return true;
             } else {
-                throw new Error("No UAL returned from DKG");
+                throw new Error("No UAL returned from DKG after processing");
             }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);

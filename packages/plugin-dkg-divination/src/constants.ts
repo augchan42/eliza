@@ -1,12 +1,8 @@
+import schemaContext from "./schema-context.json";
+
 // TODO: add isConnectedTo field or similar which you will use to connect w other KAs
 export const dkgMemoryTemplate = {
-    "@context": [
-        "https://schema.org",
-        {
-            hexagram: "https://app.8bitoracle.ai/schema/hexagram#",
-            divination: "https://app.8bitoracle.ai/schema/divination#",
-        },
-    ],
+    "@context": schemaContext["@context"],
     "@type": ["CreativeWork", "divination:Reading"],
     "@id": "urn:hexagram:{number}",
     name: "{title}",
