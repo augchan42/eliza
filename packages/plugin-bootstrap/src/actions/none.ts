@@ -125,7 +125,7 @@ export const noneAction: Action = {
             {
                 user: "{{user2}}",
                 content: {
-                    text: "why dont scientists trust atoms cuz they make up everything lmao",
+                    text: "why dont scientists trust atoms cuz they make up everything",
                     action: "NONE",
                 },
             },
