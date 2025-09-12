@@ -44,7 +44,7 @@ function setOpenRouterHeaders(
     headers: Record<string, string>,
     provider: ModelProviderName,
     characterName: string,
-    referer: string = "https://x.com/pixdotpink"
+    referer: string = "https://pix.pink"
 ): void {
     if (provider === ModelProviderName.OPENROUTER) {
         headers["X-Title"] = `${characterName} (8-Bit Oracle)`;
