@@ -15,7 +15,8 @@ import schemaContext from "../schema-context.json";
 export const dkgDivinationInsert: Action = {
     name: "INSERT_DIVINATION_MEMORY",
     similes: [], // No similes to prevent accidental triggering
-    description: "Store market divination readings in the OriginTrail DKG - ONLY USE FOR /scan COMMAND",
+    description:
+        "Store market divination readings in the OriginTrail DKG - ONLY USE FOR /scan COMMAND",
     examples: [], // Action is called programmatically, no examples needed
     validate: async (runtime: IAgentRuntime) => {
         const requiredEnvVars = [
@@ -45,7 +46,7 @@ export const dkgDivinationInsert: Action = {
         message: Memory,
         state: State,
         _options: { [key: string]: unknown },
-        callback: HandlerCallback,
+        callback: HandlerCallback
     ): Promise<boolean> => {
         try {
             elizaLogger.info("Starting DKG divination insert with:", {
@@ -54,7 +55,7 @@ export const dkgDivinationInsert: Action = {
                 state_keys: Object.keys(state),
                 oracle_reading_type: typeof state.oracleReading,
                 market_sentiment_type: typeof state.marketSentiment,
-                news_events_type: typeof state.newsEvent
+                news_events_type: typeof state.newsEvent,
             });
 
             const DkgClient = new DKG({
@@ -79,27 +80,28 @@ export const dkgDivinationInsert: Action = {
             } catch (error) {
                 elizaLogger.error("Failed to parse oracleReading JSON:", {
                     error: error.message,
-                    data: state.oracleReading
+                    data: state.oracleReading,
                 });
                 throw new Error(`Invalid oracleReading JSON: ${error.message}`);
             }
-            
+
             try {
                 newsEvents = JSON.parse(state.newsEvent as string);
             } catch (error) {
                 elizaLogger.error("Failed to parse newsEvent JSON:", {
                     error: error.message,
-                    data: state.newsEvent
+                    data: state.newsEvent,
                 });
                 throw new Error(`Invalid newsEvent JSON: ${error.message}`);
             }
-            
+
             const marketSentiment = state.marketSentiment as string; // Plain text sentiment analysis
             const interpretation = state.interpretation as string;
 
             elizaLogger.info("Parsed state data for knowledge graph:", {
                 has_hexagram: !!hexagramData,
-                hexagram_number: hexagramData?.interpretation?.currentHexagram?.number,
+                hexagram_number:
+                    hexagramData?.interpretation?.currentHexagram?.number,
                 has_market_sentiment: !!marketSentiment,
                 has_news: !!newsEvents,
                 news_count: newsEvents?.length,
@@ -110,10 +112,12 @@ export const dkgDivinationInsert: Action = {
             const cleanHexagramData = {
                 hexagramLineValues: hexagramData.hexagramLineValues,
                 interpretation: {
-                    currentHexagram: hexagramData.interpretation.currentHexagram,
-                    transformedHexagram: hexagramData.interpretation.transformedHexagram,
-                    changes: hexagramData.interpretation.changes
-                }
+                    currentHexagram:
+                        hexagramData.interpretation.currentHexagram,
+                    transformedHexagram:
+                        hexagramData.interpretation.transformedHexagram,
+                    changes: hexagramData.interpretation.changes,
+                },
                 // Exclude fullHexagramData (computation details) to reduce size
             };
 
@@ -127,36 +131,42 @@ export const dkgDivinationInsert: Action = {
                     "@type": "Person",
                     identifier: state.userIdentifier || state.userId,
                 },
-                keywords: [`hexagram-${hexagramData.interpretation.currentHexagram.number}`, "divination", "market-analysis"],
+                keywords: [
+                    `hexagram-${hexagramData.interpretation.currentHexagram.number}`,
+                    "divination",
+                    "market-analysis",
+                ],
                 additionalProperty: [
                     {
                         "@type": "PropertyValue",
                         name: "hexagramData",
-                        value: JSON.stringify(cleanHexagramData)
-                    },
-                    {
-                        "@type": "PropertyValue", 
-                        name: "marketSentiment",
-                        value: marketSentiment
+                        value: JSON.stringify(cleanHexagramData),
                     },
                     {
                         "@type": "PropertyValue",
-                        name: "newsEvents", 
-                        value: JSON.stringify(newsEvents)
+                        name: "marketSentiment",
+                        value: marketSentiment,
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        name: "newsEvents",
+                        value: JSON.stringify(newsEvents),
                     },
                     {
                         "@type": "PropertyValue",
                         name: "interpretation",
-                        value: interpretation
-                    }
-                ]
+                        value: interpretation,
+                    },
+                ],
             };
 
             elizaLogger.info("Persisting divination to DKG:", {
-                hexagram_number: hexagramData.interpretation.currentHexagram.number,
+                hexagram_number:
+                    hexagramData.interpretation.currentHexagram.number,
                 hexagram_name: hexagramData.interpretation.currentHexagram.name,
-                has_transformed: !!hexagramData.interpretation.transformedHexagram,
-                asset_template: JSON.stringify(memoryKnowledgeGraph, null, 2)
+                has_transformed:
+                    !!hexagramData.interpretation.transformedHexagram,
+                asset_template: JSON.stringify(memoryKnowledgeGraph, null, 2),
             });
 
             let createAssetResult;
@@ -171,15 +181,17 @@ export const dkgDivinationInsert: Action = {
                     {
                         public: memoryKnowledgeGraph,
                     },
-                    { epochsNum: 12 },
+                    { epochsNum: 12 }
                 );
 
-                elizaLogger.log("======================== DIVINATION ASSET CREATED");
+                elizaLogger.log(
+                    "======================== DIVINATION ASSET CREATED"
+                );
                 elizaLogger.log(JSON.stringify(createAssetResult));
             } catch (error) {
                 elizaLogger.error(
                     "Error occurred while publishing divination to DKG:",
-                    error.message,
+                    error.message
                 );
 
                 if (error.stack) {
@@ -188,7 +200,7 @@ export const dkgDivinationInsert: Action = {
                 if (error.response) {
                     elizaLogger.error(
                         "Response data:",
-                        JSON.stringify(error.response.data, null, 2),
+                        JSON.stringify(error.response.data, null, 2)
                     );
                 }
 
@@ -200,7 +212,7 @@ export const dkgDivinationInsert: Action = {
                     error.message.includes("malformed")
                 ) {
                     elizaLogger.warn(
-                        "Detected JSON/schema formatting issue. Attempting LLM fix...",
+                        "Detected JSON/schema formatting issue. Attempting LLM fix..."
                     );
                     try {
                         const fixedJSON = await generateText({
@@ -214,22 +226,22 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                         });
 
                         elizaLogger.log(
-                            `Fixed JSON generated by LLM: ${fixedJSON}. Retrying...`,
+                            `Fixed JSON generated by LLM: ${fixedJSON}. Retrying...`
                         );
 
                         createAssetResult = await DkgClient.asset.create(
                             { public: JSON.parse(fixedJSON) },
-                            { epochsNum: 12 },
+                            { epochsNum: 12 }
                         );
 
                         elizaLogger.log(
-                            "======================== DIVINATION ASSET CREATED AFTER LLM FIX",
+                            "======================== DIVINATION ASSET CREATED AFTER LLM FIX"
                         );
                         elizaLogger.log(JSON.stringify(createAssetResult));
                     } catch (llmError) {
                         elizaLogger.error(
                             "Failed to fix divination JSON using LLM:",
-                            llmError.message,
+                            llmError.message
                         );
                         throw error; // Re-throw original error
                     }
@@ -239,16 +251,17 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
             }
 
             if (createAssetResult?.UAL) {
-                const explorerLink = `https://dkg.${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/`;
+                const explorerLink = `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/`;
                 const akashicRecordUrl = `@origin_trail akashic record: ${explorerLink}${createAssetResult.UAL}`;
-                
+
                 elizaLogger.info("Successfully persisted divination to DKG:", {
                     UAL: createAssetResult.UAL,
                     explorer_link: `${explorerLink}${createAssetResult.UAL}`,
-                    hexagram: hexagramData.interpretation.currentHexagram.number,
-                    akashic_record: akashicRecordUrl
+                    hexagram:
+                        hexagramData.interpretation.currentHexagram.number,
+                    akashic_record: akashicRecordUrl,
                 });
-                
+
                 // Call callback only if provided (for interactive use or reply posting)
                 if (callback) {
                     callback({
@@ -257,8 +270,8 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                         metadata: {
                             originalTweetId: state.tweetId,
                             roomId: state.roomId,
-                            replyContent: akashicRecordUrl
-                        }
+                            replyContent: akashicRecordUrl,
+                        },
                     });
                 }
                 return true;
@@ -266,7 +279,8 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                 throw new Error("No UAL returned from DKG after processing");
             }
         } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorMsg =
+                error instanceof Error ? error.message : String(error);
             elizaLogger.error("Error in divination DKG insert:", {
                 error: errorMsg,
                 memory_id: message.id,
