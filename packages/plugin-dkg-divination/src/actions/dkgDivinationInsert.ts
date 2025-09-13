@@ -251,12 +251,29 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
             }
 
             if (createAssetResult?.UAL) {
-                const explorerLink = `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/explore?ual=`;
-                const akashicRecordUrl = `@origin_trail akashic record: ${explorerLink}${createAssetResult.UAL}`;
+                elizaLogger.debug("DKG UAL processing:", {
+                    raw_UAL: createAssetResult.UAL,
+                    UAL_type: createAssetResult.UAL.startsWith('https://') ? 'full_url' : 'identifier',
+                    UAL_length: createAssetResult.UAL.length,
+                    DKG_ENVIRONMENT: runtime.getSetting("DKG_ENVIRONMENT")
+                });
+
+                // Use the UAL directly if it's already a full URL, otherwise construct explorer URL
+                const finalUrl = createAssetResult.UAL.startsWith('https://')
+                    ? createAssetResult.UAL
+                    : `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/explore?ual=${createAssetResult.UAL}`;
+
+                elizaLogger.debug("URL construction result:", {
+                    was_full_url: createAssetResult.UAL.startsWith('https://'),
+                    final_url: finalUrl,
+                    final_url_length: finalUrl.length
+                });
+
+                const akashicRecordUrl = `@origin_trail akashic record: ${finalUrl}`;
 
                 elizaLogger.info("Successfully persisted divination to DKG:", {
                     UAL: createAssetResult.UAL,
-                    explorer_link: `${explorerLink}${createAssetResult.UAL}`,
+                    explorer_link: finalUrl,
                     hexagram:
                         hexagramData.interpretation.currentHexagram.number,
                     akashic_record: akashicRecordUrl,
@@ -264,6 +281,13 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
 
                 // Call callback only if provided (for interactive use or reply posting)
                 if (callback) {
+                    elizaLogger.debug("Sending callback with akashic record URL:", {
+                        akashic_record_url: akashicRecordUrl,
+                        final_url_in_callback: finalUrl,
+                        original_tweet_id: state.tweetId,
+                        callback_text_length: akashicRecordUrl.length
+                    });
+
                     callback({
                         text: akashicRecordUrl,
                         action: "REPLY_TWEET", // Signal to post as reply
