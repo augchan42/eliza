@@ -251,7 +251,7 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
             }
 
             if (createAssetResult?.UAL) {
-                const explorerLink = `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/`;
+                const explorerLink = `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/explore?ual=`;
                 const akashicRecordUrl = `@origin_trail akashic record: ${explorerLink}${createAssetResult.UAL}`;
 
                 elizaLogger.info("Successfully persisted divination to DKG:", {
