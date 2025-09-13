@@ -36,41 +36,14 @@
     "SocialMediaPosting": {
       "@id": "schema:SocialMediaPosting"
     },
-    "hexagram": "urn:8bitoracle:hexagram:",
-    "divination": "urn:8bitoracle:divination:",
-    "hexagram:data": {
-      "@id": "urn:8bitoracle:hexagram:data"
+    "additionalProperty": {
+      "@id": "schema:additionalProperty"
     },
-    "hexagram:Hexagram": {
-      "@id": "urn:8bitoracle:hexagram:Hexagram"
+    "PropertyValue": {
+      "@id": "schema:PropertyValue"
     },
-    "hexagram:number": {
-      "@id": "urn:8bitoracle:hexagram:number",
-      "@type": "http://www.w3.org/2001/XMLSchema#integer"
-    },
-    "hexagram:binary": {
-      "@id": "urn:8bitoracle:hexagram:binary"
-    },
-    "hexagram:unicode": {
-      "@id": "urn:8bitoracle:hexagram:unicode"
-    },
-    "hexagram:name": {
-      "@id": "urn:8bitoracle:hexagram:name"
-    },
-    "hexagram:trigrams": {
-      "@id": "urn:8bitoracle:hexagram:trigrams"
-    },
-    "hexagram:lines": {
-      "@id": "urn:8bitoracle:hexagram:lines"
-    },
-    "hexagram:computation": {
-      "@id": "urn:8bitoracle:hexagram:computation"
-    },
-    "divination:Reading": {
-      "@id": "urn:8bitoracle:divination:Reading"
-    },
-    "divination:context": {
-      "@id": "urn:8bitoracle:divination:context"
+    "value": {
+      "@id": "schema:value"
     }
   }
 }

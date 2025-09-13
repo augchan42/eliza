@@ -119,21 +119,37 @@ export const dkgDivinationInsert: Action = {
 
             const memoryKnowledgeGraph = {
                 "@context": schemaContext["@context"],
-                "@type": ["CreativeWork", "divination:Reading"],
-                "@id": `urn:hexagram:${hexagramData.interpretation.currentHexagram.number}`,
+                "@type": "CreativeWork",
+                "@id": `urn:divination:${message.id}`,
                 name: `${hexagramData.interpretation.currentHexagram.name.pinyin} - ${hexagramData.interpretation.currentHexagram.name.chinese}`,
                 dateCreated: new Date().toISOString(),
                 author: {
                     "@type": "Person",
-                    "@id": state.userId,
                     identifier: state.userIdentifier || state.userId,
                 },
-                "hexagram:data": cleanHexagramData,
-                "divination:context": {
-                    marketSentiment,
-                    newsEvents,
-                    interpretation,
-                },
+                keywords: [`hexagram-${hexagramData.interpretation.currentHexagram.number}`, "divination", "market-analysis"],
+                additionalProperty: [
+                    {
+                        "@type": "PropertyValue",
+                        name: "hexagramData",
+                        value: JSON.stringify(cleanHexagramData)
+                    },
+                    {
+                        "@type": "PropertyValue", 
+                        name: "marketSentiment",
+                        value: marketSentiment
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        name: "newsEvents", 
+                        value: JSON.stringify(newsEvents)
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        name: "interpretation",
+                        value: interpretation
+                    }
+                ]
             };
 
             elizaLogger.info("Persisting divination to DKG:", {
