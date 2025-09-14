@@ -119,15 +119,30 @@ export class ArxivService {
     private async fetchArxivBatch(query: string, name: string, maxResults: number): Promise<any[]> {
         const url = `http://export.arxiv.org/api/query?search_query=${encodeURIComponent(query)}&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}`;
 
+        elizaLogger.info(`🔍 ArXiv API Request - Category: ${name}`);
+        elizaLogger.debug(`📡 Request URL: ${url}`);
+        elizaLogger.debug(`📊 Max Results: ${maxResults}, Query: ${query}`);
+
         try {
             // Apply rate limiting before each request
+            elizaLogger.debug(`⏱️ Applying rate limit for ${name}...`);
             await this.rateLimit();
 
+            const fetchStart = Date.now();
             const papers = await this.fetchAndParseArxiv(url, name);
-            elizaLogger.debug(`Fetched ${papers.length} papers from ${name}`);
+            const fetchTime = Date.now() - fetchStart;
+
+            elizaLogger.info(`✅ ${name}: ${papers.length} papers fetched in ${fetchTime}ms`);
+            elizaLogger.debug(`📝 Papers: ${papers.map(p => p.title.substring(0, 50)).join(', ')}`);
             return papers;
         } catch (error) {
-            elizaLogger.warn(`Failed to fetch ${name}:`, error.message);
+            elizaLogger.error(`❌ Failed to fetch ${name}:`, {
+                error: error.message,
+                stack: error.stack,
+                url: url,
+                query: query,
+                maxResults: maxResults
+            });
             return [];
         }
     }
@@ -150,19 +165,50 @@ export class ArxivService {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
 
+        elizaLogger.debug(`🌐 HTTP Request - ${categoryName}:`);
+        elizaLogger.debug(`   URL: ${url}`);
+        elizaLogger.debug(`   Method: GET, Timeout: 15s`);
+
         try {
+            const fetchStart = Date.now();
             const response = await fetch(url, {
                 method: 'GET',
                 headers: { 'Accept': 'application/atom+xml' },
                 signal: controller.signal
             });
+            const fetchTime = Date.now() - fetchStart;
+
+            elizaLogger.debug(`📡 HTTP Response - ${categoryName}:`);
+            elizaLogger.debug(`   Status: ${response.status} ${response.statusText}`);
+            elizaLogger.debug(`   URL: ${response.url} (final after redirects)`);
+            elizaLogger.debug(`   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+            elizaLogger.debug(`   Time: ${fetchTime}ms`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const error = `HTTP ${response.status}: ${response.statusText}`;
+                elizaLogger.error(`❌ HTTP Error - ${categoryName}: ${error}`);
+                throw new Error(error);
             }
 
+            const xmlStart = Date.now();
             const xmlText = await response.text();
+            const xmlTime = Date.now() - xmlStart;
+            
+            elizaLogger.debug(`📄 XML Response - ${categoryName}:`);
+            elizaLogger.debug(`   Size: ${xmlText.length} chars`);
+            elizaLogger.debug(`   Parse time: ${xmlTime}ms`);
+            elizaLogger.debug(`   Preview: ${xmlText.substring(0, 200)}...`);
+
             return this.parseArxivXML(xmlText, categoryName);
+        } catch (error) {
+            elizaLogger.error(`💥 Network Error - ${categoryName}:`, {
+                url: url,
+                error: error.message,
+                stack: error.stack,
+                type: error.constructor.name,
+                cause: error.cause
+            });
+            throw error;
         } finally {
             clearTimeout(timeout);
         }
