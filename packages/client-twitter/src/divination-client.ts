@@ -11,7 +11,7 @@ import {
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { postTweet, postReplyTweet, truncateToCompleteSentence } from "./tweet-utils";
-import { pixDivinationTemplate } from "./divination-templates";
+import { pixResearchTweetTemplate, pixHexagramReadingTemplate } from "./divination-templates";
 import { ArxivService } from "./arxiv-service";
 import { NewsService } from "./news-service";
 import { OracleService } from "./oracle-service";
@@ -236,129 +236,98 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 }
             );
 
-            const context = composeContext({
+            // Generate research tweet (main tweet with hook)
+            const researchContext = composeContext({
                 state,
-                template: pixDivinationTemplate,
+                template: pixResearchTweetTemplate,
             });
 
-            elizaLogger.log("divination sending context: ", context);
-
-            // Generate interpretation
-            elizaLogger.debug("🤖 Generating LLM interpretation...");
-            const genStart = Date.now();
-            const interpretation = await generateText({
+            elizaLogger.debug("🚀 Generating research tweet...");
+            const researchTweetStart = Date.now();
+            const researchTweet = await generateText({
                 runtime: this.runtime,
-                context,
+                context: researchContext,
                 modelClass: ModelClass.SMALL,
             });
-            const genTime = Date.now() - genStart;
-            
-            elizaLogger.info(`🤖 LLM generation complete: ${interpretation.length} chars in ${genTime}ms`);
-            elizaLogger.debug(`📝 Raw LLM response: ${interpretation.substring(0, 300)}...`);
+            const researchTime = Date.now() - researchTweetStart;
+            elizaLogger.info(`✅ Research tweet generated: ${researchTweet.length} chars in ${researchTime}ms`);
 
-            // First attempt to clean content
-            let cleanedContent = "";
+            // Generate hexagram reading (for reply tweet)
+            const hexagramContext = composeContext({
+                state,
+                template: pixHexagramReadingTemplate,
+            });
 
-            // Try parsing as JSON first
-            elizaLogger.debug("🧹 Parsing LLM response...");
-            try {
-                const parsedResponse = JSON.parse(interpretation);
-                elizaLogger.debug("✅ JSON parse successful:", Object.keys(parsedResponse));
-                
-                if (parsedResponse.text) {
-                    cleanedContent = parsedResponse.text;
-                    elizaLogger.debug("✅ Using parsedResponse.text field");
-                } else if (typeof parsedResponse === "string") {
-                    cleanedContent = parsedResponse;
-                    elizaLogger.debug("✅ Using parsedResponse as string");
-                }
-            } catch (jsonError) {
-                elizaLogger.debug("⚠️ JSON parse failed, using text cleanup:", jsonError.message);
-                
-                // If not JSON, clean the raw content
-                cleanedContent = interpretation
-                    .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
-                    .replace(/^['"](.*)['"]$/g, "$1") // Remove quotes
-                    .replace(/\\"/g, '"') // Unescape quotes
-                    .replace(/\\n/g, "\n") // Unescape newlines
-                    .trim();
-                
-                elizaLogger.debug(`🧹 Text cleanup result: ${cleanedContent.length} chars`);
-            }
+            elizaLogger.debug("🔮 Generating hexagram reading...");
+            const hexagramStart = Date.now();
+            const hexagramReading = await generateText({
+                runtime: this.runtime,
+                context: hexagramContext,
+                modelClass: ModelClass.SMALL,
+            });
+            const hexagramTime = Date.now() - hexagramStart;
+            elizaLogger.info(`✅ Hexagram reading generated: ${hexagramReading.length} chars in ${hexagramTime}ms`);
 
-            if (!cleanedContent) {
-                elizaLogger.error("💥 Failed to extract valid content from response:", {
-                    rawResponse: interpretation.substring(0, 500),
-                    responseLength: interpretation.length,
-                    attempted: "JSON parsing + text cleanup",
-                    jsonParseAttempted: true,
-                    textCleanupAttempted: true
-                });
+            // Clean research tweet
+            let cleanedResearchTweet = this.cleanLLMResponse(researchTweet, "research tweet");
+            if (!cleanedResearchTweet) {
+                elizaLogger.error("Failed to generate valid research tweet");
                 return;
             }
 
-            elizaLogger.info(`✅ Content extracted successfully: ${cleanedContent.length} chars`);
-
-            // Truncate the content to the maximum tweet length specified in the environment settings, ensuring the truncation respects sentence boundaries.
-            const maxTweetLength = this.client.twitterConfig.MAX_TWEET_LENGTH;
-            if (maxTweetLength) {
-                cleanedContent = truncateToCompleteSentence(
-                    cleanedContent,
-                    maxTweetLength
-                );
+            // Clean hexagram reading
+            let cleanedHexagramReading = this.cleanLLMResponse(hexagramReading, "hexagram reading");
+            if (!cleanedHexagramReading) {
+                elizaLogger.error("Failed to generate valid hexagram reading");
+                return;
             }
-
-            const removeQuotes = (str: string) =>
-                str.replace(/^['"](.*)['"]$/, "$1");
-
-            const fixNewLines = (str: string) => str.replaceAll(/\\n/g, "\n");
-
-            // Final cleaning
-            cleanedContent = removeQuotes(fixNewLines(cleanedContent));
 
             if (this.isDryRun) {
                 elizaLogger.info(
-                    `Dry run: would have posted tweet: ${cleanedContent}`
+                    `Dry run: would have posted tweet: ${cleanedResearchTweet}`
                 );
                 return;
             }
 
             try {
+                // Post main research tweet (Tweet 1)
                 elizaLogger.log(
-                    `Posting new tweet (${cleanedContent.length} chars):\n ${cleanedContent}`
+                    `📱 Posting main research tweet (${cleanedResearchTweet.length} chars):\n ${cleanedResearchTweet}`
                 );
-                const tweetId = await postTweet(
+                const mainTweetId = await postTweet(
                     this.runtime,
                     this.client,
-                    cleanedContent,
+                    cleanedResearchTweet,
                     roomId,
-                    interpretation,
+                    researchTweet, // Raw response for memory
                     this.twitterUsername
                 );
 
-                // Post citation as reply tweet  
-                if (tweetId && selectedArticle.link) {
+                // Post hexagram reading + citation as reply (Tweet 2)
+                let hexagramReplyId = null;
+                if (mainTweetId && selectedArticle.link) {
                     try {
-                        const citationContent = `📄 ${selectedArticle.title}\n\n${selectedArticle.authors ? `By ${selectedArticle.authors}\n` : ''}${selectedArticle.link}`;
+                        // Combine hexagram reading with citation
+                        const hexagramWithCitation = `${cleanedHexagramReading}\n\n📄 ${selectedArticle.title}\n${selectedArticle.authors ? `${selectedArticle.authors}\n` : ''}${selectedArticle.link}`;
                         
-                        elizaLogger.log(`Posting citation reply (${citationContent.length} chars):\n${citationContent}`);
+                        elizaLogger.log(`🔮 Posting hexagram reply (${hexagramWithCitation.length} chars):\n${hexagramWithCitation}`);
                         
-                        const replyTweetId = await postReplyTweet(
+                        hexagramReplyId = await postReplyTweet(
                             this.runtime,
                             this.client,
-                            citationContent,
-                            tweetId,
+                            hexagramWithCitation,
+                            mainTweetId,
                             roomId,
                             this.twitterUsername
                         );
                         
-                        if (replyTweetId) {
-                            elizaLogger.info("Successfully posted citation reply tweet");
+                        if (hexagramReplyId) {
+                            elizaLogger.info("✅ Successfully posted hexagram reading reply");
                         } else {
-                            elizaLogger.warn("Failed to post citation reply tweet");
+                            elizaLogger.warn("Failed to post hexagram reply tweet");
                         }
                     } catch (replyError) {
-                        elizaLogger.error("Error posting citation reply:", replyError);
+                        elizaLogger.error("Error posting hexagram reply:", replyError);
                         // Don't throw - main tweet was successful
                     }
                 }
@@ -426,16 +395,19 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                         embedding: getEmbeddingZeroVector()
                     };
 
-                    // Prepare structured state for DKG action
+                    // Prepare structured state for DKG action with BOTH tweets
                     const dkgState = {
                         ...state,
-                        oracleReading: formattedOracle,      // Already JSON string
-                        researchPaper: formattedResearch,    // JSON string  
-                        interpretation: cleanedContent,      // Final tweet text
+                        oracleReading: formattedOracle,           // Already JSON string
+                        researchPaper: formattedResearch,         // JSON string  
+                        interpretation: `${cleanedResearchTweet}\n\n---\n\n${cleanedHexagramReading}`,  // Both tweets
+                        mainTweetContent: cleanedResearchTweet,   // Main research tweet
+                        hexagramReading: cleanedHexagramReading,  // Hexagram reply content
                         userId: this.runtime.agentId,
                         userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
-                        tweetId: tweetId,                    // Original tweet ID for threading
-                        roomId: roomId                       // Room ID for reply posting
+                        tweetId: mainTweetId,                     // Main tweet ID for threading
+                        replyTweetId: hexagramReplyId,           // Reply tweet ID
+                        roomId: roomId                            // Room ID for reply posting
                     };
 
                     // Create callback to handle reply tweet posting
@@ -522,6 +494,45 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
     }
 
     // Add this new method for testing
+    private cleanLLMResponse(response: string, contentType: string): string {
+        let cleanedContent = "";
+        
+        // Try parsing as JSON first
+        elizaLogger.debug(`🧹 Parsing ${contentType} LLM response...`);
+        try {
+            const parsedResponse = JSON.parse(response);
+            if (parsedResponse.text) {
+                cleanedContent = parsedResponse.text;
+            } else if (typeof parsedResponse === "string") {
+                cleanedContent = parsedResponse;
+            }
+        } catch (jsonError) {
+            // If not JSON, clean the raw content
+            cleanedContent = response
+                .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
+                .replace(/^['"](.*)['"]$/g, "$1") // Remove quotes
+                .replace(/\\"/g, '"') // Unescape quotes
+                .replace(/\\n/g, "\n") // Unescape newlines
+                .trim();
+        }
+        
+        if (!cleanedContent) {
+            elizaLogger.error(`💥 Failed to extract valid ${contentType}:`, {
+                rawResponse: response.substring(0, 500),
+                responseLength: response.length
+            });
+            return null;
+        }
+        
+        elizaLogger.info(`✅ ${contentType} extracted: ${cleanedContent.length} chars`);
+        
+        // Final cleaning
+        const removeQuotes = (str: string) => str.replace(/^['"](.*)['"]$/, "$1");
+        const fixNewLines = (str: string) => str.replaceAll(/\\n/g, "\n");
+        
+        return removeQuotes(fixNewLines(cleanedContent));
+    }
+
     public async testDivination(): Promise<string> {
         // Force dry run mode
         this.isDryRun = true;
