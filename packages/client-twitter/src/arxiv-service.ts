@@ -7,7 +7,7 @@ import {
 
 export class ArxivService {
     private lastRequestTime: number = 0;
-    private consecutiveRequests: number = 0;
+    private consecutiveErrors: number = 0;
     private readonly BASE_DELAY = 1000; // 1 second minimum
     private readonly BACKOFF_MULTIPLIER = 2.5; // Aggressive scaling
     private readonly MAX_DELAY = 30000; // Cap at 30 seconds
@@ -36,7 +36,7 @@ export class ArxivService {
 
         // Calculate exponential backoff delay
         const exponentialDelay = Math.min(
-            this.BASE_DELAY * Math.pow(this.BACKOFF_MULTIPLIER, this.consecutiveRequests),
+            this.BASE_DELAY * Math.pow(this.BACKOFF_MULTIPLIER, this.consecutiveErrors),
             this.MAX_DELAY
         );
 
@@ -44,16 +44,16 @@ export class ArxivService {
         const actualDelay = Math.max(0, requiredDelay - timeSinceLastRequest);
 
         if (actualDelay > 0) {
-            elizaLogger.debug(`Rate limiting: waiting ${actualDelay}ms (consecutive: ${this.consecutiveRequests})`);
+            elizaLogger.debug(`Rate limiting: waiting ${actualDelay}ms (consecutive: ${this.consecutiveErrors})`);
             await new Promise(resolve => setTimeout(resolve, actualDelay));
         }
 
         this.lastRequestTime = Date.now();
-        this.consecutiveRequests++;
+        // Note: consecutiveErrors only increments on errors, not successful requests
     }
 
     private resetRateLimit(): void {
-        this.consecutiveRequests = 0;
+        this.consecutiveErrors = 0;
         elizaLogger.debug("Rate limit reset - consecutive requests cleared");
     }
 
@@ -132,16 +132,23 @@ export class ArxivService {
             const papers = await this.fetchAndParseArxiv(url, name);
             const fetchTime = Date.now() - fetchStart;
 
+            // Success: reset exponential backoff counter
+            this.consecutiveErrors = 0;
+
             elizaLogger.info(`✅ ${name}: ${papers.length} papers fetched in ${fetchTime}ms`);
             elizaLogger.debug(`📝 Papers: ${papers.map(p => p.title.substring(0, 50)).join(', ')}`);
             return papers;
         } catch (error) {
+            // Error: increment exponential backoff counter
+            this.consecutiveErrors++;
+            
             elizaLogger.error(`❌ Failed to fetch ${name}:`, {
                 error: error.message,
                 stack: error.stack,
                 url: url,
                 query: query,
-                maxResults: maxResults
+                maxResults: maxResults,
+                consecutiveErrors: this.consecutiveErrors
             });
             return [];
         }

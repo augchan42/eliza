@@ -40,6 +40,11 @@ export class TwitterDivinationClient {
         this.divinationLoop();
     }
 
+    // Compatibility method for TwitterInteractionClient
+    public async fetchGoogleNews() {
+        return await this.newsService.fetchGoogleNews();
+    }
+
     private async divinationLoop() {
         try {
             const lastPost = await this.runtime.cacheManager.get<{
