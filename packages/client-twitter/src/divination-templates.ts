@@ -108,10 +108,4 @@ End with @8bitoracle tagline. Do NOT include arXiv links or URLs - they will be 
 
 Generate content that feels unmistakably human and makes the ancient-modern connection viscerally clear.
 
-# OUTPUT FORMAT
-Your response should be exactly this format:
-\`\`\`
-[Main tweet content - max 500 characters plus @8bitoracle tagline]
-\`\`\`
-
 No arXiv links, no URLs, no additional text. Just the visceral, authentic content that connects the hexagram to research insights.`;

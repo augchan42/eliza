@@ -85,17 +85,24 @@ export const dkgDivinationInsert: Action = {
                 throw new Error(`Invalid oracleReading JSON: ${error.message}`);
             }
 
-            try {
-                newsEvents = JSON.parse(state.newsEvent as string);
-            } catch (error) {
-                elizaLogger.error("Failed to parse newsEvent JSON:", {
-                    error: error.message,
-                    data: state.newsEvent,
-                });
-                throw new Error(`Invalid newsEvent JSON: ${error.message}`);
+            // Parse newsEvent if provided (optional for research-focused divination)
+            if (state.newsEvent && state.newsEvent !== 'undefined') {
+                try {
+                    newsEvents = JSON.parse(state.newsEvent as string);
+                } catch (error) {
+                    elizaLogger.warn("Failed to parse newsEvent JSON, using empty array:", {
+                        error: error.message,
+                        data: state.newsEvent,
+                    });
+                    newsEvents = [];
+                }
+            } else {
+                newsEvents = [];
             }
 
-            const marketSentiment = state.marketSentiment as string; // Plain text sentiment analysis
+            const marketSentiment = (state.marketSentiment && state.marketSentiment !== 'undefined') 
+                ? state.marketSentiment as string 
+                : "neutral"; // Default sentiment for research-focused divination
             const interpretation = state.interpretation as string;
 
             elizaLogger.info("Parsed state data for knowledge graph:", {

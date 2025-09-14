@@ -15,6 +15,7 @@ import { pixDivinationTemplate } from "./divination-templates";
 import { ArxivService } from "./arxiv-service";
 import { NewsService } from "./news-service";
 import { OracleService } from "./oracle-service";
+import { ContentSelectionService, SelectionCriteria } from "./content-selection-service";
 
 export class TwitterDivinationClient {
     client: ClientBase;
@@ -24,6 +25,7 @@ export class TwitterDivinationClient {
     private arxivService: ArxivService;
     private newsService: NewsService;
     private oracleService: OracleService;
+    private contentSelectionService: ContentSelectionService;
 
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
@@ -33,6 +35,7 @@ export class TwitterDivinationClient {
         this.arxivService = new ArxivService(runtime, username);
         this.newsService = new NewsService(runtime);
         this.oracleService = new OracleService();
+        this.contentSelectionService = new ContentSelectionService(runtime);
     }
 
     async start() {
@@ -183,8 +186,21 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 return;
             }
 
-            // Now select the best article from the unique articles
-            const selectedArticle = await this.newsService.selectMostEngaging(filteredArticles);
+            // Now select the best research paper from the unique articles using research-focused criteria
+            const researchCriteria: SelectionCriteria = {
+                contentType: 'research',
+                character: 'Pix - a digital anthropologist interpreting research through I-Ching wisdom with Discord 3am energy',
+                priorities: [
+                    'NOVELTY: Is this breakthrough research or novel approach?',
+                    'PARADIGM SHIFT: Does this challenge existing assumptions or create new frameworks?',
+                    'I-CHING RESONANCE: Can this be interpreted through pattern analysis and ancient wisdom?',
+                    'TRANSFORMATIVE POTENTIAL: Will this change how we think about the domain?',
+                    'COMPLEXITY INSIGHTS: Does this reveal hidden patterns or structures?'
+                ],
+                priorityOrder: 'Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications'
+            };
+            
+            const selectedArticle = await this.contentSelectionService.selectMostRelevant(filteredArticles, researchCriteria);
 
             // Format the data before passing to template
             const formattedResearch = JSON.stringify(researchPapers, null, 2);

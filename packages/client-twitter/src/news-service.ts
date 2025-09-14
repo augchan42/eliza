@@ -5,9 +5,14 @@ import {
     generateText,
     parseJSONObjectFromText,
 } from "@elizaos/core";
+import { ContentSelectionService, SelectionCriteria } from "./content-selection-service";
 
 export class NewsService {
-    constructor(private runtime: IAgentRuntime) {}
+    private contentSelectionService: ContentSelectionService;
+
+    constructor(private runtime: IAgentRuntime) {
+        this.contentSelectionService = new ContentSelectionService(runtime);
+    }
 
     public async fetchGoogleNews() {
         // Try multiple RSS sources in order of preference
@@ -133,94 +138,21 @@ Return the numbers of the most newsworthy/attention-grabbing articles (e.g., "1,
         }
     }
     
-    private async selectMostEngaging(articles: any[]): Promise<any> {
-        if (articles.length === 0) {
-            return { 
-                title: "No articles available", 
-                summary: "Feed parsing failed. Operating on cached data.",
-                pubDate: new Date().toISOString()
-            };
-        }
-        if (articles.length === 1) return articles[0];
-        
-        const articlesText = articles.map((article, index) => 
-            `${index + 1}. ${article.title}\n   Summary: ${article.summary.substring(0, 150)}...\n   Date: ${article.pubDate}`
-        ).join('\n\n');
-        
-        const selectionPrompt = `From these newsworthy articles, select the ONE most engaging for Pix - a digital anthropologist who interprets major events through I-Ching wisdom with Discord 3am energy.
+    public async selectMostEngaging(articles: any[]): Promise<any> {
+        const newsCriteria: SelectionCriteria = {
+            contentType: 'news',
+            character: 'Pix - a digital anthropologist who interprets major events through I-Ching wisdom with Discord 3am energy',
+            priorities: [
+                'NEWSWORTHINESS: Is this what people are actually talking about right now?',
+                'BREAKING NEWS VALUE: Major events always beat niche topics',
+                'HUMAN BEHAVIOR PATTERNS: Can this be interpreted through I-Ching/behavioral analysis?',
+                'VIRAL POTENTIAL: Will this generate engagement and discussion?',
+                'TEACHING OPPORTUNITY: Can we use this to educate people about pattern recognition?'
+            ],
+            priorityOrder: 'Major breaking news > Viral trending topics > Tech/AI developments'
+        };
 
-Consider:
-- NEWSWORTHINESS: Is this what people are actually talking about right now?
-- BREAKING NEWS VALUE: Major events always beat niche topics
-- HUMAN BEHAVIOR PATTERNS: Can this be interpreted through I-Ching/behavioral analysis?
-- VIRAL POTENTIAL: Will this generate engagement and discussion?
-- TEACHING OPPORTUNITY: Can we use this to educate people about pattern recognition?
-
-Priority: Major breaking news > Viral trending topics > Tech/AI developments
-
-Articles:
-${articlesText}
-
-Respond with JSON in this exact format:
-{
-  "selectedArticle": 2,
-  "reasoning": "Brief explanation of why this article was selected"
-}`;
-
-        try {
-            const response = await generateText({
-                runtime: this.runtime,
-                context: selectionPrompt,
-                modelClass: ModelClass.SMALL,
-            });
-            
-            elizaLogger.debug("LLM selection response:", response);
-            
-            // Try to parse structured JSON response
-            try {
-                const jsonResponse = parseJSONObjectFromText(response);
-                if (jsonResponse && jsonResponse.selectedArticle && typeof jsonResponse.selectedArticle === 'number') {
-                    const index = jsonResponse.selectedArticle - 1;
-                    if (index >= 0 && index < articles.length) {
-                        elizaLogger.debug(`LLM selected article (JSON format ${jsonResponse.selectedArticle}): ${articles[index].title}`);
-                        elizaLogger.debug(`Selection reasoning: ${jsonResponse.reasoning}`);
-                        return articles[index];
-                    }
-                }
-            } catch (jsonError) {
-                elizaLogger.debug("Failed to parse JSON response, falling back to text parsing. Error:", jsonError);
-            }
-            
-            // Fallback: Look for the first standalone number at the beginning of response
-            const firstLineMatch = response.trim().match(/^(\d+)/);
-            if (firstLineMatch) {
-                const selectedNumber = firstLineMatch[1];
-                const index = parseInt(selectedNumber) - 1;
-                if (index >= 0 && index < articles.length) {
-                    elizaLogger.debug(`LLM selected article (fallback first line number ${selectedNumber}): ${articles[index].title}`);
-                    return articles[index];
-                }
-            }
-            
-            // Final fallback: try to find any number
-            const allNumbers = response.match(/\d+/g);
-            if (allNumbers) {
-                const firstNumber = allNumbers[0];
-                const index = parseInt(firstNumber) - 1;
-                if (index >= 0 && index < articles.length) {
-                    elizaLogger.debug(`LLM selected article (fallback any number ${firstNumber}): ${articles[index].title}`);
-                    return articles[index];
-                }
-            }
-            
-            // Ultimate fallback to first article
-            elizaLogger.debug("Using ultimate fallback selection (first article)");
-            return articles[0];
-            
-        } catch (error) {
-            elizaLogger.error("Error in LLM selection:", error);
-            return articles[0];
-        }
+        return await this.contentSelectionService.selectMostRelevant(articles, newsCriteria);
     }
     
     private parseGoogleNewsRSS(xmlText: string) {
