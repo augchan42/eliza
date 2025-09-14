@@ -301,4 +301,37 @@ Respond with JSON in this exact format:
         
         return articles;
     }
+
+    public async generateSentimentFromNews(articles: any[]) {
+        if (!articles || articles.length === 0) {
+            return "neutral";
+        }
+
+        const headlinesText = articles.slice(0, 5).map(article => 
+            `${article.title}`
+        ).join(', ');
+
+        const sentimentPrompt = `Analyze overall sentiment from these news headlines. Respond with exactly 1-3 words only:
+
+Headlines: ${headlinesText}
+
+Sentiment (1-3 words max):`;
+
+        try {
+            const response = await generateText({
+                runtime: this.runtime,
+                context: sentimentPrompt,
+                modelClass: ModelClass.SMALL,
+            });
+
+            // Clean and truncate to 3 words max
+            const sentiment = response.trim().split(' ').slice(0, 3).join(' ');
+            elizaLogger.debug(`News sentiment: "${sentiment}"`);
+            return sentiment;
+
+        } catch (error) {
+            elizaLogger.error("Error in sentiment analysis:", error);
+            return "mixed";
+        }
+    }
 }

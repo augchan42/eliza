@@ -386,14 +386,37 @@ Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score
     }
 
     private parseRankingResponse(response: string): any {
+        elizaLogger.debug('📋 LLM Ranking Response Analysis:');
+        elizaLogger.debug(`   Length: ${response.length} characters`);
+        elizaLogger.debug(`   Preview: ${response.substring(0, 200)}...`);
+        
         try {
             // Try to extract JSON from response
             const jsonMatch = response.match(/\{[\s\S]*\}/);
+            elizaLogger.debug(`   JSON Match Found: ${!!jsonMatch}`);
+            
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                elizaLogger.debug(`   Extracted JSON: ${jsonMatch[0].substring(0, 500)}...`);
+                
+                const parsed = JSON.parse(jsonMatch[0]);
+                elizaLogger.debug(`   Parsed Structure:`, {
+                    hasRankings: !!parsed.rankings,
+                    rankingsCount: parsed.rankings?.length || 0,
+                    firstRankingStructure: parsed.rankings?.[0] ? Object.keys(parsed.rankings[0]) : 'none'
+                });
+                
+                return parsed;
+            } else {
+                elizaLogger.warn('❌ No JSON structure found in LLM response');
+                elizaLogger.debug(`   Full Response: ${response}`);
             }
         } catch (error) {
-            elizaLogger.error('Failed to parse ranking response:', error);
+            elizaLogger.error('💥 JSON Parse Error:', {
+                error: error.message,
+                responseLength: response.length,
+                responsePreview: response.substring(0, 300),
+                jsonMatch: response.match(/\{[\s\S]*\}/) ? 'found' : 'not found'
+            });
         }
         return null;
     }

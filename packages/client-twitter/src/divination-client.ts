@@ -40,9 +40,17 @@ export class TwitterDivinationClient {
         this.divinationLoop();
     }
 
-    // Compatibility method for TwitterInteractionClient
+    // Compatibility methods for TwitterInteractionClient
     public async fetchGoogleNews() {
         return await this.newsService.fetchGoogleNews();
+    }
+
+    public async generateSentimentFromNews(articles: any[]) {
+        return await this.newsService.generateSentimentFromNews(articles);
+    }
+
+    public async fetch8BitOracle() {
+        return await this.oracleService.fetch8BitOracle();
     }
 
     private async divinationLoop() {
@@ -166,7 +174,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 }
                 
                 filteredArticles = uniqueArticles;
-                elizaLogger.debug(`Deduplication results: ${filteredArticles.length} unique articles from ${Array.isArray(newsEvent) ? newsEvent.length : 1} candidates`);
+                elizaLogger.debug(`Deduplication results: ${filteredArticles.length} unique articles from ${Array.isArray(researchPapers) ? researchPapers.length : 1} candidates`);
             }
 
             // If all articles were filtered out as duplicates, skip this cycle
@@ -220,24 +228,37 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
             elizaLogger.log("divination sending context: ", context);
 
             // Generate interpretation
+            elizaLogger.debug("🤖 Generating LLM interpretation...");
+            const genStart = Date.now();
             const interpretation = await generateText({
                 runtime: this.runtime,
                 context,
                 modelClass: ModelClass.SMALL,
             });
+            const genTime = Date.now() - genStart;
+            
+            elizaLogger.info(`🤖 LLM generation complete: ${interpretation.length} chars in ${genTime}ms`);
+            elizaLogger.debug(`📝 Raw LLM response: ${interpretation.substring(0, 300)}...`);
 
             // First attempt to clean content
             let cleanedContent = "";
 
             // Try parsing as JSON first
+            elizaLogger.debug("🧹 Parsing LLM response...");
             try {
                 const parsedResponse = JSON.parse(interpretation);
+                elizaLogger.debug("✅ JSON parse successful:", Object.keys(parsedResponse));
+                
                 if (parsedResponse.text) {
                     cleanedContent = parsedResponse.text;
+                    elizaLogger.debug("✅ Using parsedResponse.text field");
                 } else if (typeof parsedResponse === "string") {
                     cleanedContent = parsedResponse;
+                    elizaLogger.debug("✅ Using parsedResponse as string");
                 }
-            } catch {
+            } catch (jsonError) {
+                elizaLogger.debug("⚠️ JSON parse failed, using text cleanup:", jsonError.message);
+                
                 // If not JSON, clean the raw content
                 cleanedContent = interpretation
                     .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
@@ -245,18 +266,22 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                     .replace(/\\"/g, '"') // Unescape quotes
                     .replace(/\\n/g, "\n") // Unescape newlines
                     .trim();
+                
+                elizaLogger.debug(`🧹 Text cleanup result: ${cleanedContent.length} chars`);
             }
 
             if (!cleanedContent) {
-                elizaLogger.error(
-                    "Failed to extract valid content from response:",
-                    {
-                        rawResponse: interpretation,
-                        attempted: "JSON parsing",
-                    }
-                );
+                elizaLogger.error("💥 Failed to extract valid content from response:", {
+                    rawResponse: interpretation.substring(0, 500),
+                    responseLength: interpretation.length,
+                    attempted: "JSON parsing + text cleanup",
+                    jsonParseAttempted: true,
+                    textCleanupAttempted: true
+                });
                 return;
             }
+
+            elizaLogger.info(`✅ Content extracted successfully: ${cleanedContent.length} chars`);
 
             // Truncate the content to the maximum tweet length specified in the environment settings, ensuring the truncation respects sentence boundaries.
             const maxTweetLength = this.client.twitterConfig.MAX_TWEET_LENGTH;
