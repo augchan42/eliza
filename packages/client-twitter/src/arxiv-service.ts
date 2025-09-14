@@ -181,7 +181,6 @@ export class ArxivService {
             elizaLogger.debug(`📡 HTTP Response - ${categoryName}:`);
             elizaLogger.debug(`   Status: ${response.status} ${response.statusText}`);
             elizaLogger.debug(`   URL: ${response.url} (final after redirects)`);
-            elizaLogger.debug(`   Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
             elizaLogger.debug(`   Time: ${fetchTime}ms`);
 
             if (!response.ok) {
@@ -193,7 +192,7 @@ export class ArxivService {
             const xmlStart = Date.now();
             const xmlText = await response.text();
             const xmlTime = Date.now() - xmlStart;
-            
+
             elizaLogger.debug(`📄 XML Response - ${categoryName}:`);
             elizaLogger.debug(`   Size: ${xmlText.length} chars`);
             elizaLogger.debug(`   Parse time: ${xmlTime}ms`);
@@ -431,7 +430,7 @@ Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score
 
         // Check quality threshold
         const topPaper = availablePapers[0];
-        const poolMetadata = await this.runtime.cacheManager.get<any>(
+        const _poolMetadata = await this.runtime.cacheManager.get<any>(
             this.getCacheKey('poolMetadata')
         );
 
