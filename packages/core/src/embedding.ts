@@ -313,15 +313,8 @@ export async function embed(runtime: IAgentRuntime, input: string) {
             const embedding = await embeddingModel.queryEmbed(input);
 
             // Debug the raw embedding
-            elizaLogger.debug("Raw embedding from BGE:", {
-                type: typeof embedding,
-                isArray: Array.isArray(embedding),
-                dimensions: Array.isArray(embedding)
-                    ? embedding.length
-                    : "not an array",
-                sample: Array.isArray(embedding)
-                    ? embedding.slice(0, 5)
-                    : embedding,
+            elizaLogger.debug("BGE embedding generated:", {
+                dimensions: Array.isArray(embedding) ? embedding.length : "not an array"
             });
 
             // Process the embedding into the correct format

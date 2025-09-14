@@ -117,7 +117,7 @@ export class ArxivService {
     }
 
     private async fetchArxivBatch(query: string, name: string, maxResults: number): Promise<any[]> {
-        const url = `http://export.arxiv.org/api/query?search_query=${encodeURIComponent(query)}&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}`;
+        const url = `https://export.arxiv.org/api/query?search_query=${encodeURIComponent(query)}&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}`;
 
         elizaLogger.info(`🔍 ArXiv API Request - Category: ${name}`);
         elizaLogger.debug(`📡 Request URL: ${url}`);
