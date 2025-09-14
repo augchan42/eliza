@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-09-14T12:40:16.556Z",
+  "totalFetched": 50,
+  "totalRanked": 50,
+  "candidatesSelected": 5,
+  "topCandidate": {
+    "arxivId": "2025.00038",
+    "title": "Test Paper 38: Advanced AI Research",
+    "qualityScore": 9.260571521231284,
+    "themes": [
+      "consciousness",
+      "emergence"
+    ],
+    "reasoning": "Paper 38 demonstrates interesting patterns relevant to divination"
+  },
+  "allCandidates": [
+    {
+      "arxivId": "2025.00038",
+      "title": "Test Paper 38: Advanced AI Research",
+      "qualityScore": 9.260571521231284,
+      "ranking": 39
+    },
+    {
+      "arxivId": "2025.00041",
+      "title": "Test Paper 41: Advanced AI Research",
+      "qualityScore": 9.125092363736353,
+      "ranking": 42
+    },
+    {
+      "arxivId": "2025.00002",
+      "title": "Test Paper 2: Advanced AI Research",
+      "qualityScore": 9.077712868955864,
+      "ranking": 3
+    },
+    {
+      "arxivId": "2025.00030",
+      "title": "Test Paper 30: Advanced AI Research",
+      "qualityScore": 9.012362893427937,
+      "ranking": 31
+    },
+    {
+      "arxivId": "2025.00011",
+      "title": "Test Paper 11: Advanced AI Research",
+      "qualityScore": 8.954696103368294,
+      "ranking": 12
+    }
+  ]
+}

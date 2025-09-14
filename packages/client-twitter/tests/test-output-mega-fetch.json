@@ -1,0 +1,109 @@
+{
+  "timestamp": "2025-09-14T12:40:16.555Z",
+  "totalPapers": 50,
+  "categories": {
+    "cs.AI": 50
+  },
+  "samplePapers": [
+    {
+      "arxivId": "2025.00000",
+      "title": "Test Paper 0: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00001",
+      "title": "Test Paper 1: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00002",
+      "title": "Test Paper 2: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00003",
+      "title": "Test Paper 3: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00004",
+      "title": "Test Paper 4: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00005",
+      "title": "Test Paper 5: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00006",
+      "title": "Test Paper 6: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00007",
+      "title": "Test Paper 7: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00008",
+      "title": "Test Paper 8: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    },
+    {
+      "arxivId": "2025.00009",
+      "title": "Test Paper 9: Advanced AI Research",
+      "category": "cs.AI",
+      "authors": [
+        "Test Author"
+      ],
+      "publishedDate": "2025-09-14T12:40:16.555Z",
+      "abstractLength": 212
+    }
+  ]
+}

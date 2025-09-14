@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <link href="http://arxiv.org/api/query?search_query%3Dcat%3Acs.AI%26id_list%3D%26start%3D0%26max_results%3D10" rel="self" type="application/atom+xml"/>
+  <title type="html">ArXiv Query: search_query=cat:cs.AI&amp;id_list=&amp;start=0&amp;max_results=10</title>
+  <id>http://arxiv.org/api/xn611ryeCDnDvmVYOJ6SWZuh1qk</id>
+  <updated>2025-09-14T00:00:00-04:00</updated>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">141286</opensearch:totalResults>
+  <opensearch:startIndex xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">0</opensearch:startIndex>
+  <opensearch:itemsPerPage xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">10</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09679v1</id>
+    <updated>2025-09-11T17:59:51Z</updated>
+    <published>2025-09-11T17:59:51Z</published>
+    <title>ButterflyQuant: Ultra-low-bit LLM Quantization through Learnable
+  Orthogonal Butterfly Transforms</title>
+    <summary>  Large language models require massive memory footprints, severely limiting
+deployment on consumer hardware. Quantization reduces memory through lower
+numerical precision, but extreme 2-bit quantization suffers from catastrophic
+performance loss due to outliers in activations. Rotation-based methods such as
+QuIP and QuaRot apply orthogonal transforms to eliminate outliers before
+quantization, using computational invariance: $\mathbf{y} = \mathbf{Wx} =
+(\mathbf{WQ}^T)(\mathbf{Qx})$ for orthogonal $\mathbf{Q}$. However, these
+methods use fixed transforms--Hadamard matrices achieving optimal worst-case
+coherence $\mu = 1/\sqrt{n}$--that cannot adapt to specific weight
+distributions. We identify that different transformer layers exhibit distinct
+outlier patterns, motivating layer-adaptive rotations rather than
+one-size-fits-all approaches. We propose ButterflyQuant, which replaces
+Hadamard rotations with learnable butterfly transforms parameterized by
+continuous Givens rotation angles. Unlike Hadamard's discrete $\{+1, -1\}$
+entries that are non-differentiable and prohibit gradient-based learning,
+butterfly transforms' continuous parameterization enables smooth optimization
+while guaranteeing orthogonality by construction. This orthogonal constraint
+ensures theoretical guarantees in outlier suppression while achieving $O(n \log
+n)$ computational complexity with only $\frac{n \log n}{2}$ learnable
+parameters. We further introduce a uniformity regularization on
+post-transformation activations to promote smoother distributions amenable to
+quantization. Learning requires only 128 calibration samples and converges in
+minutes on a single GPU--a negligible one-time cost. On LLaMA-2-7B with 2-bit
+quantization, ButterflyQuant achieves 15.4 perplexity versus 22.1 for QuaRot.
+</summary>
+    <author>
+      <name>Bingxin Xu</name>
+    </author>
+    <author>
+      <name>Zhen Dong</name>
+    </author>
+    <author>
+      <name>Oussama Elachqar</name>
+    </author>
+    <author>
+      <name>Yuzhang Shang</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">Replace discrete Hadamard transforms with continuous Butterfly
+  transforms to facilitate the learning of rotation matrices in LLM
+  quantization</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09679v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09679v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09677v1</id>
+    <updated>2025-09-11T17:59:34Z</updated>
+    <published>2025-09-11T17:59:34Z</published>
+    <title>The Illusion of Diminishing Returns: Measuring Long Horizon Execution in
+  LLMs</title>
+    <summary>  Does continued scaling of large language models (LLMs) yield diminishing
+returns? Real-world value often stems from the length of task an agent can
+complete. We start this work by observing the simple but counterintuitive fact
+that marginal gains in single-step accuracy can compound into exponential
+improvements in the length of a task a model can successfully complete. Then,
+we argue that failures of LLMs when simple tasks are made longer arise from
+mistakes in execution, rather than an inability to reason. We propose isolating
+execution capability, by explicitly providing the knowledge and plan needed to
+solve a long-horizon task. We find that larger models can correctly execute
+significantly more turns even when small models have 100\% single-turn
+accuracy. We observe that the per-step accuracy of models degrades as the
+number of steps increases. This is not just due to long-context limitations --
+curiously, we observe a self-conditioning effect -- models become more likely
+to make mistakes when the context contains their errors from prior turns.
+Self-conditioning does not reduce by just scaling the model size. In contrast,
+recent thinking models do not self-condition, and can also execute much longer
+tasks in a single turn. We conclude by benchmarking frontier thinking models on
+the length of task they can execute in a single turn. Overall, by focusing on
+the ability to execute, we hope to reconcile debates on how LLMs can solve
+complex reasoning problems yet fail at simple tasks when made longer, and
+highlight the massive benefits of scaling model size and sequential test-time
+compute for long-horizon tasks.
+</summary>
+    <author>
+      <name>Akshit Sinha</name>
+    </author>
+    <author>
+      <name>Arvindh Arun</name>
+    </author>
+    <author>
+      <name>Shashwat Goel</name>
+    </author>
+    <author>
+      <name>Steffen Staab</name>
+    </author>
+    <author>
+      <name>Jonas Geiping</name>
+    </author>
+    <link href="http://arxiv.org/abs/2509.09677v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09677v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09674v1</id>
+    <updated>2025-09-11T17:59:17Z</updated>
+    <published>2025-09-11T17:59:17Z</published>
+    <title>SimpleVLA-RL: Scaling VLA Training via Reinforcement Learning</title>
+    <summary>  Vision-Language-Action (VLA) models have recently emerged as a powerful
+paradigm for robotic manipulation. Despite substantial progress enabled by
+large-scale pretraining and supervised fine-tuning (SFT), these models face two
+fundamental challenges: (i) the scarcity and high cost of large-scale
+human-operated robotic trajectories required for SFT scaling, and (ii) limited
+generalization to tasks involving distribution shift. Recent breakthroughs in
+Large Reasoning Models (LRMs) demonstrate that reinforcement learning (RL) can
+dramatically enhance step-by-step reasoning capabilities, raising a natural
+question: Can RL similarly improve the long-horizon step-by-step action
+planning of VLA? In this work, we introduce SimpleVLA-RL, an efficient RL
+framework tailored for VLA models. Building upon veRL, we introduce
+VLA-specific trajectory sampling, scalable parallelization, multi-environment
+rendering, and optimized loss computation. When applied to OpenVLA-OFT,
+SimpleVLA-RL achieves SoTA performance on LIBERO and even outperforms $\pi_0$
+on RoboTwin 1.0\&amp;2.0 with the exploration-enhancing strategies we introduce.
+SimpleVLA-RL not only reduces dependence on large-scale data and enables robust
+generalization, but also remarkably surpasses SFT in real-world tasks.
+Moreover, we identify a novel phenomenon ``pushcut'' during RL training,
+wherein the policy discovers previously unseen patterns beyond those seen in
+the previous training process. Github: https://github.com/PRIME-RL/SimpleVLA-RL
+</summary>
+    <author>
+      <name>Haozhan Li</name>
+    </author>
+    <author>
+      <name>Yuxin Zuo</name>
+    </author>
+    <author>
+      <name>Jiale Yu</name>
+    </author>
+    <author>
+      <name>Yuhao Zhang</name>
+    </author>
+    <author>
+      <name>Zhaohui Yang</name>
+    </author>
+    <author>
+      <name>Kaiyan Zhang</name>
+    </author>
+    <author>
+      <name>Xuekai Zhu</name>
+    </author>
+    <author>
+      <name>Yuchen Zhang</name>
+    </author>
+    <author>
+      <name>Tianxing Chen</name>
+    </author>
+    <author>
+      <name>Ganqu Cui</name>
+    </author>
+    <author>
+      <name>Dehui Wang</name>
+    </author>
+    <author>
+      <name>Dingxiang Luo</name>
+    </author>
+    <author>
+      <name>Yuchen Fan</name>
+    </author>
+    <author>
+      <name>Youbang Sun</name>
+    </author>
+    <author>
+      <name>Jia Zeng</name>
+    </author>
+    <author>
+      <name>Jiangmiao Pang</name>
+    </author>
+    <author>
+      <name>Shanghang Zhang</name>
+    </author>
+    <author>
+      <name>Yu Wang</name>
+    </author>
+    <author>
+      <name>Yao Mu</name>
+    </author>
+    <author>
+      <name>Bowen Zhou</name>
+    </author>
+    <author>
+      <name>Ning Ding</name>
+    </author>
+    <link href="http://arxiv.org/abs/2509.09674v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09674v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09675v1</id>
+    <updated>2025-09-11T17:59:17Z</updated>
+    <published>2025-09-11T17:59:17Z</published>
+    <title>CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning
+  in Large Language Models</title>
+    <summary>  Reinforcement Learning with Verifiable Rewards (RLVR) is a powerful paradigm
+for enhancing the reasoning ability of Large Language Models (LLMs). Yet
+current RLVR methods often explore poorly, leading to premature convergence and
+entropy collapse. To address this challenge, we introduce Curiosity-Driven
+Exploration (CDE), a framework that leverages the model's own intrinsic sense
+of curiosity to guide exploration. We formalize curiosity with signals from
+both the actor and the critic: for the actor, we use perplexity over its
+generated response, and for the critic, we use the variance of value estimates
+from a multi-head architecture. Both signals serve as an exploration bonus
+within the RLVR framework to guide the model. Our theoretical analysis shows
+that the actor-wise bonus inherently penalizes overconfident errors and
+promotes diversity among correct responses; moreover, we connect the
+critic-wise bonus to the well-established count-based exploration bonus in RL.
+Empirically, our method achieves an approximate +3 point improvement over
+standard RLVR using GRPO/PPO on AIME benchmarks. Further analysis identifies a
+calibration collapse mechanism within RLVR, shedding light on common LLM
+failure modes.
+</summary>
+    <author>
+      <name>Runpeng Dai</name>
+    </author>
+    <author>
+      <name>Linfeng Song</name>
+    </author>
+    <author>
+      <name>Haolin Liu</name>
+    </author>
+    <author>
+      <name>Zhenwen Liang</name>
+    </author>
+    <author>
+      <name>Dian Yu</name>
+    </author>
+    <author>
+      <name>Haitao Mi</name>
+    </author>
+    <author>
+      <name>Zhaopeng Tu</name>
+    </author>
+    <author>
+      <name>Rui Liu</name>
+    </author>
+    <author>
+      <name>Tong Zheng</name>
+    </author>
+    <author>
+      <name>Hongtu Zhu</name>
+    </author>
+    <author>
+      <name>Dong Yu</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">21 pages</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09675v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09675v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09655v1</id>
+    <updated>2025-09-11T17:50:06Z</updated>
+    <published>2025-09-11T17:50:06Z</published>
+    <title>Feasibility-Guided Fair Adaptive Offline Reinforcement Learning for
+  Medicaid Care Management</title>
+    <summary>  We introduce Feasibility-Guided Fair Adaptive Reinforcement Learning
+(FG-FARL), an offline RL procedure that calibrates per-group safety thresholds
+to reduce harm while equalizing a chosen fairness target (coverage or harm)
+across protected subgroups. Using de-identified longitudinal trajectories from
+a Medicaid population health management program, we evaluate FG-FARL against
+behavior cloning (BC) and HACO (Hybrid Adaptive Conformal Offline RL; a global
+conformal safety baseline). We report off-policy value estimates with bootstrap
+95% confidence intervals and subgroup disparity analyses with p-values. FG-FARL
+achieves comparable value to baselines while improving fairness metrics,
+demonstrating a practical path to safer and more equitable decision support.
+</summary>
+    <author>
+      <name>Sanjay Basu</name>
+    </author>
+    <author>
+      <name>Sadiq Y. Patel</name>
+    </author>
+    <author>
+      <name>Parth Sheth</name>
+    </author>
+    <author>
+      <name>Bhairavi Muralidharan</name>
+    </author>
+    <author>
+      <name>Namrata Elamaran</name>
+    </author>
+    <author>
+      <name>Aakriti Kinra</name>
+    </author>
+    <author>
+      <name>Rajaie Batniji</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">12 pages, 5 figures, 3 tables</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09655v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09655v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.AP" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09651v1</id>
+    <updated>2025-09-11T17:43:42Z</updated>
+    <published>2025-09-11T17:43:42Z</published>
+    <title>Retrieval-Augmented Generation for Reliable Interpretation of Radio
+  Regulations</title>
+    <summary>  We study question answering in the domain of radio regulations, a legally
+sensitive and high-stakes area. We propose a telecom-specific
+Retrieval-Augmented Generation (RAG) pipeline and introduce, to our knowledge,
+the first multiple-choice evaluation set for this domain, constructed from
+authoritative sources using automated filtering and human validation. To assess
+retrieval quality, we define a domain-specific retrieval metric, under which
+our retriever achieves approximately 97% accuracy. Beyond retrieval, our
+approach consistently improves generation accuracy across all tested models. In
+particular, while naively inserting documents without structured retrieval
+yields only marginal gains for GPT-4o (less than 1%), applying our pipeline
+results in nearly a 12% relative improvement. These findings demonstrate that
+carefully targeted grounding provides a simple yet strong baseline and an
+effective domain-specific solution for regulatory question answering. All code
+and evaluation scripts, along with our derived question-answer dataset, are
+available at https://github.com/Zakaria010/Radio-RAG.
+</summary>
+    <author>
+      <name>Zakaria El Kassimi</name>
+    </author>
+    <author>
+      <name>Fares Fourati</name>
+    </author>
+    <author>
+      <name>Mohamed-Slim Alouini</name>
+    </author>
+    <link href="http://arxiv.org/abs/2509.09651v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09651v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SP" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09616v1</id>
+    <updated>2025-09-11T16:58:34Z</updated>
+    <published>2025-09-11T16:58:34Z</published>
+    <title>Explaining Concept Drift through the Evolution of Group Counterfactuals</title>
+    <summary>  Machine learning models in dynamic environments often suffer from concept
+drift, where changes in the data distribution degrade performance. While
+detecting this drift is a well-studied topic, explaining how and why the
+model's decision-making logic changes still remains a significant challenge. In
+this paper, we introduce a novel methodology to explain concept drift by
+analyzing the temporal evolution of group-based counterfactual explanations
+(GCEs). Our approach tracks shifts in the GCEs' cluster centroids and their
+associated counterfactual action vectors before and after a drift. These
+evolving GCEs act as an interpretable proxy, revealing structural changes in
+the model's decision boundary and its underlying rationale. We operationalize
+this analysis within a three-layer framework that synergistically combines
+insights from the data layer (distributional shifts), the model layer
+(prediction disagreement), and our proposed explanation layer. We show that
+such holistic view allows for a more comprehensive diagnosis of drift, making
+it possible to distinguish between different root causes, such as a spatial
+data shift versus a re-labeling of concepts.
+</summary>
+    <author>
+      <name>Ignacy Stępka</name>
+    </author>
+    <author>
+      <name>Jerzy Stefanowski</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">TempXAI Workshop @ ECML PKDD 2025</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09616v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09616v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09614v1</id>
+    <updated>2025-09-11T16:55:04Z</updated>
+    <published>2025-09-11T16:55:04Z</published>
+    <title>LoCoBench: A Benchmark for Long-Context Large Language Models in Complex
+  Software Engineering</title>
+    <summary>  The emergence of long-context language models with context windows extending
+to millions of tokens has created new opportunities for sophisticated code
+understanding and software development evaluation. We propose LoCoBench, a
+comprehensive benchmark specifically designed to evaluate long-context LLMs in
+realistic, complex software development scenarios. Unlike existing code
+evaluation benchmarks that focus on single-function completion or short-context
+tasks, LoCoBench addresses the critical evaluation gap for long-context
+capabilities that require understanding entire codebases, reasoning across
+multiple files, and maintaining architectural consistency across large-scale
+software systems. Our benchmark provides 8,000 evaluation scenarios
+systematically generated across 10 programming languages, with context lengths
+spanning 10K to 1M tokens, a 100x variation that enables precise assessment of
+long-context performance degradation in realistic software development
+settings. LoCoBench introduces 8 task categories that capture essential
+long-context capabilities: architectural understanding, cross-file refactoring,
+multi-session development, bug investigation, feature implementation, code
+comprehension, integration testing, and security analysis. Through a 5-phase
+pipeline, we create diverse, high-quality scenarios that challenge LLMs to
+reason about complex codebases at unprecedented scale. We introduce a
+comprehensive evaluation framework with 17 metrics across 4 dimensions,
+including 8 new evaluation metrics, combined in a LoCoBench Score (LCBS). Our
+evaluation of state-of-the-art long-context models reveals substantial
+performance gaps, demonstrating that long-context understanding in complex
+software development represents a significant unsolved challenge that demands
+more attention. LoCoBench is released at:
+https://github.com/SalesforceAIResearch/LoCoBench.
+</summary>
+    <author>
+      <name>Jielin Qiu</name>
+    </author>
+    <author>
+      <name>Zuxin Liu</name>
+    </author>
+    <author>
+      <name>Zhiwei Liu</name>
+    </author>
+    <author>
+      <name>Rithesh Murthy</name>
+    </author>
+    <author>
+      <name>Jianguo Zhang</name>
+    </author>
+    <author>
+      <name>Haolin Chen</name>
+    </author>
+    <author>
+      <name>Shiyu Wang</name>
+    </author>
+    <author>
+      <name>Ming Zhu</name>
+    </author>
+    <author>
+      <name>Liangwei Yang</name>
+    </author>
+    <author>
+      <name>Juntao Tan</name>
+    </author>
+    <author>
+      <name>Zhepeng Cen</name>
+    </author>
+    <author>
+      <name>Cheng Qian</name>
+    </author>
+    <author>
+      <name>Shelby Heinecke</name>
+    </author>
+    <author>
+      <name>Weiran Yao</name>
+    </author>
+    <author>
+      <name>Silvio Savarese</name>
+    </author>
+    <author>
+      <name>Caiming Xiong</name>
+    </author>
+    <author>
+      <name>Huan Wang</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">53 pages</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09614v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09614v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09610v1</id>
+    <updated>2025-09-11T16:52:09Z</updated>
+    <published>2025-09-11T16:52:09Z</published>
+    <title>Mechanistic Learning with Guided Diffusion Models to Predict
+  Spatio-Temporal Brain Tumor Growth</title>
+    <summary>  Predicting the spatio-temporal progression of brain tumors is essential for
+guiding clinical decisions in neuro-oncology. We propose a hybrid mechanistic
+learning framework that combines a mathematical tumor growth model with a
+guided denoising diffusion implicit model (DDIM) to synthesize anatomically
+feasible future MRIs from preceding scans. The mechanistic model, formulated as
+a system of ordinary differential equations, captures temporal tumor dynamics
+including radiotherapy effects and estimates future tumor burden. These
+estimates condition a gradient-guided DDIM, enabling image synthesis that
+aligns with both predicted growth and patient anatomy. We train our model on
+the BraTS adult and pediatric glioma datasets and evaluate on 60 axial slices
+of in-house longitudinal pediatric diffuse midline glioma (DMG) cases. Our
+framework generates realistic follow-up scans based on spatial similarity
+metrics. It also introduces tumor growth probability maps, which capture both
+clinically relevant extent and directionality of tumor growth as shown by 95th
+percentile Hausdorff Distance. The method enables biologically informed image
+generation in data-limited scenarios, offering generative-space-time
+predictions that account for mechanistic priors.
+</summary>
+    <author>
+      <name>Daria Laslo</name>
+    </author>
+    <author>
+      <name>Efthymios Georgiou</name>
+    </author>
+    <author>
+      <name>Marius George Linguraru</name>
+    </author>
+    <author>
+      <name>Andreas Rauschecker</name>
+    </author>
+    <author>
+      <name>Sabine Muller</name>
+    </author>
+    <author>
+      <name>Catherine R. Jutzeler</name>
+    </author>
+    <author>
+      <name>Sarah Bruningk</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">13 pages, 4 figures</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09610v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09610v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2509.09597v1</id>
+    <updated>2025-09-11T16:36:16Z</updated>
+    <published>2025-09-11T16:36:16Z</published>
+    <title>Graph Alignment via Dual-Pass Spectral Encoding and Latent Space
+  Communication</title>
+    <summary>  Graph alignment-the problem of identifying corresponding nodes across
+multiple graphs-is fundamental to numerous applications. Most existing
+unsupervised methods embed node features into latent representations to enable
+cross-graph comparison without ground-truth correspondences. However, these
+methods suffer from two critical limitations: the degradation of node
+distinctiveness due to oversmoothing in GNN-based embeddings, and the
+misalignment of latent spaces across graphs caused by structural noise, feature
+heterogeneity, and training instability, ultimately leading to unreliable node
+correspondences. We propose a novel graph alignment framework that
+simultaneously enhances node distinctiveness and enforces geometric consistency
+across latent spaces. Our approach introduces a dual-pass encoder that combines
+low-pass and high-pass spectral filters to generate embeddings that are both
+structure-aware and highly discriminative. To address latent space
+misalignment, we incorporate a geometry-aware functional map module that learns
+bijective and isometric transformations between graph embeddings, ensuring
+consistent geometric relationships across different representations. Extensive
+experiments on graph benchmarks demonstrate that our method consistently
+outperforms existing unsupervised alignment baselines, exhibiting superior
+robustness to structural inconsistencies and challenging alignment scenarios.
+Additionally, comprehensive evaluation on vision-language benchmarks using
+diverse pretrained models shows that our framework effectively generalizes
+beyond graph domains, enabling unsupervised alignment of vision and language
+representations.
+</summary>
+    <author>
+      <name>Maysam Behmanesh</name>
+    </author>
+    <author>
+      <name>Erkan Turan</name>
+    </author>
+    <author>
+      <name>Maks Ovsjanikov</name>
+    </author>
+    <arxiv:comment xmlns:arxiv="http://arxiv.org/schemas/atom">23 pages</arxiv:comment>
+    <link href="http://arxiv.org/abs/2509.09597v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2509.09597v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

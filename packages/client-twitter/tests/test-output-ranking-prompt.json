@@ -1,0 +1,49 @@
+{
+  "timestamp": "2025-09-14T12:40:14.503Z",
+  "paperCount": 10,
+  "promptLength": 1659,
+  "estimatedTokens": 415,
+  "prompt": "You are evaluating research papers for mystical/philosophical divination potential.\nScore each paper 0-10 based on these criteria:\n\n1. Universal patterns that mirror ancient wisdom (25%)\n2. Emergence, self-organization, complexity themes (20%)\n3. Consciousness, observer, information theory (20%)\n4. Collective behavior, network effects (15%)\n5. Paradoxes, limits, incompleteness (10%)\n6. Accessibility for poetic interpretation (10%)\n\nPapers to evaluate:\n[0] ButterflyQuant: Ultra-low-bit LLM Quantization through Learnable\n  Orthogonal Butterfly Transforms\\n[1] The Illusion of Diminishing Returns: Measuring Long Horizon Execution in\n  LLMs\\n[2] SimpleVLA-RL: Scaling VLA Training via Reinforcement Learning\\n[3] CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning\n  in Large Language Models\\n[4] Feasibility-Guided Fair Adaptive Offline Reinforcement Learning for\n  Medicaid Care Management\\n[5] Retrieval-Augmented Generation for Reliable Interpretation of Radio\n  Regulations\\n[6] Explaining Concept Drift through the Evolution of Group Counterfactuals\\n[7] LoCoBench: A Benchmark for Long-Context Large Language Models in Complex\n  Software Engineering\\n[8] Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth\\n[9] Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication\n\nReturn JSON with top papers scoring >= 5.0:\n{\n  \"rankings\": [\n    {\"index\": 0, \"score\": 9.5, \"themes\": [\"emergence\", \"consciousness\"], \"reasoning\": \"why this reveals patterns\"},\n    {\"index\": 2, \"score\": 9.2, \"themes\": [\"quantum\", \"observer\"], \"reasoning\": \"mystical interpretation\"},\n  ]\n}",
+  "papers": [
+    {
+      "title": "ButterflyQuant: Ultra-low-bit LLM Quantization through Learnable\n  Orthogonal Butterfly Transforms",
+      "abstractSnippet": "Large language models require massive memory footprints, severely limiting\ndeployment on consumer ha..."
+    },
+    {
+      "title": "The Illusion of Diminishing Returns: Measuring Long Horizon Execution in\n  LLMs",
+      "abstractSnippet": "Does continued scaling of large language models (LLMs) yield diminishing\nreturns? Real-world value o..."
+    },
+    {
+      "title": "SimpleVLA-RL: Scaling VLA Training via Reinforcement Learning",
+      "abstractSnippet": "Vision-Language-Action (VLA) models have recently emerged as a powerful\nparadigm for robotic manipul..."
+    },
+    {
+      "title": "CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning\n  in Large Language Models",
+      "abstractSnippet": "Reinforcement Learning with Verifiable Rewards (RLVR) is a powerful paradigm\nfor enhancing the reaso..."
+    },
+    {
+      "title": "Feasibility-Guided Fair Adaptive Offline Reinforcement Learning for\n  Medicaid Care Management",
+      "abstractSnippet": "We introduce Feasibility-Guided Fair Adaptive Reinforcement Learning\n(FG-FARL), an offline RL proced..."
+    },
+    {
+      "title": "Retrieval-Augmented Generation for Reliable Interpretation of Radio\n  Regulations",
+      "abstractSnippet": "We study question answering in the domain of radio regulations, a legally\nsensitive and high-stakes ..."
+    },
+    {
+      "title": "Explaining Concept Drift through the Evolution of Group Counterfactuals",
+      "abstractSnippet": "Machine learning models in dynamic environments often suffer from concept\ndrift, where changes in th..."
+    },
+    {
+      "title": "LoCoBench: A Benchmark for Long-Context Large Language Models in Complex\n  Software Engineering",
+      "abstractSnippet": "The emergence of long-context language models with context windows extending\nto millions of tokens h..."
+    },
+    {
+      "title": "Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth",
+      "abstractSnippet": "Predicting the spatio-temporal progression of brain tumors is essential for\nguiding clinical decisio..."
+    },
+    {
+      "title": "Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication",
+      "abstractSnippet": "Graph alignment-the problem of identifying corresponding nodes across\nmultiple graphs-is fundamental..."
+    }
+  ]
+}

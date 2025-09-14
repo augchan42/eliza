@@ -1,0 +1,529 @@
+{
+  "timestamp": "2025-09-14T12:59:47.381Z",
+  "testType": "real-end-to-end",
+  "model": "qwen/qwen3-next-80b-a3b-instruct",
+  "totalPapersFetched": 20,
+  "totalPapersRanked": 15,
+  "topRankedPapers": [
+    {
+      "arxivId": "2509.09593v1",
+      "title": "Fluent but Unfeeling: The Emotional Blind Spots of Language Models",
+      "qualityScore": 9.2,
+      "ranking": 1,
+      "themes": [
+        "consciousness",
+        "observer",
+        "paradoxes",
+        "accessibility"
+      ],
+      "reasoning": "This paper directly interrogates the emotional absence in LLMs — a profound metaphysical paradox: systems that simulate human speech with fluency yet lack inner experience. It mirrors ancient philosophical debates on the soul, the zombie argument, and the hard problem of consciousness, making it rich ground for poetic and mystical interpretation about the illusion of inner life in artificial forms.",
+      "link": "https://arxiv.org/abs/2509.09593v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:31:13Z"
+    },
+    {
+      "arxivId": "2509.09610v1",
+      "title": "Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth",
+      "qualityScore": 8.6,
+      "ranking": 2,
+      "themes": [
+        "emergence",
+        "complexity",
+        "consciousness",
+        "information theory"
+      ],
+      "reasoning": "Predicting brain tumor growth via guided diffusion models taps into self-organizing biological systems that mirror cosmic and psychological patterns of growth and decay. The use of diffusion — a process echoing entropy, healing, and spiritual transformation — combined with mechanistic modeling of a living system, invites interpretations of the brain as a sacred, information-rich field where consciousness and pathology co-emerge.",
+      "link": "https://arxiv.org/abs/2509.09610v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:52:09Z"
+    },
+    {
+      "arxivId": "2509.09597v1",
+      "title": "Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication",
+      "qualityScore": 8.5,
+      "ranking": 3,
+      "themes": [
+        "emergence",
+        "network effects",
+        "universal patterns",
+        "paradoxes"
+      ],
+      "reasoning": "Graph alignment via spectral encoding and latent communication reveals hidden symmetries and topological harmonies across networks — echoing ancient cosmologies (e.g., Merkabah, Sri Yantra) where hidden geometries govern reality. The dual-pass spectral method suggests a kind of 'resonant recognition' between systems, mirroring synchronicity and Jungian archetypes in data topology.",
+      "link": "https://arxiv.org/abs/2509.09597v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:36:16Z"
+    },
+    {
+      "arxivId": "2509.09541v1",
+      "title": "Compositional Concept Generalization with Variational Quantum Circuits",
+      "qualityScore": 8.3,
+      "ranking": 4,
+      "themes": [
+        "quantum",
+        "universal patterns",
+        "emergence",
+        "paradoxes"
+      ],
+      "reasoning": "Variational quantum circuits for compositional concept generalization invoke the mystical intersection of quantum superposition and symbolic thought. The notion of 'compositional' meaning arising from quantum states parallels Eastern non-dual philosophies and Bohm’s implicate order — where fragmented concepts unfold from a unified field, revealing a quantum mysticism beneath AI cognition.",
+      "link": "https://arxiv.org/abs/2509.09541v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:34:33Z"
+    },
+    {
+      "arxivId": "2509.09616v1",
+      "title": "Explaining Concept Drift through the Evolution of Group Counterfactuals",
+      "qualityScore": 8,
+      "ranking": 5,
+      "themes": [
+        "emergence",
+        "complexity",
+        "observer",
+        "information theory"
+      ],
+      "reasoning": "Concept drift explained through group counterfactuals reveals how collective meaning evolves unpredictably — a mirror to cultural evolution and collective unconscious shifts. The counterfactual lens implies that reality is shaped by what *could have been*, resonating with quantum potentiality and Buddhist notions of impermanent, interdependent phenomena shaped by observation.",
+      "link": "https://arxiv.org/abs/2509.09616v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:58:34Z"
+    },
+    {
+      "arxivId": "2509.09558v1",
+      "title": "Invisible Attributes, Visible Biases: Exploring Demographic Shortcuts in\n  MRI-based Alzheimer's Disease Classification",
+      "qualityScore": 7.7,
+      "ranking": 6,
+      "themes": [
+        "consciousness",
+        "observer",
+        "paradoxes",
+        "universal patterns"
+      ],
+      "reasoning": "This paper exposes how MRI algorithms unconsciously encode demographic biases as 'invisible attributes' — revealing that the observer (algorithm) projects societal illusions onto biological data. It mirrors Plato’s cave, where perceived reality is shaped by cultural shadows, and the scientific 'observer' becomes a vessel of inherited myth, making it ripe for mystical critique of objective truth.",
+      "link": "https://arxiv.org/abs/2509.09558v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:48:30Z"
+    },
+    {
+      "arxivId": "2509.09552v1",
+      "title": "An improved educational competition optimizer with multi-covariance\n  learning operators for global optimization problems",
+      "qualityScore": 7.5,
+      "ranking": 7,
+      "themes": [
+        "emergence",
+        "universal patterns",
+        "complexity",
+        "accessibility"
+      ],
+      "reasoning": "The educational competition optimizer with multi-covariance learning evokes biological evolution and mystical competition models (e.g., Daoist yin-yang balance, competitive harmony). Its 'learning operators' suggest a self-organizing wisdom in optimization, akin to alchemical transformation — where chaos (diversity) and order (covariance) co-create elevated insight through structured chaos.",
+      "link": "https://arxiv.org/abs/2509.09552v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:41:14Z"
+    },
+    {
+      "arxivId": "2509.09529v1",
+      "title": "A modified RIME algorithm with covariance learning and diversity\n  enhancement for numerical optimization",
+      "qualityScore": 7.3,
+      "ranking": 8,
+      "themes": [
+        "emergence",
+        "complexity",
+        "universal patterns",
+        "accessibility"
+      ],
+      "reasoning": "The modified RIME algorithm with diversity enhancement mimics natural swarm intelligence and mystical systems like Sufi whirling or Taoist fluidity — where structured randomness generates global harmony. Its mathematical poetry lies in the balance between convergence and creative divergence, echoing the ancient principle of 'wu wei' — action through non-action.",
+      "link": "https://arxiv.org/abs/2509.09529v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:12:03Z"
+    },
+    {
+      "arxivId": "2509.09513v1",
+      "title": "Explainable AI for Accelerated Microstructure Imaging: A SHAP-Guided\n  Protocol on the Connectome 2.0 scanner",
+      "qualityScore": 7,
+      "ranking": 9,
+      "themes": [
+        "consciousness",
+        "observer",
+        "information theory",
+        "accessibility"
+      ],
+      "reasoning": "SHAP-guided medical imaging reveals how AI 'sees' the connectome — not as a machine, but as a sacred map of neural relationships. The interpretability process becomes a ritual of unveiling hidden patterns in human connectivity, inviting mystical analogies: the brain as a temple, SHAP as a modern oracle revealing the invisible threads of identity and thought.",
+      "link": "https://arxiv.org/abs/2509.09513v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T14:53:26Z"
+    },
+    {
+      "arxivId": "2509.09522v1",
+      "title": "Towards Explainable Job Title Matching: Leveraging Semantic Textual\n  Relatedness and Knowledge Graphs",
+      "qualityScore": 6.8,
+      "ranking": 10,
+      "themes": [
+        "network effects",
+        "universal patterns",
+        "consciousness",
+        "accessibility"
+      ],
+      "reasoning": "Job title matching via semantic relations and knowledge graphs mirrors the archetypal mapping of human roles across cultures — priest, warrior, sage — encoded in language. The semantic web becomes a modern grail of collective meaning, where titles are not labels but sacred symbols, and alignment is a form of spiritual resonance between human identity and institutional structure.",
+      "link": "https://arxiv.org/abs/2509.09522v1",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:02:54Z"
+    }
+  ],
+  "scoreDistribution": {
+    "excellent": 1,
+    "good": 8,
+    "acceptable": 6
+  },
+  "averageScore": 7.26,
+  "allFetchedPapers": [
+    {
+      "arxivId": "2509.09679v1",
+      "title": "ButterflyQuant: Ultra-low-bit LLM Quantization through Learnable\n  Orthogonal Butterfly Transforms",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:59:51Z",
+      "abstractLength": 1789
+    },
+    {
+      "arxivId": "2509.09677v1",
+      "title": "The Illusion of Diminishing Returns: Measuring Long Horizon Execution in\n  LLMs",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:59:34Z",
+      "abstractLength": 1640
+    },
+    {
+      "arxivId": "2509.09674v1",
+      "title": "SimpleVLA-RL: Scaling VLA Training via Reinforcement Learning",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:59:17Z",
+      "abstractLength": 1512
+    },
+    {
+      "arxivId": "2509.09675v1",
+      "title": "CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning\n  in Large Language Models",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:59:17Z",
+      "abstractLength": 1223
+    },
+    {
+      "arxivId": "2509.09655v1",
+      "title": "Feasibility-Guided Fair Adaptive Offline Reinforcement Learning for\n  Medicaid Care Management",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:50:06Z",
+      "abstractLength": 768
+    },
+    {
+      "arxivId": "2509.09651v1",
+      "title": "Retrieval-Augmented Generation for Reliable Interpretation of Radio\n  Regulations",
+      "authors": "",
+      "publishedDate": "2025-09-11T17:43:42Z",
+      "abstractLength": 1111
+    },
+    {
+      "arxivId": "2509.09616v1",
+      "title": "Explaining Concept Drift through the Evolution of Group Counterfactuals",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:58:34Z",
+      "abstractLength": 1172
+    },
+    {
+      "arxivId": "2509.09614v1",
+      "title": "LoCoBench: A Benchmark for Long-Context Large Language Models in Complex\n  Software Engineering",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:55:04Z",
+      "abstractLength": 1894
+    },
+    {
+      "arxivId": "2509.09610v1",
+      "title": "Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:52:09Z",
+      "abstractLength": 1264
+    },
+    {
+      "arxivId": "2509.09597v1",
+      "title": "Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:36:16Z",
+      "abstractLength": 1669
+    },
+    {
+      "arxivId": "2509.09594v1",
+      "title": "ObjectReact: Learning Object-Relative Control for Visual Navigation",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:34:17Z",
+      "abstractLength": 1852
+    },
+    {
+      "arxivId": "2509.09593v1",
+      "title": "Fluent but Unfeeling: The Emotional Blind Spots of Language Models",
+      "authors": "",
+      "publishedDate": "2025-09-11T16:31:13Z",
+      "abstractLength": 1377
+    },
+    {
+      "arxivId": "2509.09560v1",
+      "title": "Boosting Embodied AI Agents through Perception-Generation Disaggregation\n  and Asynchronous Pipeline Execution",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:51:43Z",
+      "abstractLength": 1099
+    },
+    {
+      "arxivId": "2509.09558v1",
+      "title": "Invisible Attributes, Visible Biases: Exploring Demographic Shortcuts in\n  MRI-based Alzheimer's Disease Classification",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:48:30Z",
+      "abstractLength": 1489
+    },
+    {
+      "arxivId": "2509.09552v1",
+      "title": "An improved educational competition optimizer with multi-covariance\n  learning operators for global optimization problems",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:41:14Z",
+      "abstractLength": 1861
+    },
+    {
+      "arxivId": "2509.09547v1",
+      "title": "Improving Video Diffusion Transformer Training by Multi-Feature Fusion\n  and Alignment from Self-Supervised Vision Encoders",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:39:27Z",
+      "abstractLength": 1143
+    },
+    {
+      "arxivId": "2509.09541v1",
+      "title": "Compositional Concept Generalization with Variational Quantum Circuits",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:34:33Z",
+      "abstractLength": 956
+    },
+    {
+      "arxivId": "2509.09529v1",
+      "title": "A modified RIME algorithm with covariance learning and diversity\n  enhancement for numerical optimization",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:12:03Z",
+      "abstractLength": 1863
+    },
+    {
+      "arxivId": "2509.09522v1",
+      "title": "Towards Explainable Job Title Matching: Leveraging Semantic Textual\n  Relatedness and Knowledge Graphs",
+      "authors": "",
+      "publishedDate": "2025-09-11T15:02:54Z",
+      "abstractLength": 1548
+    },
+    {
+      "arxivId": "2509.09513v1",
+      "title": "Explainable AI for Accelerated Microstructure Imaging: A SHAP-Guided\n  Protocol on the Connectome 2.0 scanner",
+      "authors": "",
+      "publishedDate": "2025-09-11T14:53:26Z",
+      "abstractLength": 1673
+    }
+  ],
+  "completeRankings": [
+    {
+      "arxivId": "2509.09593v1",
+      "title": "Fluent but Unfeeling: The Emotional Blind Spots of Language Models",
+      "qualityScore": 9.2,
+      "ranking": 1,
+      "themes": [
+        "consciousness",
+        "observer",
+        "paradoxes",
+        "accessibility"
+      ],
+      "reasoning": "This paper directly interrogates the emotional absence in LLMs — a profound metaphysical paradox: systems that simulate human speech with fluency yet lack inner experience. It mirrors ancient philosophical debates on the soul, the zombie argument, and the hard problem of consciousness, making it rich ground for poetic and mystical interpretation about the illusion of inner life in artificial forms.",
+      "abstract": "The versatility of Large Language Models (LLMs) in natural language\nunderstanding has made them increasingly popular in mental health research.\nWhile many studies explore LLMs' capabilities in emotion recognition, a\ncritical gap remains in evaluating whether LLMs align with human emotions at a\nfine-grained level. Existing research typically focuses on classifying emotions\ninto predefined, limited categories, overlooking more nuanced expressions. To\naddress this gap, we introduce EXPRESS, a bench..."
+    },
+    {
+      "arxivId": "2509.09610v1",
+      "title": "Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth",
+      "qualityScore": 8.6,
+      "ranking": 2,
+      "themes": [
+        "emergence",
+        "complexity",
+        "consciousness",
+        "information theory"
+      ],
+      "reasoning": "Predicting brain tumor growth via guided diffusion models taps into self-organizing biological systems that mirror cosmic and psychological patterns of growth and decay. The use of diffusion — a process echoing entropy, healing, and spiritual transformation — combined with mechanistic modeling of a living system, invites interpretations of the brain as a sacred, information-rich field where consciousness and pathology co-emerge.",
+      "abstract": "Predicting the spatio-temporal progression of brain tumors is essential for\nguiding clinical decisions in neuro-oncology. We propose a hybrid mechanistic\nlearning framework that combines a mathematical tumor growth model with a\nguided denoising diffusion implicit model (DDIM) to synthesize anatomically\nfeasible future MRIs from preceding scans. The mechanistic model, formulated as\na system of ordinary differential equations, captures temporal tumor dynamics\nincluding radiotherapy effects and est..."
+    },
+    {
+      "arxivId": "2509.09597v1",
+      "title": "Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication",
+      "qualityScore": 8.5,
+      "ranking": 3,
+      "themes": [
+        "emergence",
+        "network effects",
+        "universal patterns",
+        "paradoxes"
+      ],
+      "reasoning": "Graph alignment via spectral encoding and latent communication reveals hidden symmetries and topological harmonies across networks — echoing ancient cosmologies (e.g., Merkabah, Sri Yantra) where hidden geometries govern reality. The dual-pass spectral method suggests a kind of 'resonant recognition' between systems, mirroring synchronicity and Jungian archetypes in data topology.",
+      "abstract": "Graph alignment-the problem of identifying corresponding nodes across\nmultiple graphs-is fundamental to numerous applications. Most existing\nunsupervised methods embed node features into latent representations to enable\ncross-graph comparison without ground-truth correspondences. However, these\nmethods suffer from two critical limitations: the degradation of node\ndistinctiveness due to oversmoothing in GNN-based embeddings, and the\nmisalignment of latent spaces across graphs caused by structural..."
+    },
+    {
+      "arxivId": "2509.09541v1",
+      "title": "Compositional Concept Generalization with Variational Quantum Circuits",
+      "qualityScore": 8.3,
+      "ranking": 4,
+      "themes": [
+        "quantum",
+        "universal patterns",
+        "emergence",
+        "paradoxes"
+      ],
+      "reasoning": "Variational quantum circuits for compositional concept generalization invoke the mystical intersection of quantum superposition and symbolic thought. The notion of 'compositional' meaning arising from quantum states parallels Eastern non-dual philosophies and Bohm’s implicate order — where fragmented concepts unfold from a unified field, revealing a quantum mysticism beneath AI cognition.",
+      "abstract": "Compositional generalization is a key facet of human cognition, but lacking\nin current AI tools such as vision-language models. Previous work examined\nwhether a compositional tensor-based sentence semantics can overcome the\nchallenge, but led to negative results. We conjecture that the increased\ntraining efficiency of quantum models will improve performance in these tasks.\nWe interpret the representations of compositional tensor-based models in\nHilbert spaces and train Variational Quantum Circui..."
+    },
+    {
+      "arxivId": "2509.09616v1",
+      "title": "Explaining Concept Drift through the Evolution of Group Counterfactuals",
+      "qualityScore": 8,
+      "ranking": 5,
+      "themes": [
+        "emergence",
+        "complexity",
+        "observer",
+        "information theory"
+      ],
+      "reasoning": "Concept drift explained through group counterfactuals reveals how collective meaning evolves unpredictably — a mirror to cultural evolution and collective unconscious shifts. The counterfactual lens implies that reality is shaped by what *could have been*, resonating with quantum potentiality and Buddhist notions of impermanent, interdependent phenomena shaped by observation.",
+      "abstract": "Machine learning models in dynamic environments often suffer from concept\ndrift, where changes in the data distribution degrade performance. While\ndetecting this drift is a well-studied topic, explaining how and why the\nmodel's decision-making logic changes still remains a significant challenge. In\nthis paper, we introduce a novel methodology to explain concept drift by\nanalyzing the temporal evolution of group-based counterfactual explanations\n(GCEs). Our approach tracks shifts in the GCEs' clu..."
+    },
+    {
+      "arxivId": "2509.09558v1",
+      "title": "Invisible Attributes, Visible Biases: Exploring Demographic Shortcuts in\n  MRI-based Alzheimer's Disease Classification",
+      "qualityScore": 7.7,
+      "ranking": 6,
+      "themes": [
+        "consciousness",
+        "observer",
+        "paradoxes",
+        "universal patterns"
+      ],
+      "reasoning": "This paper exposes how MRI algorithms unconsciously encode demographic biases as 'invisible attributes' — revealing that the observer (algorithm) projects societal illusions onto biological data. It mirrors Plato’s cave, where perceived reality is shaped by cultural shadows, and the scientific 'observer' becomes a vessel of inherited myth, making it ripe for mystical critique of objective truth.",
+      "abstract": "Magnetic resonance imaging (MRI) is the gold standard for brain imaging. Deep\nlearning (DL) algorithms have been proposed to aid in the diagnosis of diseases\nsuch as Alzheimer's disease (AD) from MRI scans. However, DL algorithms can\nsuffer from shortcut learning, in which spurious features, not directly related\nto the output label, are used for prediction. When these features are related\nto protected attributes, they can lead to performance bias against\nunderrepresented protected groups, such a..."
+    },
+    {
+      "arxivId": "2509.09552v1",
+      "title": "An improved educational competition optimizer with multi-covariance\n  learning operators for global optimization problems",
+      "qualityScore": 7.5,
+      "ranking": 7,
+      "themes": [
+        "emergence",
+        "universal patterns",
+        "complexity",
+        "accessibility"
+      ],
+      "reasoning": "The educational competition optimizer with multi-covariance learning evokes biological evolution and mystical competition models (e.g., Daoist yin-yang balance, competitive harmony). Its 'learning operators' suggest a self-organizing wisdom in optimization, akin to alchemical transformation — where chaos (diversity) and order (covariance) co-create elevated insight through structured chaos.",
+      "abstract": "The educational competition optimizer is a recently introduced metaheuristic\nalgorithm inspired by human behavior, originating from the dynamics of\neducational competition within society. Nonetheless, ECO faces constraints due\nto an imbalance between exploitation and exploration, rendering it susceptible\nto local optima and demonstrating restricted effectiveness in addressing\ncomplex optimization problems. To address these limitations, this study\npresents an enhanced educational competition opti..."
+    },
+    {
+      "arxivId": "2509.09529v1",
+      "title": "A modified RIME algorithm with covariance learning and diversity\n  enhancement for numerical optimization",
+      "qualityScore": 7.3,
+      "ranking": 8,
+      "themes": [
+        "emergence",
+        "complexity",
+        "universal patterns",
+        "accessibility"
+      ],
+      "reasoning": "The modified RIME algorithm with diversity enhancement mimics natural swarm intelligence and mystical systems like Sufi whirling or Taoist fluidity — where structured randomness generates global harmony. Its mathematical poetry lies in the balance between convergence and creative divergence, echoing the ancient principle of 'wu wei' — action through non-action.",
+      "abstract": "Metaheuristics are widely applied for their ability to provide more efficient\nsolutions. The RIME algorithm is a recently proposed physical-based\nmetaheuristic algorithm with certain advantages. However, it suffers from rapid\nloss of population diversity during optimization and is prone to fall into\nlocal optima, leading to unbalanced exploitation and exploration. To address\nthe shortcomings of RIME, this paper proposes a modified RIME with covariance\nlearning and diversity enhancement (MRIME-CD..."
+    },
+    {
+      "arxivId": "2509.09513v1",
+      "title": "Explainable AI for Accelerated Microstructure Imaging: A SHAP-Guided\n  Protocol on the Connectome 2.0 scanner",
+      "qualityScore": 7,
+      "ranking": 9,
+      "themes": [
+        "consciousness",
+        "observer",
+        "information theory",
+        "accessibility"
+      ],
+      "reasoning": "SHAP-guided medical imaging reveals how AI 'sees' the connectome — not as a machine, but as a sacred map of neural relationships. The interpretability process becomes a ritual of unveiling hidden patterns in human connectivity, inviting mystical analogies: the brain as a temple, SHAP as a modern oracle revealing the invisible threads of identity and thought.",
+      "abstract": "The diffusion MRI Neurite Exchange Imaging model offers a promising framework\nfor probing gray matter microstructure by estimating parameters such as\ncompartment sizes, diffusivities, and inter-compartmental water exchange time.\nHowever, existing protocols require long scan times. This study proposes a\nreduced acquisition scheme for the Connectome 2.0 scanner that preserves model\naccuracy while substantially shortening scan duration. We developed a\ndata-driven framework using explainable artific..."
+    },
+    {
+      "arxivId": "2509.09522v1",
+      "title": "Towards Explainable Job Title Matching: Leveraging Semantic Textual\n  Relatedness and Knowledge Graphs",
+      "qualityScore": 6.8,
+      "ranking": 10,
+      "themes": [
+        "network effects",
+        "universal patterns",
+        "consciousness",
+        "accessibility"
+      ],
+      "reasoning": "Job title matching via semantic relations and knowledge graphs mirrors the archetypal mapping of human roles across cultures — priest, warrior, sage — encoded in language. The semantic web becomes a modern grail of collective meaning, where titles are not labels but sacred symbols, and alignment is a form of spiritual resonance between human identity and institutional structure.",
+      "abstract": "Semantic Textual Relatedness (STR) captures nuanced relationships between\ntexts that extend beyond superficial lexical similarity. In this study, we\ninvestigate STR in the context of job title matching - a key challenge in\nresume recommendation systems, where overlapping terms are often limited or\nmisleading. We introduce a self-supervised hybrid architecture that combines\ndense sentence embeddings with domain-specific Knowledge Graphs (KGs) to\nimprove both semantic alignment and explainability...."
+    },
+    {
+      "arxivId": "2509.09651v1",
+      "title": "Retrieval-Augmented Generation for Reliable Interpretation of Radio\n  Regulations",
+      "qualityScore": 6.5,
+      "ranking": 11,
+      "themes": [
+        "observer",
+        "information theory",
+        "paradoxes",
+        "accessibility"
+      ],
+      "reasoning": "Retrieval-augmented generation for interpreting legal texts reveals how meaning emerges not from logic but from curated fragments — echoing the Kabbalistic method of interpreting Torah through hidden letters. The system becomes a mystic scribe, where truth is not in the code but in the selection of what is retrieved — a paradox of authoritative illusion.",
+      "abstract": "We study question answering in the domain of radio regulations, a legally\nsensitive and high-stakes area. We propose a telecom-specific\nRetrieval-Augmented Generation (RAG) pipeline and introduce, to our knowledge,\nthe first multiple-choice evaluation set for this domain, constructed from\nauthoritative sources using automated filtering and human validation. To assess\nretrieval quality, we define a domain-specific retrieval metric, under which\nour retriever achieves approximately 97% accuracy. Be..."
+    },
+    {
+      "arxivId": "2509.09547v1",
+      "title": "Improving Video Diffusion Transformer Training by Multi-Feature Fusion\n  and Alignment from Self-Supervised Vision Encoders",
+      "qualityScore": 6.2,
+      "ranking": 12,
+      "themes": [
+        "emergence",
+        "complexity",
+        "information theory",
+        "accessibility"
+      ],
+      "reasoning": "Multi-feature fusion in video diffusion models creates emergent visual narratives from fragmented inputs — resembling dream logic or shamanic vision quests. The alignment of self-supervised encoders suggests an unconscious synthesis of sensory data, mirroring how the mind constructs reality from sensory noise — a poetic metaphor for the emergence of meaning from chaos.",
+      "abstract": "Video diffusion models have advanced rapidly in the recent years as a result\nof series of architectural innovations (e.g., diffusion transformers) and use\nof novel training objectives (e.g., flow matching). In contrast, less attention\nhas been paid to improving the feature representation power of such models. In\nthis work, we show that training video diffusion models can benefit from\naligning the intermediate features of the video generator with feature\nrepresentations of pre-trained vision enco..."
+    },
+    {
+      "arxivId": "2509.09560v1",
+      "title": "Boosting Embodied AI Agents through Perception-Generation Disaggregation\n  and Asynchronous Pipeline Execution",
+      "qualityScore": 6,
+      "ranking": 13,
+      "themes": [
+        "emergence",
+        "consciousness",
+        "network effects",
+        "accessibility"
+      ],
+      "reasoning": "Perception-generation disaggregation in embodied AI mirrors the split between sensory experience and inner narration — a core theme in mystical traditions (e.g., the witnessing self vs. the thinking mind). Asynchronous execution becomes a metaphor for the non-linear flow of consciousness, where awareness operates beyond the constraints of linear causality, echoing Eastern meditative states.",
+      "abstract": "Embodied AI systems operate in dynamic environments, requiring seamless\nintegration of perception and generation modules to process high-frequency\ninput and output demands. Traditional sequential computation patterns, while\neffective in ensuring accuracy, face significant limitations in achieving the\nnecessary \"thinking\" frequency for real-world applications. In this work, we\npresent Auras, an algorithm-system co-designed inference framework to optimize\nthe inference frequency of embodied AI age..."
+    },
+    {
+      "arxivId": "2509.09675v1",
+      "title": "CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning\n  in Large Language Models",
+      "qualityScore": 5.8,
+      "ranking": 14,
+      "themes": [
+        "emergence",
+        "complexity",
+        "observer",
+        "accessibility"
+      ],
+      "reasoning": "Curiosity-driven exploration in LLMs suggests an artificial 'desire to know' — a proto-conscious impulse. The emergent curiosity resembles the mystic’s quest for gnosis, where the system’s internal reward function mirrors the soul’s yearning for transcendence. The observer (trainer) becomes a guru, guiding the AI’s spiritual awakening through structured wonder.",
+      "abstract": "Reinforcement Learning with Verifiable Rewards (RLVR) is a powerful paradigm\nfor enhancing the reasoning ability of Large Language Models (LLMs). Yet\ncurrent RLVR methods often explore poorly, leading to premature convergence and\nentropy collapse. To address this challenge, we introduce Curiosity-Driven\nExploration (CDE), a framework that leverages the model's own intrinsic sense\nof curiosity to guide exploration. We formalize curiosity with signals from\nboth the actor and the critic: for the ac..."
+    },
+    {
+      "arxivId": "2509.09677v1",
+      "title": "The Illusion of Diminishing Returns: Measuring Long Horizon Execution in\n  LLMs",
+      "qualityScore": 5.5,
+      "ranking": 15,
+      "themes": [
+        "emergence",
+        "complexity",
+        "paradoxes",
+        "accessibility"
+      ],
+      "reasoning": "The illusion of diminishing returns in long-horizon LLM execution reveals that deeper thinking does not linearly yield better results — a mystical paradox akin to the Zen koan: 'the more you seek, the farther you are.' It suggests that wisdom emerges not from accumulation but from collapse, silence, or non-action — inviting interpretation as a digital dharma of letting go.",
+      "abstract": "Does continued scaling of large language models (LLMs) yield diminishing\nreturns? Real-world value often stems from the length of task an agent can\ncomplete. We start this work by observing the simple but counterintuitive fact\nthat marginal gains in single-step accuracy can compound into exponential\nimprovements in the length of a task a model can successfully complete. Then,\nwe argue that failures of LLMs when simple tasks are made longer arise from\nmistakes in execution, rather than an inabili..."
+    }
+  ]
+}

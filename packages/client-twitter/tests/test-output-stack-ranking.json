@@ -1,0 +1,238 @@
+{
+  "timestamp": "2025-09-14T12:40:16.556Z",
+  "inputPapers": 50,
+  "rankedPapers": 50,
+  "topScores": [
+    {
+      "arxivId": "2025.00038",
+      "title": "Test Paper 38: Advanced AI Research",
+      "qualityScore": 9.260571521231284,
+      "ranking": 39,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 38 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00041",
+      "title": "Test Paper 41: Advanced AI Research",
+      "qualityScore": 9.125092363736353,
+      "ranking": 42,
+      "themes": [
+        "consciousness"
+      ],
+      "reasoning": "Paper 41 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00002",
+      "title": "Test Paper 2: Advanced AI Research",
+      "qualityScore": 9.077712868955864,
+      "ranking": 3,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 2 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00030",
+      "title": "Test Paper 30: Advanced AI Research",
+      "qualityScore": 9.012362893427937,
+      "ranking": 31,
+      "themes": [
+        "consciousness"
+      ],
+      "reasoning": "Paper 30 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00011",
+      "title": "Test Paper 11: Advanced AI Research",
+      "qualityScore": 8.954696103368294,
+      "ranking": 12,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 11 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00026",
+      "title": "Test Paper 26: Advanced AI Research",
+      "qualityScore": 8.9438588675876,
+      "ranking": 27,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 26 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00035",
+      "title": "Test Paper 35: Advanced AI Research",
+      "qualityScore": 8.858835661781576,
+      "ranking": 36,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 35 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00049",
+      "title": "Test Paper 49: Advanced AI Research",
+      "qualityScore": 8.678190083234114,
+      "ranking": 50,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 49 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00004",
+      "title": "Test Paper 4: Advanced AI Research",
+      "qualityScore": 8.65457650670724,
+      "ranking": 5,
+      "themes": [
+        "consciousness"
+      ],
+      "reasoning": "Paper 4 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00037",
+      "title": "Test Paper 37: Advanced AI Research",
+      "qualityScore": 8.604224749594183,
+      "ranking": 38,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 37 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00042",
+      "title": "Test Paper 42: Advanced AI Research",
+      "qualityScore": 8.587216913579608,
+      "ranking": 43,
+      "themes": [
+        "consciousness"
+      ],
+      "reasoning": "Paper 42 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00048",
+      "title": "Test Paper 48: Advanced AI Research",
+      "qualityScore": 8.4340926273796,
+      "ranking": 49,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 48 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00022",
+      "title": "Test Paper 22: Advanced AI Research",
+      "qualityScore": 8.254170216936814,
+      "ranking": 23,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 22 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00015",
+      "title": "Test Paper 15: Advanced AI Research",
+      "qualityScore": 8.186313740752503,
+      "ranking": 16,
+      "themes": [
+        "consciousness"
+      ],
+      "reasoning": "Paper 15 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00029",
+      "title": "Test Paper 29: Advanced AI Research",
+      "qualityScore": 8.145901980069866,
+      "ranking": 30,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 29 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00031",
+      "title": "Test Paper 31: Advanced AI Research",
+      "qualityScore": 8.061072292394407,
+      "ranking": 32,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 31 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00012",
+      "title": "Test Paper 12: Advanced AI Research",
+      "qualityScore": 8.010810396115621,
+      "ranking": 13,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 12 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00045",
+      "title": "Test Paper 45: Advanced AI Research",
+      "qualityScore": 7.976925530421775,
+      "ranking": 46,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 45 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00047",
+      "title": "Test Paper 47: Advanced AI Research",
+      "qualityScore": 7.961694871925573,
+      "ranking": 48,
+      "themes": [
+        "consciousness",
+        "emergence"
+      ],
+      "reasoning": "Paper 47 demonstrates interesting patterns relevant to divination"
+    },
+    {
+      "arxivId": "2025.00001",
+      "title": "Test Paper 1: Advanced AI Research",
+      "qualityScore": 7.871584347224159,
+      "ranking": 2,
+      "themes": [
+        "consciousness",
+        "emergence",
+        "quantum"
+      ],
+      "reasoning": "Paper 1 demonstrates interesting patterns relevant to divination"
+    }
+  ],
+  "scoreDistribution": {
+    "excellent": 4,
+    "good": 24,
+    "acceptable": 22,
+    "poor": 0
+  },
+  "avgScore": 7.253562781553113
+}

@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-09-14T12:40:14.503Z",
+  "totalParsed": 10,
+  "samplePapers": [
+    {
+      "arxivId": "2509.09679v1",
+      "title": "ButterflyQuant: Ultra-low-bit LLM Quantization through Learnable\n  Orthogonal Butterfly Transforms",
+      "authors": "",
+      "abstractLength": 1789,
+      "publishedDate": "2025-09-11T17:59:51Z"
+    },
+    {
+      "arxivId": "2509.09677v1",
+      "title": "The Illusion of Diminishing Returns: Measuring Long Horizon Execution in\n  LLMs",
+      "authors": "",
+      "abstractLength": 1640,
+      "publishedDate": "2025-09-11T17:59:34Z"
+    },
+    {
+      "arxivId": "2509.09674v1",
+      "title": "SimpleVLA-RL: Scaling VLA Training via Reinforcement Learning",
+      "authors": "",
+      "abstractLength": 1512,
+      "publishedDate": "2025-09-11T17:59:17Z"
+    },
+    {
+      "arxivId": "2509.09675v1",
+      "title": "CDE: Curiosity-Driven Exploration for Efficient Reinforcement Learning\n  in Large Language Models",
+      "authors": "",
+      "abstractLength": 1223,
+      "publishedDate": "2025-09-11T17:59:17Z"
+    },
+    {
+      "arxivId": "2509.09655v1",
+      "title": "Feasibility-Guided Fair Adaptive Offline Reinforcement Learning for\n  Medicaid Care Management",
+      "authors": "",
+      "abstractLength": 768,
+      "publishedDate": "2025-09-11T17:50:06Z"
+    },
+    {
+      "arxivId": "2509.09651v1",
+      "title": "Retrieval-Augmented Generation for Reliable Interpretation of Radio\n  Regulations",
+      "authors": "",
+      "abstractLength": 1111,
+      "publishedDate": "2025-09-11T17:43:42Z"
+    },
+    {
+      "arxivId": "2509.09616v1",
+      "title": "Explaining Concept Drift through the Evolution of Group Counterfactuals",
+      "authors": "",
+      "abstractLength": 1172,
+      "publishedDate": "2025-09-11T16:58:34Z"
+    },
+    {
+      "arxivId": "2509.09614v1",
+      "title": "LoCoBench: A Benchmark for Long-Context Large Language Models in Complex\n  Software Engineering",
+      "authors": "",
+      "abstractLength": 1894,
+      "publishedDate": "2025-09-11T16:55:04Z"
+    },
+    {
+      "arxivId": "2509.09610v1",
+      "title": "Mechanistic Learning with Guided Diffusion Models to Predict\n  Spatio-Temporal Brain Tumor Growth",
+      "authors": "",
+      "abstractLength": 1264,
+      "publishedDate": "2025-09-11T16:52:09Z"
+    },
+    {
+      "arxivId": "2509.09597v1",
+      "title": "Graph Alignment via Dual-Pass Spectral Encoding and Latent Space\n  Communication",
+      "authors": "",
+      "abstractLength": 1669,
+      "publishedDate": "2025-09-11T16:36:16Z"
+    }
+  ]
+}
