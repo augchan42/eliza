@@ -28,7 +28,9 @@ export class TwitterDivinationClient {
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
-        this.arxivService = new ArxivService(runtime, client.profile.username);
+        // Use config username since profile isn't initialized yet
+        const username = client.twitterConfig.TWITTER_USERNAME;
+        this.arxivService = new ArxivService(runtime, username);
         this.newsService = new NewsService(runtime);
         this.oracleService = new OracleService();
     }
@@ -42,7 +44,7 @@ export class TwitterDivinationClient {
         try {
             const lastPost = await this.runtime.cacheManager.get<{
                 timestamp: number;
-            }>("twitter/" + this.client.profile.username + "/lastDivination");
+            }>("twitter/" + this.client.twitterConfig.TWITTER_USERNAME + "/lastDivination");
 
             const lastPostTimestamp = lastPost?.timestamp ?? 0;
             const minMinutes =
@@ -94,13 +96,13 @@ export class TwitterDivinationClient {
             // Two-tier deduplication system to prevent duplicate posts
             let filteredArticles = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
             const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
-                `twitter/${this.client.profile.username}/lastDivinationHeadlines`
+                `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`
             ) || [];
             
             // Load permanent arXiv history (all papers ever posted)
             // Stored as array in SQLite via cacheManager
             const arxivHistoryArray = await this.runtime.cacheManager.get<string[]>(
-                `twitter/${this.client.profile.username}/arxivPaperHistory`
+                `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`
             ) || [];
             const arxivHistory = new Set<string>(arxivHistoryArray);
 
@@ -180,7 +182,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
             );
 
             const roomId = stringToUuid(
-                "twitter_generate_room-" + this.client.profile.username
+                "twitter_generate_room-" + this.client.twitterConfig.TWITTER_USERNAME
             );
             const topics = this.runtime.character.topics.join(", ");
 
@@ -201,7 +203,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                     researchPaper: formattedResearch,
                     oracleReading: formattedOracle,
                     maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
-                    twitterUserName: this.client.profile.username,
+                    twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
                 }
             );
 
@@ -317,7 +319,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
 
                 // Update headline cache after successful post
                 const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
-                    `twitter/${this.client.profile.username}/lastDivinationHeadlines`
+                    `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`
                 ) || [];
                 
                 lastHeadlines.unshift(selectedArticle.title);
@@ -327,14 +329,14 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 }
                 
                 await this.runtime.cacheManager.set(
-                    `twitter/${this.client.profile.username}/lastDivinationHeadlines`,
+                    `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`,
                     lastHeadlines
                 );
                 
                 // Permanently store arXiv paper ID if it exists
                 if (selectedArticle.arxivId) {
                     const arxivHistoryArray = await this.runtime.cacheManager.get<string[]>(
-                        `twitter/${this.client.profile.username}/arxivPaperHistory`
+                        `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`
                     ) || [];
                     
                     if (!arxivHistoryArray.includes(selectedArticle.arxivId)) {
@@ -342,7 +344,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                         
                         // Store back to SQLite via cacheManager
                         await this.runtime.cacheManager.set(
-                            `twitter/${this.client.profile.username}/arxivPaperHistory`,
+                            `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`,
                             arxivHistoryArray
                         );
                         
@@ -354,7 +356,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
 
                 // Also update the divination timestamp cache for interval management
                 await this.runtime.cacheManager.set(
-                    "twitter/" + this.client.profile.username + "/lastDivination",
+                    "twitter/" + this.client.twitterConfig.TWITTER_USERNAME + "/lastDivination",
                     {
                         timestamp: Date.now(),
                     }
@@ -385,7 +387,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                         researchPaper: formattedResearch,    // JSON string  
                         interpretation: cleanedContent,      // Final tweet text
                         userId: this.runtime.agentId,
-                        userIdentifier: this.client.profile.username,
+                        userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
                         tweetId: tweetId,                    // Original tweet ID for threading
                         roomId: roomId                       // Room ID for reply posting
                     };
