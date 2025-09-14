@@ -406,7 +406,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                         userId: this.runtime.agentId,
                         userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
                         tweetId: mainTweetId,                     // Main tweet ID for threading
-                        replyTweetId: hexagramReplyId,           // Reply tweet ID
+                        replyTweetId: hexagramReplyId || null,    // Reply tweet ID (null if reply failed)
                         roomId: roomId                            // Room ID for reply posting
                     };
 
@@ -449,7 +449,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                                     message: dkgError.message,
                                     stack: dkgError.stack
                                 } : dkgError,
-                                tweet_content: cleanedContent.substring(0, 100) + "..."
+                                tweet_content: cleanedResearchTweet.substring(0, 100) + "..."
                             });
                         });
                     
@@ -460,7 +460,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                             message: dkgError.message,
                             stack: dkgError.stack
                         } : dkgError,
-                        tweet_content: cleanedContent.substring(0, 100) + "..."
+                        tweet_content: cleanedResearchTweet.substring(0, 100) + "..."
                     });
                 }
             } catch (error) {
@@ -473,8 +473,8 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                                   cause: error.cause,
                               }
                             : error,
-                    content: cleanedContent,
-                    length: cleanedContent.length,
+                    content: cleanedResearchTweet,
+                    length: cleanedResearchTweet.length,
                 });
                 throw error; // Bubble up the error
             }
@@ -494,7 +494,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
     }
 
     // Add this new method for testing
-    private cleanLLMResponse(response: string, contentType: string): string {
+    private cleanLLMResponse(response: string, contentType: string): string | null {
         let cleanedContent = "";
         
         // Try parsing as JSON first
@@ -507,13 +507,26 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 cleanedContent = parsedResponse;
             }
         } catch (jsonError) {
-            // If not JSON, clean the raw content
-            cleanedContent = response
-                .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
-                .replace(/^['"](.*)['"]$/g, "$1") // Remove quotes
-                .replace(/\\"/g, '"') // Unescape quotes
-                .replace(/\\n/g, "\n") // Unescape newlines
-                .trim();
+            // Handle structured template format for research tweets
+            if (contentType === "research tweet" && response.includes("**banger:**")) {
+                const bangerMatch = response.match(/\*\*banger:\*\*\s*(.*?)(?=\n\*\*|$)/s);
+                if (bangerMatch) {
+                    cleanedContent = bangerMatch[1].trim();
+                    elizaLogger.debug("Extracted banger from structured format");
+                } else {
+                    elizaLogger.warn("Found **banger:** but couldn't extract content");
+                }
+            }
+            
+            // If we didn't extract from structured format, clean the raw content
+            if (!cleanedContent) {
+                cleanedContent = response
+                    .replace(/^\s*{?\s*"text":\s*"|"\s*}?\s*$/g, "") // Remove JSON-like wrapper
+                    .replace(/^['"](.*)['"]$/g, "$1") // Remove quotes
+                    .replace(/\\"/g, '"') // Unescape quotes
+                    .replace(/\\n/g, "\n") // Unescape newlines
+                    .trim();
+            }
         }
         
         if (!cleanedContent) {
@@ -572,7 +585,7 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
 
             const context = composeContext({
                 state,
-                template: pixDivinationTemplate,
+                template: pixResearchTweetTemplate,
             });
 
             elizaLogger.log("Test divination context: ", context);
