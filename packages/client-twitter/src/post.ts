@@ -5,6 +5,7 @@ import {
     getEmbeddingZeroVector,
     IAgentRuntime,
     ModelClass,
+    parseJSONObjectFromText,
     stringToUuid,
     UUID,
 } from "@elizaos/core";
@@ -450,7 +451,7 @@ export class TwitterPostClient {
 
             // Try parsing as JSON first
             try {
-                const parsedResponse = JSON.parse(newTweetContent);
+                const parsedResponse = parseJSONObjectFromText(newTweetContent);
                 if (parsedResponse.text) {
                     cleanedContent = parsedResponse.text;
                 } else if (typeof parsedResponse === "string") {
@@ -551,7 +552,7 @@ export class TwitterPostClient {
 
         // Try to parse as JSON first
         try {
-            const jsonResponse = JSON.parse(cleanedResponse);
+            const jsonResponse = parseJSONObjectFromText(cleanedResponse);
             if (jsonResponse.text) {
                 return this.trimTweetLength(jsonResponse.text);
             }

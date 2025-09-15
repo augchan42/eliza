@@ -3,6 +3,7 @@ import {
     ModelClass,
     elizaLogger,
     generateText,
+    parseJSONObjectFromText,
 } from "@elizaos/core";
 
 export class ArxivService {
@@ -398,7 +399,7 @@ Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score
             if (jsonMatch) {
                 elizaLogger.debug(`   Extracted JSON: ${jsonMatch[0].substring(0, 500)}...`);
                 
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = parseJSONObjectFromText(jsonMatch[0]);
                 elizaLogger.debug(`   Parsed Structure:`, {
                     hasRankings: !!parsed.rankings,
                     rankingsCount: parsed.rankings?.length || 0,

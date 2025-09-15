@@ -498,7 +498,7 @@ export class TwitterDivinationClient {
         // Try parsing as JSON first
         elizaLogger.debug(`🧹 Parsing ${contentType} LLM response...`);
         try {
-            const parsedResponse = JSON.parse(response);
+            const parsedResponse = parseJSONObjectFromText(response);
             if (parsedResponse.text) {
                 cleanedContent = parsedResponse.text;
             } else if (typeof parsedResponse === "string") {
@@ -620,7 +620,7 @@ export class TwitterDivinationClient {
             // Clean content using existing logic
             let cleanedContent = "";
             try {
-                const parsedResponse = JSON.parse(interpretation);
+                const parsedResponse = parseJSONObjectFromText(interpretation);
                 if (parsedResponse.text) {
                     cleanedContent = parsedResponse.text;
                 } else if (typeof parsedResponse === "string") {
