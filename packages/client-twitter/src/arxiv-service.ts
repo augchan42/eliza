@@ -142,7 +142,7 @@ export class ArxivService {
         } catch (error) {
             // Error: increment exponential backoff counter
             this.consecutiveErrors++;
-            
+
             elizaLogger.error(`❌ Failed to fetch ${name}:`, {
                 error: error.message,
                 stack: error.stack,
@@ -285,17 +285,16 @@ export class ArxivService {
         elizaLogger.info(`Stack ranking ${papers.length} papers...`);
         const startTime = Date.now();
 
-        try {
-            // Token budget validation: limit papers to prevent overflow (50k context limit)
-            const MAX_PAPERS_FOR_RANKING = 200; // ~8k tokens for 50k token limit
-            const papersToRank = papers.length > MAX_PAPERS_FOR_RANKING
-                ? papers.slice(0, MAX_PAPERS_FOR_RANKING)
-                : papers;
+        // Token budget validation: limit papers to prevent overflow (50k context limit)
+        const MAX_PAPERS_FOR_RANKING = 200; // ~8k tokens for 50k token limit
+        const papersToRank = papers.length > MAX_PAPERS_FOR_RANKING
+            ? papers.slice(0, MAX_PAPERS_FOR_RANKING)
+            : papers;
 
-            elizaLogger.info(`Ranking ${papersToRank.length} papers (${papers.length - papersToRank.length} excluded for token budget)`);
+        elizaLogger.info(`Ranking ${papersToRank.length} papers (${papers.length - papersToRank.length} excluded for token budget)`);
 
-            // Prepare titles for LLM evaluation (reduced scope for token safety)
-            const titlesPrompt = `You are evaluating research papers for mystical/philosophical divination potential.
+        // Prepare titles for LLM evaluation (reduced scope for token safety)
+        const titlesPrompt = `You are evaluating research papers for mystical/philosophical divination potential.
 Score each paper 0-10 based on these criteria:
 
 1. Universal patterns that mirror ancient wisdom (25%)
@@ -318,68 +317,139 @@ Return JSON with top papers scoring >= 5.0:
 
 Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score descending.`;
 
-            // Circuit breaker: timeout for LLM ranking to prevent hanging
-            const rankingTimeout = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('LLM ranking timeout after 60s')), 60000)
-            );
+        // Exponential backoff retry logic for LLM ranking
+        const MAX_RETRIES = 3;
+        let _lastError;
 
-            const rankingPromise = generateText({
-                runtime: this.runtime,
-                context: titlesPrompt,
-                modelClass: ModelClass.LARGE, // Use larger model for complex ranking
-            });
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                elizaLogger.debug(`📊 LLM ranking attempt ${attempt}/${MAX_RETRIES}`);
 
-            const response = await Promise.race([rankingPromise, rankingTimeout]);
-
-            // Parse ranking response
-            const rankingData = this.parseRankingResponse(response);
-
-            if (rankingData && rankingData.rankings) {
-                // Validate indices to prevent crashes
-                const validRankings = rankingData.rankings.filter(r =>
-                    r.index >= 0 &&
-                    r.index < papersToRank.length &&
-                    typeof r.score === 'number' &&
-                    r.score >= 0 && r.score <= 10
+                // Circuit breaker: timeout for LLM ranking to prevent hanging (exponential timeout)
+                const timeout = 30000 * Math.pow(2, attempt - 1); // 30s, 60s, 120s
+                const rankingTimeout = new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error(`LLM ranking timeout after ${timeout/1000}s (attempt ${attempt})`)), timeout)
                 );
 
-                elizaLogger.debug(`Valid rankings: ${validRankings.length}/${rankingData.rankings.length}`);
+                const rankingPromise = generateText({
+                    runtime: this.runtime,
+                    context: titlesPrompt,
+                    modelClass: ModelClass.LARGE, // Use larger model for complex ranking
+                });
 
-                // Map rankings back to papers (use papersToRank, not original papers array)
-                const rankedPapers = validRankings.map(r => ({
-                    ...papersToRank[r.index],
-                    qualityScore: r.score,
-                    ranking: validRankings.indexOf(r) + 1,
-                    themes: r.themes || [],
-                    reasoning: r.reasoning || ''
-                }));
+                const response = await Promise.race([rankingPromise, rankingTimeout]);
 
-                // Store ranked pool in cache
-                await this.runtime.cacheManager.set(
-                    this.getCacheKey('rankedPaperPool'),
-                    rankedPapers
-                );
+                // Parse ranking response
+                const rankingData = this.parseRankingResponse(response);
 
-                // Store metadata
-                await this.runtime.cacheManager.set(
-                    this.getCacheKey('poolMetadata'),
-                    {
-                        fetchedAt: Date.now(),
-                        totalPapers: papers.length,
-                        rankedCount: rankedPapers.length,
-                        topScore: rankedPapers[0]?.qualityScore || 0,
-                        averageScore: rankedPapers.reduce((sum, p) => sum + p.qualityScore, 0) / rankedPapers.length,
-                        qualityThreshold: 7.0
+                if (rankingData && rankingData.rankings) {
+                    // Validate indices to prevent crashes
+                    const validRankings = rankingData.rankings.filter(r =>
+                        r.index >= 0 &&
+                        r.index < papersToRank.length &&
+                        typeof r.score === 'number' &&
+                        r.score >= 0 && r.score <= 10
+                    );
+
+                    elizaLogger.debug(`Valid rankings: ${validRankings.length}/${rankingData.rankings.length}`);
+
+                    // Map rankings back to papers (use papersToRank, not original papers array)
+                    const rankedPapers = validRankings.map(r => ({
+                        ...papersToRank[r.index],
+                        qualityScore: r.score,
+                        ranking: validRankings.indexOf(r) + 1,
+                        themes: r.themes || [],
+                        reasoning: r.reasoning || ''
+                    }));
+
+                    // Store ranked pool in cache
+                    await this.runtime.cacheManager.set(
+                        this.getCacheKey('rankedPaperPool'),
+                        rankedPapers
+                    );
+
+                    // Store metadata
+                    await this.runtime.cacheManager.set(
+                        this.getCacheKey('poolMetadata'),
+                        {
+                            fetchedAt: Date.now(),
+                            totalPapers: papers.length,
+                            rankedCount: rankedPapers.length,
+                            topScore: rankedPapers[0]?.qualityScore || 0,
+                            averageScore: rankedPapers.reduce((sum, p) => sum + p.qualityScore, 0) / rankedPapers.length,
+                            qualityThreshold: 7.0
+                        }
+                    );
+
+                    const rankTime = (Date.now() - startTime) / 1000;
+                    elizaLogger.info(`✅ Ranked ${rankedPapers.length} papers in ${rankTime}s (attempt ${attempt}). Top score: ${rankedPapers[0]?.qualityScore}`);
+
+                    return rankedPapers;
+                } else {
+                    throw new Error('Invalid ranking response structure - missing rankings array');
+                }
+
+            } catch (error) {
+                _lastError = error;
+
+                // Enhanced error logging with comprehensive error details
+                const errorDetails: any = {
+                    attempt,
+                    maxRetries: MAX_RETRIES,
+                    papersCount: papersToRank.length,
+                    promptLength: titlesPrompt.length,
+                    timeoutUsed: 30000 * Math.pow(2, attempt - 1)
+                };
+
+                // Capture different error types and their specific properties
+                if (error instanceof Error) {
+                    errorDetails.type = 'Error';
+                    errorDetails.name = error.name;
+                    errorDetails.message = error.message;
+                    errorDetails.stack = error.stack?.split('\n').slice(0, 3).join('\n'); // First 3 lines
+
+                    // Check for nested cause
+                    if (error.cause) {
+                        errorDetails.cause = error.cause;
                     }
-                );
+                } else {
+                    // Handle non-Error objects (like API responses)
+                    errorDetails.type = 'NonError';
+                    errorDetails.rawError = error;
 
-                const rankTime = (Date.now() - startTime) / 1000;
-                elizaLogger.info(`Ranked ${rankedPapers.length} papers in ${rankTime}s. Top score: ${rankedPapers[0]?.qualityScore}`);
+                    // Try to extract meaningful info from object
+                    if (typeof error === 'object' && error !== null) {
+                        const errorObj = error as any;
+                        errorDetails.errorKeys = Object.keys(errorObj);
 
-                return rankedPapers;
+                        // Common API error properties
+                        if (errorObj.status) errorDetails.httpStatus = errorObj.status;
+                        if (errorObj.statusText) errorDetails.httpStatusText = errorObj.statusText;
+                        if (errorObj.code) errorDetails.errorCode = errorObj.code;
+                        if (errorObj.response) {
+                            errorDetails.responseData = errorObj.response.data || errorObj.response;
+                            errorDetails.responseStatus = errorObj.response.status;
+                        }
+
+                        // OpenRouter specific errors
+                        if (errorObj.error) errorDetails.apiError = errorObj.error;
+                        if (errorObj.message) errorDetails.apiMessage = errorObj.message;
+                    }
+                }
+
+                // Log with different severity based on attempt
+                if (attempt < MAX_RETRIES) {
+                    const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+                    elizaLogger.warn(`❌ LLM ranking failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms:`, errorDetails);
+                    elizaLogger.debug(`Full error object for debugging:`, error);
+
+                    // Exponential backoff delay
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    elizaLogger.error(`❌ LLM ranking failed permanently after ${MAX_RETRIES} attempts:`, errorDetails);
+                    elizaLogger.error(`Final error object for debugging:`, error);
+                }
             }
-        } catch (error) {
-            elizaLogger.error('Error ranking papers:', error);
         }
 
         // Fallback: return papers with default scores
@@ -390,22 +460,22 @@ Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score
         elizaLogger.debug('📋 LLM Ranking Response Analysis:');
         elizaLogger.debug(`   Length: ${response.length} characters`);
         elizaLogger.debug(`   Preview: ${response.substring(0, 200)}...`);
-        
+
         try {
             // Try to extract JSON from response
             const jsonMatch = response.match(/\{[\s\S]*\}/);
             elizaLogger.debug(`   JSON Match Found: ${!!jsonMatch}`);
-            
+
             if (jsonMatch) {
                 elizaLogger.debug(`   Extracted JSON: ${jsonMatch[0].substring(0, 500)}...`);
-                
+
                 const parsed = parseJSONObjectFromText(jsonMatch[0]);
                 elizaLogger.debug(`   Parsed Structure:`, {
                     hasRankings: !!parsed.rankings,
                     rankingsCount: parsed.rankings?.length || 0,
                     firstRankingStructure: parsed.rankings?.[0] ? Object.keys(parsed.rankings[0]) : 'none'
                 });
-                
+
                 return parsed;
             } else {
                 elizaLogger.warn('❌ No JSON structure found in LLM response');
