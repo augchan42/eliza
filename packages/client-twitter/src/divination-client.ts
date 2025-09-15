@@ -10,7 +10,7 @@ import {
     getEmbeddingZeroVector,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
-import { postTweet, postReplyTweet, truncateToCompleteSentence } from "./tweet-utils";
+import { postTweet, postReplyTweet } from "./tweet-utils";
 import { pixResearchTweetTemplate, pixHexagramReadingTemplate } from "./divination-templates";
 import { ArxivService } from "./arxiv-service";
 import { NewsService } from "./news-service";
@@ -38,7 +38,7 @@ export class TwitterDivinationClient {
         this.newsService = new NewsService(runtime);
         this.oracleService = new OracleService();
         this.contentSelectionService = new ContentSelectionService(runtime);
-        
+
         // Initialize content manager with research as default
         // Can be changed via environment variable or runtime config
         const contentType = runtime.getSetting("DIVINATION_CONTENT_TYPE") || "research";
@@ -108,7 +108,7 @@ export class TwitterDivinationClient {
         try {
             const researchPapers = await this.arxivService.fetchArxivPapers();
             const oracleReading = await this.oracleService.fetch8BitOracle();
-            
+
             const config = this.contentManager.getConfig();
 
             // Check if content is unavailable
@@ -121,32 +121,32 @@ export class TwitterDivinationClient {
             // Convert raw content to ContentItem array using adapter
             const rawContent = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
             let filteredContent: ContentItem[] = this.contentManager.adaptContentArray(rawContent);
-            
+
             // Load recent content titles cache
             const recentTitlesCacheKey = this.contentManager.getRecentContentCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
             const recentTitles = await this.runtime.cacheManager.get<string[]>(recentTitlesCacheKey) || [];
-            
+
             // Load permanent history (if applicable for this content type)
             const historyCacheKey = this.contentManager.getHistoryCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
-            const historyArray = historyCacheKey 
+            const historyArray = historyCacheKey
                 ? await this.runtime.cacheManager.get<string[]>(historyCacheKey) || []
                 : [];
             const permanentHistory = new Set<string>(historyArray);
 
             if (recentTitles.length > 0 || permanentHistory.size > 0) {
                 const uniqueContent: ContentItem[] = [];
-                
+
                 for (const item of filteredContent) {
                     let isDuplicate = false;
                     const itemTitle = item.title.toLowerCase().trim();
-                    
+
                     // Check permanent history first (if this item has an ID)
                     if (item.id && permanentHistory.has(item.id)) {
                         elizaLogger.debug(`${config.itemName} already posted: ${item.id}`);
                         isDuplicate = true;
                         continue;
                     }
-                    
+
                     // Tier 1: Exact string matching (catches identical titles)
                     for (const cachedTitle of recentTitles) {
                         if (itemTitle === cachedTitle.toLowerCase().trim()) {
@@ -155,7 +155,7 @@ export class TwitterDivinationClient {
                             break;
                         }
                     }
-                    
+
                     if (!isDuplicate) {
                         // Tier 2: LLM similarity check (for nuanced variations)
                         const similarityCheck = this.contentManager.getSimilarityPrompt(item.title, recentTitles);
@@ -176,12 +176,12 @@ export class TwitterDivinationClient {
                             // Continue without LLM check if it fails
                         }
                     }
-                    
+
                     if (!isDuplicate) {
                         uniqueContent.push(item);
                     }
                 }
-                
+
                 filteredContent = uniqueContent;
                 elizaLogger.debug(this.contentManager.formatDeduplicationLog(filteredContent.length, rawContent.length));
             }
@@ -205,7 +205,7 @@ export class TwitterDivinationClient {
                 ],
                 priorityOrder: 'Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications'
             };
-            
+
             const selectedItem = await this.contentSelectionService.selectMostRelevant(filteredContent, researchCriteria);
 
             // Format the data before passing to template
@@ -275,18 +275,10 @@ export class TwitterDivinationClient {
             elizaLogger.info(`✅ Hexagram reading generated: ${hexagramReading.length} chars in ${hexagramTime}ms`);
 
             // Clean research tweet
-            let cleanedResearchTweet = this.cleanLLMResponse(researchTweet, "research tweet");
-            if (!cleanedResearchTweet) {
-                elizaLogger.error("Failed to generate valid research tweet");
-                return;
-            }
+            const cleanedResearchTweet = this.cleanLLMResponse(researchTweet, "research tweet");
 
             // Clean hexagram reading
-            let cleanedHexagramReading = this.cleanLLMResponse(hexagramReading, "hexagram reading");
-            if (!cleanedHexagramReading) {
-                elizaLogger.error("Failed to generate valid hexagram reading");
-                return;
-            }
+            const cleanedHexagramReading = this.cleanLLMResponse(hexagramReading, "hexagram reading");
 
             if (this.isDryRun) {
                 elizaLogger.info(
@@ -315,9 +307,9 @@ export class TwitterDivinationClient {
                     try {
                         // Combine hexagram reading with citation
                         const hexagramWithCitation = `${cleanedHexagramReading}\n\n📄 ${selectedItem.title}\n${selectedItem.authors ? `${selectedItem.authors}\n` : ''}${selectedItem.link}`;
-                        
+
                         elizaLogger.log(`🔮 Posting hexagram reply (${hexagramWithCitation.length} chars):\n${hexagramWithCitation}`);
-                        
+
                         hexagramReplyId = await postReplyTweet(
                             this.runtime,
                             this.client,
@@ -326,7 +318,7 @@ export class TwitterDivinationClient {
                             roomId,
                             this.twitterUsername
                         );
-                        
+
                         if (hexagramReplyId) {
                             elizaLogger.info("✅ Successfully posted hexagram reading reply");
                         } else {
@@ -341,30 +333,30 @@ export class TwitterDivinationClient {
                 // Update recent content cache after successful post
                 const recentTitlesCacheKey = this.contentManager.getRecentContentCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
                 const recentTitles = await this.runtime.cacheManager.get<string[]>(recentTitlesCacheKey) || [];
-                
+
                 recentTitles.unshift(selectedItem.title);
                 // Keep 100 titles for ~3 months of deduplication history
                 if (recentTitles.length > 100) {
                     recentTitles.pop();
                 }
-                
+
                 await this.runtime.cacheManager.set(recentTitlesCacheKey, recentTitles);
-                
+
                 // Permanently store content ID if it exists and history is configured
                 const historyCacheKey = this.contentManager.getHistoryCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
                 if (selectedItem.id && historyCacheKey) {
                     const historyArray = await this.runtime.cacheManager.get<string[]>(historyCacheKey) || [];
-                    
+
                     if (!historyArray.includes(selectedItem.id)) {
                         historyArray.push(selectedItem.id);
-                        
+
                         // Store back to SQLite via cacheManager
                         await this.runtime.cacheManager.set(historyCacheKey, historyArray);
-                        
+
                         elizaLogger.debug(`Added ${config.itemName} to permanent history: ${selectedItem.id}`);
                     }
                 }
-                
+
                 elizaLogger.debug(`Updated ${config.itemName} cache with: "${selectedItem.title}"`);
 
                 // Also update the divination timestamp cache for interval management
@@ -378,7 +370,7 @@ export class TwitterDivinationClient {
                 // Integrate with DKG - store divination to OriginTrail DKG
                 try {
                     elizaLogger.info("Attempting to store divination to DKG...");
-                    
+
                     // Create synthetic memory for action processing
                     const actionMemory: Memory = {
                         id: stringToUuid(`divination-action-${Date.now()}`),
@@ -397,7 +389,8 @@ export class TwitterDivinationClient {
                     const dkgState = {
                         ...state,
                         oracleReading: formattedOracle,           // Already JSON string
-                        researchPaper: formattedResearch,         // JSON string  
+                        contentItem: JSON.stringify(selectedItem), // Generic ContentItem (research/news/podcast/etc)
+                        contentType: this.contentManager.getConfig().typeName, // "research", "news", "podcast", etc.
                         interpretation: `${cleanedResearchTweet}\n\n---\n\n${cleanedHexagramReading}`,  // Both tweets
                         mainTweetContent: cleanedResearchTweet,   // Main research tweet
                         hexagramReading: cleanedHexagramReading,  // Hexagram reply content
@@ -413,24 +406,28 @@ export class TwitterDivinationClient {
                         try {
                             if (response.action === "REPLY_TWEET" && response.metadata) {
                                 elizaLogger.info("DKG returned akashic record, posting reply tweet...");
-                                
-                                const replyTweetId = await postReplyTweet(
+
+                                // Handle async operation with explicit promise isolation
+                                postReplyTweet(
                                     this.runtime,
                                     this.client,
                                     response.metadata.replyContent,
                                     response.metadata.originalTweetId,
                                     response.metadata.roomId,
                                     this.twitterUsername
-                                );
-                                
-                                if (replyTweetId) {
-                                    elizaLogger.info("Successfully posted akashic record reply tweet");
-                                } else {
-                                    elizaLogger.warn("Failed to post akashic record reply tweet");
-                                }
+                                ).then((replyTweetId) => {
+                                    if (replyTweetId) {
+                                        elizaLogger.info("Successfully posted akashic record reply tweet");
+                                    } else {
+                                        elizaLogger.warn("Failed to post akashic record reply tweet");
+                                    }
+                                }).catch((error) => {
+                                    // Isolate promise rejection to prevent unhandled rejection
+                                    elizaLogger.error("Error posting akashic record reply:", error);
+                                });
                             }
                         } catch (error) {
-                            elizaLogger.error("Error posting akashic record reply:", error);
+                            elizaLogger.error("Error in DKG callback:", error);
                         }
                         return []; // Return empty array as required by HandlerCallback type
                     };
@@ -450,7 +447,7 @@ export class TwitterDivinationClient {
                                 tweet_content: cleanedResearchTweet.substring(0, 100) + "..."
                             });
                         });
-                    
+
                 } catch (dkgError) {
                     // Log warning but don't throw - DKG failure shouldn't break divination
                     elizaLogger.warn("Failed to initiate DKG storage, but tweet was successful:", {
@@ -492,9 +489,9 @@ export class TwitterDivinationClient {
     }
 
     // Add this new method for testing
-    private cleanLLMResponse(response: string, contentType: string): string | null {
+    private cleanLLMResponse(response: string, contentType: string): string {
         let cleanedContent = "";
-        
+
         // Try parsing as JSON first
         elizaLogger.debug(`🧹 Parsing ${contentType} LLM response...`);
         try {
@@ -504,7 +501,7 @@ export class TwitterDivinationClient {
             } else if (typeof parsedResponse === "string") {
                 cleanedContent = parsedResponse;
             }
-        } catch (jsonError) {
+        } catch {
             // Handle structured template format for research tweets
             if (contentType === "research tweet" && response.includes("**banger:**")) {
                 const bangerMatch = response.match(/\*\*banger:\*\*\s*(.*?)(?=\n\*\*|$)/s);
@@ -515,7 +512,7 @@ export class TwitterDivinationClient {
                     elizaLogger.warn("Found **banger:** but couldn't extract content");
                 }
             }
-            
+
             // If we didn't extract from structured format, clean the raw content
             if (!cleanedContent) {
                 cleanedContent = response
@@ -526,21 +523,21 @@ export class TwitterDivinationClient {
                     .trim();
             }
         }
-        
+
         if (!cleanedContent) {
             elizaLogger.error(`💥 Failed to extract valid ${contentType}:`, {
                 rawResponse: response.substring(0, 500),
                 responseLength: response.length
             });
-            return null;
+            throw new Error(`Failed to extract valid ${contentType} from LLM response`);
         }
-        
+
         elizaLogger.info(`✅ ${contentType} extracted: ${cleanedContent.length} chars`);
-        
+
         // Final cleaning
         const removeQuotes = (str: string) => str.replace(/^['"](.*)['"]$/, "$1");
         const fixNewLines = (str: string) => str.replaceAll(/\\n/g, "\n");
-        
+
         return removeQuotes(fixNewLines(cleanedContent));
     }
 
@@ -551,7 +548,7 @@ export class TwitterDivinationClient {
         try {
             const researchPapers = await this.arxivService.fetchArxivPapers();
             const oracleReading = await this.oracleService.fetch8BitOracle();
-            
+
             // Select the most relevant paper for testing (matching main logic)
             const researchCriteria: SelectionCriteria = {
                 contentType: 'research',
@@ -565,12 +562,12 @@ export class TwitterDivinationClient {
                 ],
                 priorityOrder: 'Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications'
             };
-            
+
             // Convert to ContentItem array and select most relevant
             const rawContent = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
             const contentItems = this.contentManager.adaptContentArray(rawContent);
-            
-            const selectedItem = contentItems.length > 0 
+
+            const selectedItem = contentItems.length > 0
                 ? await this.contentSelectionService.selectMostRelevant(contentItems, researchCriteria)
                 : contentItems[0];
 

@@ -54,8 +54,8 @@ export const dkgDivinationInsert: Action = {
                 has_state: !!state,
                 state_keys: Object.keys(state),
                 oracle_reading_type: typeof state.oracleReading,
-                market_sentiment_type: typeof state.marketSentiment,
-                news_events_type: typeof state.newsEvent,
+                content_item_type: typeof state.contentItem,
+                content_type: state.contentType,
             });
 
             const DkgClient = new DKG({
@@ -74,7 +74,7 @@ export const dkgDivinationInsert: Action = {
             });
 
             // Extract data from state with error handling
-            let hexagramData, newsEvents;
+            let hexagramData, contentItem;
             try {
                 hexagramData = JSON.parse(state.oracleReading as string);
             } catch (error) {
@@ -85,33 +85,32 @@ export const dkgDivinationInsert: Action = {
                 throw new Error(`Invalid oracleReading JSON: ${error.message}`);
             }
 
-            // Parse newsEvent if provided (optional for research-focused divination)
-            if (state.newsEvent && state.newsEvent !== 'undefined') {
+            // Parse contentItem (generic content data - research/news/podcast/etc)
+            if (state.contentItem && state.contentItem !== 'undefined') {
                 try {
-                    newsEvents = JSON.parse(state.newsEvent as string);
+                    contentItem = JSON.parse(state.contentItem as string);
                 } catch (error) {
-                    elizaLogger.warn("Failed to parse newsEvent JSON, using empty array:", {
+                    elizaLogger.warn("Failed to parse contentItem JSON, using empty object:", {
                         error: error.message,
-                        data: state.newsEvent,
+                        data: state.contentItem,
                     });
-                    newsEvents = [];
+                    contentItem = {};
                 }
             } else {
-                newsEvents = [];
+                contentItem = {};
             }
 
-            const marketSentiment = (state.marketSentiment && state.marketSentiment !== 'undefined') 
-                ? state.marketSentiment as string 
-                : "neutral"; // Default sentiment for research-focused divination
+            // Extract content type and metadata
+            const contentType = (state.contentType as string) || "unknown";
             const interpretation = state.interpretation as string;
 
             elizaLogger.info("Parsed state data for knowledge graph:", {
                 has_hexagram: !!hexagramData,
                 hexagram_number:
                     hexagramData?.interpretation?.currentHexagram?.number,
-                has_market_sentiment: !!marketSentiment,
-                has_news: !!newsEvents,
-                news_count: newsEvents?.length,
+                content_type: contentType,
+                content_title: contentItem.title || "unknown",
+                content_id: contentItem.id || "unknown",
                 has_interpretation: !!interpretation,
             });
 
@@ -132,7 +131,8 @@ export const dkgDivinationInsert: Action = {
                 "@context": schemaContext["@context"],
                 "@type": "CreativeWork",
                 "@id": `urn:divination:${message.id}`,
-                name: `${hexagramData.interpretation.currentHexagram.name.pinyin} - ${hexagramData.interpretation.currentHexagram.name.chinese}`,
+                name: `${hexagramData.interpretation.currentHexagram.name.pinyin} - ${contentItem.title || 'Unknown Content'}`,
+                description: `Oracle divination on ${contentType} content using the I-Ching. Hexagrams by 8bitoracle.ai (Tech Noir I-Ching)`,
                 dateCreated: new Date().toISOString(),
                 author: {
                     "@type": "Person",
@@ -141,7 +141,9 @@ export const dkgDivinationInsert: Action = {
                 keywords: [
                     `hexagram-${hexagramData.interpretation.currentHexagram.number}`,
                     "divination",
-                    "market-analysis",
+                    `${contentType}-analysis`,
+                    contentType,
+                    "8bitoracle",
                 ],
                 additionalProperty: [
                     {
@@ -151,13 +153,23 @@ export const dkgDivinationInsert: Action = {
                     },
                     {
                         "@type": "PropertyValue",
-                        name: "marketSentiment",
-                        value: marketSentiment,
+                        name: "oracleSource",
+                        value: "8-Bit Oracle (Tech Noir I-Ching)",
                     },
                     {
                         "@type": "PropertyValue",
-                        name: "newsEvents",
-                        value: JSON.stringify(newsEvents),
+                        name: "oracleUrl",
+                        value: "https://8bitoracle.ai",
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        name: "contentItem",
+                        value: JSON.stringify(contentItem),
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        name: "contentType",
+                        value: contentType,
                     },
                     {
                         "@type": "PropertyValue",

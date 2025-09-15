@@ -1,15 +1,8 @@
 import { IAgentRuntime, ModelClass, generateText, parseJSONObjectFromText, elizaLogger } from "@elizaos/core";
-
-export interface ContentItem {
-    title: string;
-    summary?: string;
-    pubDate?: string;
-    authors?: string;
-    [key: string]: any;
-}
+import { ContentItem, ContentTypeConfig } from "./content-types";
 
 export interface SelectionCriteria {
-    contentType: 'news' | 'research';
+    contentType: string; // Support any content type (news, research, podcast, etc.)
     character: string;
     priorities: string[];
     priorityOrder?: string;
@@ -103,18 +96,13 @@ Respond with JSON in this exact format:
     }
 
     private getEmptyFallback(contentType: string): ContentItem {
-        if (contentType === 'research') {
-            return {
-                title: "No research papers available",
-                summary: "Research feeds temporarily unavailable. Operating on oracle guidance only.",
-                pubDate: new Date().toISOString()
-            };
-        } else {
-            return {
-                title: "No articles available",
-                summary: "Feed parsing failed. Operating on cached data.",
-                pubDate: new Date().toISOString()
-            };
-        }
+        return {
+            title: `No ${contentType} content available`,
+            summary: `${contentType.charAt(0).toUpperCase() + contentType.slice(1)} feeds temporarily unavailable. Operating on oracle guidance only.`,
+            pubDate: new Date().toISOString(),
+            id: `fallback-${contentType}-${Date.now()}`,
+            link: "https://8bitoracle.ai",
+            authors: "8BitOracle"
+        };
     }
 }
