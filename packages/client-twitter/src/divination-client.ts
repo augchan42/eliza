@@ -16,6 +16,7 @@ import { ArxivService } from "./arxiv-service";
 import { NewsService } from "./news-service";
 import { OracleService } from "./oracle-service";
 import { ContentSelectionService, SelectionCriteria } from "./content-selection-service";
+import { ContentManager, ContentItem, CONTENT_TYPE_CONFIGS } from "./content-types";
 
 export class TwitterDivinationClient {
     client: ClientBase;
@@ -26,6 +27,7 @@ export class TwitterDivinationClient {
     private newsService: NewsService;
     private oracleService: OracleService;
     private contentSelectionService: ContentSelectionService;
+    private contentManager: ContentManager;
 
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
@@ -36,6 +38,11 @@ export class TwitterDivinationClient {
         this.newsService = new NewsService(runtime);
         this.oracleService = new OracleService();
         this.contentSelectionService = new ContentSelectionService(runtime);
+        
+        // Initialize content manager with research as default
+        // Can be changed via environment variable or runtime config
+        const contentType = runtime.getSetting("DIVINATION_CONTENT_TYPE") || "research";
+        this.contentManager = new ContentManager(runtime, contentType as keyof typeof CONTENT_TYPE_CONFIGS);
     }
 
     async start() {
@@ -101,58 +108,57 @@ export class TwitterDivinationClient {
         try {
             const researchPapers = await this.arxivService.fetchArxivPapers();
             const oracleReading = await this.oracleService.fetch8BitOracle();
+            
+            const config = this.contentManager.getConfig();
 
-            // Check if research papers are unavailable
-            const noPapers = !researchPapers || (Array.isArray(researchPapers) && researchPapers.length === 1 && (researchPapers[0].title === "News unavailable" || researchPapers[0].title === "News feeds unavailable"));
-            if (noPapers) {
-                elizaLogger.warn("Skipping post: No research papers available.");
+            // Check if content is unavailable
+            const noContent = !researchPapers || (Array.isArray(researchPapers) && researchPapers.length === 1 && (researchPapers[0].title === "News unavailable" || researchPapers[0].title === "News feeds unavailable"));
+            if (noContent) {
+                elizaLogger.warn(`Skipping post: ${config.noContentMessage}`);
                 return;
             }
 
-            // Two-tier deduplication system to prevent duplicate posts
-            let filteredArticles = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
-            const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
-                `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`
-            ) || [];
+            // Convert raw content to ContentItem array using adapter
+            const rawContent = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
+            let filteredContent: ContentItem[] = this.contentManager.adaptContentArray(rawContent);
             
-            // Load permanent arXiv history (all papers ever posted)
-            // Stored as array in SQLite via cacheManager
-            const arxivHistoryArray = await this.runtime.cacheManager.get<string[]>(
-                `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`
-            ) || [];
-            const arxivHistory = new Set<string>(arxivHistoryArray);
+            // Load recent content titles cache
+            const recentTitlesCacheKey = this.contentManager.getRecentContentCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
+            const recentTitles = await this.runtime.cacheManager.get<string[]>(recentTitlesCacheKey) || [];
+            
+            // Load permanent history (if applicable for this content type)
+            const historyCacheKey = this.contentManager.getHistoryCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
+            const historyArray = historyCacheKey 
+                ? await this.runtime.cacheManager.get<string[]>(historyCacheKey) || []
+                : [];
+            const permanentHistory = new Set<string>(historyArray);
 
-            if (lastHeadlines.length > 0 || arxivHistory.size > 0) {
-                const uniqueArticles = [];
+            if (recentTitles.length > 0 || permanentHistory.size > 0) {
+                const uniqueContent: ContentItem[] = [];
                 
-                for (const article of filteredArticles) {
+                for (const item of filteredContent) {
                     let isDuplicate = false;
-                    const articleTitle = article.title.toLowerCase().trim();
+                    const itemTitle = item.title.toLowerCase().trim();
                     
-                    // Check permanent arXiv history first (if this is an arXiv paper)
-                    if (article.arxivId && arxivHistory.has(article.arxivId)) {
-                        elizaLogger.debug(`ArXiv paper already posted: ${article.arxivId}`);
+                    // Check permanent history first (if this item has an ID)
+                    if (item.id && permanentHistory.has(item.id)) {
+                        elizaLogger.debug(`${config.itemName} already posted: ${item.id}`);
                         isDuplicate = true;
                         continue;
                     }
                     
-                    // Tier 1: Exact string matching (catches identical headlines)
-                    for (const cachedHeadline of lastHeadlines) {
-                        if (articleTitle === cachedHeadline.toLowerCase().trim()) {
-                            elizaLogger.debug(`EXACT MATCH duplicate filtered: "${article.title}"`);
+                    // Tier 1: Exact string matching (catches identical titles)
+                    for (const cachedTitle of recentTitles) {
+                        if (itemTitle === cachedTitle.toLowerCase().trim()) {
+                            elizaLogger.debug(this.contentManager.formatDuplicateLog(item, 'exact'));
                             isDuplicate = true;
                             break;
                         }
                     }
                     
                     if (!isDuplicate) {
-                        // Tier 2: LLM similarity check (for nuanced story variations)
-                        const similarityCheck = `Is "${article.title}" covering the same story as any of these recent headlines?
-
-Recent headlines:
-${lastHeadlines.map((h, i) => `${i+1}. ${h}`).join('\n')}
-
-Respond ONLY with "YES" if covering the exact same story/event, "NO" if different stories.`;
+                        // Tier 2: LLM similarity check (for nuanced variations)
+                        const similarityCheck = this.contentManager.getSimilarityPrompt(item.title, recentTitles);
 
                         try {
                             const response = await generateText({
@@ -162,31 +168,31 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                             });
 
                             if (response.toLowerCase().includes("yes")) {
-                                elizaLogger.debug(`LLM SIMILARITY duplicate filtered: "${article.title}"`);
+                                elizaLogger.debug(this.contentManager.formatDuplicateLog(item, 'similarity'));
                                 isDuplicate = true;
                             }
                         } catch (error) {
-                            elizaLogger.warn(`LLM similarity check failed for "${article.title}":`, error);
+                            elizaLogger.warn(`LLM similarity check failed for "${item.title}":`, error);
                             // Continue without LLM check if it fails
                         }
                     }
                     
                     if (!isDuplicate) {
-                        uniqueArticles.push(article);
+                        uniqueContent.push(item);
                     }
                 }
                 
-                filteredArticles = uniqueArticles;
-                elizaLogger.debug(`Deduplication results: ${filteredArticles.length} unique articles from ${Array.isArray(researchPapers) ? researchPapers.length : 1} candidates`);
+                filteredContent = uniqueContent;
+                elizaLogger.debug(this.contentManager.formatDeduplicationLog(filteredContent.length, rawContent.length));
             }
 
-            // If all articles were filtered out as duplicates, skip this cycle
-            if (filteredArticles.length === 0) {
-                elizaLogger.warn("Skipping divination: All articles are duplicates of recent headlines");
+            // If all content was filtered out as duplicates, skip this cycle
+            if (filteredContent.length === 0) {
+                elizaLogger.warn(`Skipping divination: ${config.allDuplicatesMessage}`);
                 return;
             }
 
-            // Now select the best research paper from the unique articles using research-focused criteria
+            // Now select the best content item from the unique items using research-focused criteria
             const researchCriteria: SelectionCriteria = {
                 contentType: 'research',
                 character: 'Pix - a digital anthropologist interpreting research through I-Ching wisdom with Discord 3am energy',
@@ -200,10 +206,10 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                 priorityOrder: 'Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications'
             };
             
-            const selectedArticle = await this.contentSelectionService.selectMostRelevant(filteredArticles, researchCriteria);
+            const selectedItem = await this.contentSelectionService.selectMostRelevant(filteredContent, researchCriteria);
 
             // Format the data before passing to template
-            const formattedResearch = JSON.stringify(researchPapers, null, 2);
+            const formattedResearch = JSON.stringify(selectedItem, null, 2);
             const formattedOracle = JSON.stringify(
                 oracleReading,
                 null,
@@ -305,10 +311,10 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
 
                 // Post hexagram reading + citation as reply (Tweet 2)
                 let hexagramReplyId = null;
-                if (mainTweetId && selectedArticle.link) {
+                if (mainTweetId && selectedItem.link) {
                     try {
                         // Combine hexagram reading with citation
-                        const hexagramWithCitation = `${cleanedHexagramReading}\n\n📄 ${selectedArticle.title}\n${selectedArticle.authors ? `${selectedArticle.authors}\n` : ''}${selectedArticle.link}`;
+                        const hexagramWithCitation = `${cleanedHexagramReading}\n\n📄 ${selectedItem.title}\n${selectedItem.authors ? `${selectedItem.authors}\n` : ''}${selectedItem.link}`;
                         
                         elizaLogger.log(`🔮 Posting hexagram reply (${hexagramWithCitation.length} chars):\n${hexagramWithCitation}`);
                         
@@ -332,42 +338,34 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
                     }
                 }
 
-                // Update headline cache after successful post
-                const lastHeadlines = await this.runtime.cacheManager.get<string[]>(
-                    `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`
-                ) || [];
+                // Update recent content cache after successful post
+                const recentTitlesCacheKey = this.contentManager.getRecentContentCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
+                const recentTitles = await this.runtime.cacheManager.get<string[]>(recentTitlesCacheKey) || [];
                 
-                lastHeadlines.unshift(selectedArticle.title);
-                // Keep 100 headlines for ~3 months of deduplication history
-                if (lastHeadlines.length > 100) {
-                    lastHeadlines.pop();
+                recentTitles.unshift(selectedItem.title);
+                // Keep 100 titles for ~3 months of deduplication history
+                if (recentTitles.length > 100) {
+                    recentTitles.pop();
                 }
                 
-                await this.runtime.cacheManager.set(
-                    `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/lastDivinationHeadlines`,
-                    lastHeadlines
-                );
+                await this.runtime.cacheManager.set(recentTitlesCacheKey, recentTitles);
                 
-                // Permanently store arXiv paper ID if it exists
-                if (selectedArticle.arxivId) {
-                    const arxivHistoryArray = await this.runtime.cacheManager.get<string[]>(
-                        `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`
-                    ) || [];
+                // Permanently store content ID if it exists and history is configured
+                const historyCacheKey = this.contentManager.getHistoryCacheKey(this.client.twitterConfig.TWITTER_USERNAME);
+                if (selectedItem.id && historyCacheKey) {
+                    const historyArray = await this.runtime.cacheManager.get<string[]>(historyCacheKey) || [];
                     
-                    if (!arxivHistoryArray.includes(selectedArticle.arxivId)) {
-                        arxivHistoryArray.push(selectedArticle.arxivId);
+                    if (!historyArray.includes(selectedItem.id)) {
+                        historyArray.push(selectedItem.id);
                         
                         // Store back to SQLite via cacheManager
-                        await this.runtime.cacheManager.set(
-                            `twitter/${this.client.twitterConfig.TWITTER_USERNAME}/arxivPaperHistory`,
-                            arxivHistoryArray
-                        );
+                        await this.runtime.cacheManager.set(historyCacheKey, historyArray);
                         
-                        elizaLogger.debug(`Added arXiv paper to permanent history: ${selectedArticle.arxivId}`);
+                        elizaLogger.debug(`Added ${config.itemName} to permanent history: ${selectedItem.id}`);
                     }
                 }
                 
-                elizaLogger.debug(`Updated headline cache with: "${selectedArticle.title}"`);
+                elizaLogger.debug(`Updated ${config.itemName} cache with: "${selectedItem.title}"`);
 
                 // Also update the divination timestamp cache for interval management
                 await this.runtime.cacheManager.set(
@@ -553,9 +551,31 @@ Respond ONLY with "YES" if covering the exact same story/event, "NO" if differen
         try {
             const researchPapers = await this.arxivService.fetchArxivPapers();
             const oracleReading = await this.oracleService.fetch8BitOracle();
+            
+            // Select the most relevant paper for testing (matching main logic)
+            const researchCriteria: SelectionCriteria = {
+                contentType: 'research',
+                character: 'Pix - a digital anthropologist interpreting research through I-Ching wisdom with Discord 3am energy',
+                priorities: [
+                    'NOVELTY: Is this breakthrough research or novel approach?',
+                    'PARADIGM SHIFT: Does this challenge existing assumptions or create new frameworks?',
+                    'I-CHING RESONANCE: Can this be interpreted through pattern analysis and ancient wisdom?',
+                    'TRANSFORMATIVE POTENTIAL: Will this change how we think about the domain?',
+                    'COMPLEXITY INSIGHTS: Does this reveal hidden patterns or structures?'
+                ],
+                priorityOrder: 'Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications'
+            };
+            
+            // Convert to ContentItem array and select most relevant
+            const rawContent = Array.isArray(researchPapers) ? researchPapers : [researchPapers];
+            const contentItems = this.contentManager.adaptContentArray(rawContent);
+            
+            const selectedItem = contentItems.length > 0 
+                ? await this.contentSelectionService.selectMostRelevant(contentItems, researchCriteria)
+                : contentItems[0];
 
             // Format the data before passing to template
-            const formattedResearch = JSON.stringify(researchPapers, null, 2);
+            const formattedResearch = JSON.stringify(selectedItem, null, 2);
             const formattedOracle = JSON.stringify(
                 oracleReading,
                 null,
