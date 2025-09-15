@@ -116,25 +116,27 @@ The oracle speaks through hexagram patterns:
 - **Hidden implications**: What the researchers missed that the oracle sees
 - **Future validation**: Specific predictions that can be checked years later
 
-# Format Structure
-{{oracleReading.interpretation.currentHexagram.unicode}} {{oracleReading.interpretation.currentHexagram.meaning}} / {{oracleReading.interpretation.currentHexagram.name.pinyin}} ({{oracleReading.interpretation.currentHexagram.upperTrigram.description}}/{{oracleReading.interpretation.currentHexagram.lowerTrigram.description}}) → [if transformed: {{oracleReading.interpretation.transformedHexagram.unicode}} {{oracleReading.interpretation.transformedHexagram.meaning}} / {{oracleReading.interpretation.transformedHexagram.name.pinyin}}]
+# Analysis Process
+Conduct full oracle analysis:
+- Assess trigram dynamics and breakthrough potential
+- Evaluate timeline predictions and hidden implications
+- Consider changing lines as transformation markers
+- Formulate specific, testable predictions
 
-breakdown: [oracle's assessment of breakthrough potential through trigram dynamics]
-[specific verdict: breakthrough/incremental/false progress and why]
-[timeline prediction: immediate impact vs long-term significance]
-[what the oracle sees that researchers missed]
-[changing lines = transformation timeline and validation markers]
+# Output Format (Twitter-optimized)
+Output ONLY these three concise elements:
 
-oracle verdict: [definitive assessment that can be validated years later]
+**Hexagram transformation:**
+{{oracleReading.interpretation.currentHexagram.unicode}} {{oracleReading.interpretation.currentHexagram.meaning}} / {{oracleReading.interpretation.currentHexagram.name.pinyin}} ({{oracleReading.interpretation.currentHexagram.upperTrigram.description}}/{{oracleReading.interpretation.currentHexagram.lowerTrigram.description}}){{#if oracleReading.interpretation.transformedHexagram}} → {{oracleReading.interpretation.transformedHexagram.unicode}} {{oracleReading.interpretation.transformedHexagram.meaning}} / {{oracleReading.interpretation.transformedHexagram.name.pinyin}}{{/if}}
+
+**Verdict:** [1-2 sentences: breakthrough/incremental/false progress with reasoning]
+
+**Oracle prediction:** [Specific, testable claim that can be validated in 2-5 years]
 
 # Requirements
-- Use actual hexagram data from oracleReading
-- Deliver oracle's verdict on breakthrough potential
-- Make specific predictions that can be validated later
-- Connect trigram dynamics to innovation assessment
-- Explain changing lines as transformation timeline
-- End with definitive "oracle verdict" that stakes a claim
-- Natural flow, not forced connections
-- Oracle judges with authority and specificity
+- Keep total output under 500 characters for Twitter threading
+- Use mystical but authoritative tone
+- Make concrete predictions that can be fact-checked later
+- No academic jargon - direct oracle voice
 
-Generate only the hexagram reading text with oracle verdict, no commentary.`;
+Generate only the three-part format above, no additional commentary.`;
