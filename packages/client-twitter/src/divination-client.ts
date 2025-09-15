@@ -305,8 +305,8 @@ export class TwitterDivinationClient {
                 let hexagramReplyId = null;
                 if (mainTweetId && selectedItem.link) {
                     try {
-                        // Combine hexagram reading with citation
-                        const hexagramWithCitation = `${cleanedHexagramReading}\n\n📄 ${selectedItem.title}\n${selectedItem.authors ? `${selectedItem.authors}\n` : ''}${selectedItem.link}`;
+                        // Put citation FIRST so it's visible even when truncated
+                        const hexagramWithCitation = `📄 ${selectedItem.title}\n${selectedItem.authors ? `${selectedItem.authors}\n` : ''}${selectedItem.link}\n\n${cleanedHexagramReading}`;
 
                         elizaLogger.log(`🔮 Posting hexagram reply (${hexagramWithCitation.length} chars):\n${hexagramWithCitation}`);
 

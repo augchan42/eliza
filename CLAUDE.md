@@ -49,6 +49,10 @@ cd packages/client-twitter && pnpm build  # Build Twitter client
 - `pnpm docker:start` - Start Docker services
 - `pnpm docker` - Build, run, and open bash (full pipeline)
 
+### Browser Tools & Screenshots
+- Screenshots from browser-tools MCP are saved to: `~/Downloads/mcp-screenshots`
+- Use `mcp__browser-tools__takeScreenshot` to capture browser state for debugging
+
 ## Architecture Key Points
 
 ### Core Framework (`packages/core/`)
