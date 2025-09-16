@@ -589,7 +589,7 @@ export class TwitterInteractionClient {
                             message,
                             responseMessages,
                             state,
-                            callback
+                            null  // Pass null to prevent duplicate tweet - callback already executed above
                         );
 
                         // Integrate with DKG - store reply interaction to OriginTrail DKG  
