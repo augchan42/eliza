@@ -481,20 +481,19 @@ export class TwitterInteractionClient {
                     this.client,
                     this.runtime
                 );
-                
+
                 // Fetch current news headlines for situational awareness
                 const googleNews = await divinationClient.fetchGoogleNews();
-                const topHeadlines = googleNews.slice(0, 15).map(article => article.title).join(", ");
-                const newsAnalysis = googleNews.length > 0 ? `Top headlines: ${topHeadlines}` : "News feeds temporarily unavailable. Oracle wisdom active.";
-                
+                const newsAnalysis = divinationClient.newsService.getLastRankingAnalysis();
+
                 // Generate descriptive market sentiment
                 const marketSentiment = await divinationClient.generateSentimentFromNews(googleNews);
-                
+
                 // Get oracle reading
                 const oracleReading = await divinationClient.fetch8BitOracle();
 
                 elizaLogger.debug("Full context fetched:", {
-                    headlines: topHeadlines,
+                    newsAnalysis: newsAnalysis,
                     sentiment: marketSentiment,
                     oracle: oracleReading?.interpretation,
                 });
@@ -512,11 +511,11 @@ export class TwitterInteractionClient {
                         2
                     ),
                     userQuery: tweet.text,
-                    currentDate: new Date().toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                    currentDate: new Date().toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                     }),
                 });
 

@@ -24,7 +24,7 @@ export class TwitterDivinationClient {
     private twitterUsername: string;
     private isDryRun: boolean;
     private arxivService: ArxivService;
-    private newsService: NewsService;
+    public newsService: NewsService;
     private oracleService: OracleService;
     private contentSelectionService: ContentSelectionService;
     private contentManager: ContentManager;
