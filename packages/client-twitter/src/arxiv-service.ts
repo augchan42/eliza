@@ -307,7 +307,14 @@ Score each paper 0-10 based on these criteria:
 Papers to evaluate:
 ${papersToRank.map((p, i) => `[${i}] ${p.title}`).join('\n')}
 
-Return JSON with top papers scoring >= 5.0:
+CRITICAL INSTRUCTIONS:
+- Return ONLY valid JSON, no explanatory text before or after
+- Do NOT wrap the JSON in markdown code blocks (no \`\`\`)
+- Start your response with { and end with }
+- Include AT LEAST 50 papers in rankings (or all if fewer than 50)
+- Order by score descending
+
+Required JSON format:
 {
   "rankings": [
     {"index": 47, "score": 9.5, "themes": ["emergence", "consciousness"], "reasoning": "why this reveals patterns"},
@@ -315,7 +322,7 @@ Return JSON with top papers scoring >= 5.0:
   ]
 }
 
-Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score descending.`;
+Return ONLY the JSON object, nothing else.`;
 
         // Exponential backoff retry logic for LLM ranking
         const MAX_RETRIES = 3;
@@ -462,32 +469,113 @@ Include AT LEAST 50 papers in rankings (or all if fewer than 50). Order by score
         elizaLogger.debug(`   Preview: ${response.substring(0, 200)}...`);
 
         try {
-            // Try to extract JSON from response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            elizaLogger.debug(`   JSON Match Found: ${!!jsonMatch}`);
+            // First, strip any markdown code blocks
+            let cleanedResponse = response;
+            
+            // Remove markdown code blocks (```json ... ``` or ```...```)
+            const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (codeBlockMatch) {
+                elizaLogger.debug('   Found markdown code block, extracting content');
+                cleanedResponse = codeBlockMatch[1];
+            }
+            
+            // Try multiple extraction strategies
+            let jsonString = null;
+            
+            // Strategy 1: Direct parse if it's already clean JSON
+            if (cleanedResponse.trim().startsWith('{')) {
+                jsonString = cleanedResponse.trim();
+            }
+            
+            // Strategy 2: Extract JSON object with balanced braces
+            if (!jsonString) {
+                const jsonMatch = cleanedResponse.match(/\{(?:[^{}]|(?:\{[^{}]*\}))*\}/);
+                if (jsonMatch) {
+                    jsonString = jsonMatch[0];
+                }
+            }
+            
+            // Strategy 3: More aggressive JSON extraction with balanced brace counting
+            if (!jsonString) {
+                const startIdx = cleanedResponse.indexOf('{');
+                if (startIdx !== -1) {
+                    let braceCount = 0;
+                    let inString = false;
+                    let escapeNext = false;
+                    let endIdx = -1;
+                    
+                    for (let i = startIdx; i < cleanedResponse.length; i++) {
+                        const char = cleanedResponse[i];
+                        
+                        // Handle string boundaries to ignore braces inside strings
+                        if (!escapeNext && char === '"') {
+                            inString = !inString;
+                        }
+                        
+                        // Handle escape characters
+                        if (char === '\\' && !escapeNext) {
+                            escapeNext = true;
+                            continue;
+                        }
+                        escapeNext = false;
+                        
+                        // Count braces only outside of strings
+                        if (!inString) {
+                            if (char === '{') braceCount++;
+                            if (char === '}') braceCount--;
+                            if (braceCount === 0) {
+                                endIdx = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (endIdx !== -1) {
+                        jsonString = cleanedResponse.substring(startIdx, endIdx + 1);
+                    }
+                }
+            }
 
-            if (jsonMatch) {
-                elizaLogger.debug(`   Extracted JSON: ${jsonMatch[0].substring(0, 500)}...`);
-
-                const parsed = parseJSONObjectFromText(jsonMatch[0]);
-                elizaLogger.debug(`   Parsed Structure:`, {
-                    hasRankings: !!parsed.rankings,
-                    rankingsCount: parsed.rankings?.length || 0,
-                    firstRankingStructure: parsed.rankings?.[0] ? Object.keys(parsed.rankings[0]) : 'none'
-                });
-
-                return parsed;
+            elizaLogger.debug(`   JSON extraction result: ${jsonString ? 'found' : 'not found'}`);
+            
+            if (jsonString) {
+                elizaLogger.debug(`   Extracted JSON length: ${jsonString.length} chars`);
+                elizaLogger.debug(`   First 500 chars: ${jsonString.substring(0, 500)}...`);
+                
+                // Use parseJSONObjectFromText which handles additional edge cases
+                const parsed = parseJSONObjectFromText(jsonString);
+                
+                if (parsed && parsed.rankings) {
+                    elizaLogger.debug(`   ✅ Successfully parsed rankings:`, {
+                        hasRankings: true,
+                        rankingsCount: parsed.rankings.length,
+                        firstRankingStructure: parsed.rankings[0] ? Object.keys(parsed.rankings[0]) : 'none',
+                        topScores: parsed.rankings.slice(0, 3).map(r => r.score)
+                    });
+                    return parsed;
+                } else if (parsed) {
+                    elizaLogger.warn('❌ Parsed JSON but missing rankings array, structure:', Object.keys(parsed));
+                    return null;
+                } else {
+                    elizaLogger.warn('❌ parseJSONObjectFromText returned null');
+                    return null;
+                }
             } else {
-                elizaLogger.warn('❌ No JSON structure found in LLM response');
-                elizaLogger.debug(`   Full Response: ${response}`);
+                elizaLogger.warn('❌ No valid JSON structure found in LLM response');
+                elizaLogger.error(`   FULL RESPONSE DUMP:\n${response}`);  // Log entire response for debugging
             }
         } catch (error) {
             elizaLogger.error('💥 JSON Parse Error:', {
                 error: error.message,
+                stack: error.stack?.split('\n').slice(0, 3).join('\n'),
                 responseLength: response.length,
-                responsePreview: response.substring(0, 300),
-                jsonMatch: response.match(/\{[\s\S]*\}/) ? 'found' : 'not found'
+                hasCodeBlock: response.includes('```'),
+                hasJsonKeyword: response.includes('"rankings"'),
+                hasOpenBrace: response.includes('{'),
+                hasCloseBrace: response.includes('}')
             });
+            // Log the full response on error for debugging
+            elizaLogger.error(`   FULL FAILED RESPONSE:\n${response}`);
         }
         return null;
     }
