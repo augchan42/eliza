@@ -394,7 +394,7 @@ export class ClientBase extends EventEmitter {
             ? await this.twitterClient.fetchFollowingTimeline(count, [])
             : await this.twitterClient.fetchHomeTimeline(count, []);
 
-        elizaLogger.debug("Debug timeline data:", JSON.stringify(homeTimeline));
+        elizaLogger.debug("Timeline tweet count:", homeTimeline.length);
         const processedTimeline = homeTimeline
             .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
             .map((tweet) => {
