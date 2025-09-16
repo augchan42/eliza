@@ -236,18 +236,18 @@ Return the numbers of the most newsworthy/attention-grabbing articles (e.g., "1,
 
     public async generateSentimentFromNews(articles: any[]) {
         if (!articles || articles.length === 0) {
-            return "neutral";
+            return "Neutral market conditions with limited news activity";
         }
 
         const headlinesText = articles.slice(0, 5).map(article => 
             `${article.title}`
         ).join(', ');
 
-        const sentimentPrompt = `Analyze overall sentiment from these news headlines. Respond with exactly 1-3 words only:
+        const sentimentPrompt = `Analyze the overall sentiment and market mood from these current news headlines. Respond with a descriptive sentence about the general sentiment and what's driving it:
 
 Headlines: ${headlinesText}
 
-Sentiment (1-3 words max):`;
+Sentiment analysis (one descriptive sentence):`;
 
         try {
             const response = await generateText({
@@ -256,14 +256,14 @@ Sentiment (1-3 words max):`;
                 modelClass: ModelClass.SMALL,
             });
 
-            // Clean and truncate to 3 words max
-            const sentiment = response.trim().split(' ').slice(0, 3).join(' ');
+            // Clean response and ensure it's descriptive
+            const sentiment = response.trim().replace(/^["']|["']$/g, ''); // Remove quotes
             elizaLogger.debug(`News sentiment: "${sentiment}"`);
             return sentiment;
 
         } catch (error) {
             elizaLogger.error("Error in sentiment analysis:", error);
-            return "mixed";
+            return "Mixed sentiment with uncertain market conditions";
         }
     }
 }

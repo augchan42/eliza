@@ -206,7 +206,7 @@ export class TwitterInteractionClient {
                     lastCheckedId: this.client.lastCheckedTweetId?.toString(),
                     currentId: tweet.id,
                 });
-                
+
                 if (isNewer) {
                     // Generate the tweetId UUID the same way it's done in handleTweet
                     const tweetId = stringToUuid(
@@ -225,7 +225,7 @@ export class TwitterInteractionClient {
                         await this.runtime.messageManager.getMemoryById(
                             tweetId
                         );
-                    
+
                     elizaLogger.log(`💾 Memory check for tweet ${tweet.id}:`, {
                         tweetId,
                         hasExistingResponse: !!existingResponse,
@@ -441,7 +441,7 @@ export class TwitterInteractionClient {
                     isHostermage: tweet.username === "hosermage_",
                     text: tweet.text.substring(0, 100) + (tweet.text.length > 100 ? '...' : ''),
                 });
-                
+
                 if (tweet.username === "hosermage_") {
                     elizaLogger.log(`🎯 PRIORITY USER: Always responding to hosermage_ mention!`);
                     shouldRespond = "RESPOND";
@@ -472,27 +472,34 @@ export class TwitterInteractionClient {
                         action: shouldRespond,
                     };
                 }
-                
+
                 elizaLogger.log(`✅ WILL respond to @${tweet.username}'s mention!`);
 
-                elizaLogger.log("Will respond - fetching divination context");
+                elizaLogger.log("Will respond with full situational context");
+
                 const divinationClient = new TwitterDivinationClient(
                     this.client,
                     this.runtime
                 );
-                // Fetch Google News and generate sentiment analysis
+                
+                // Fetch current news headlines for situational awareness
                 const googleNews = await divinationClient.fetchGoogleNews();
+                const topHeadlines = googleNews.slice(0, 15).map(article => article.title).join(", ");
+                const newsAnalysis = googleNews.length > 0 ? `Top headlines: ${topHeadlines}` : "News feeds temporarily unavailable. Oracle wisdom active.";
+                
+                // Generate descriptive market sentiment
                 const marketSentiment = await divinationClient.generateSentimentFromNews(googleNews);
-                const newsAnalysis = googleNews.length > 0 ? JSON.stringify(googleNews[0], null, 2) : "News feeds temporarily unavailable. Oracle wisdom active.";
+                
+                // Get oracle reading
                 const oracleReading = await divinationClient.fetch8BitOracle();
 
-                elizaLogger.debug("Divination context fetched:", {
+                elizaLogger.debug("Full context fetched:", {
+                    headlines: topHeadlines,
                     sentiment: marketSentiment,
-                    news: newsAnalysis,
                     oracle: oracleReading?.interpretation,
                 });
 
-                // Update state with divination data
+                // Update state with full situational awareness
                 state = await this.runtime.composeState(message, {
                     ...state,
                     marketSentiment: marketSentiment,
@@ -505,6 +512,12 @@ export class TwitterInteractionClient {
                         2
                     ),
                     userQuery: tweet.text,
+                    currentDate: new Date().toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    }),
                 });
 
                 const context = composeContext({
@@ -592,10 +605,10 @@ export class TwitterInteractionClient {
                             null  // Pass null to prevent duplicate tweet - callback already executed above
                         );
 
-                        // Integrate with DKG - store reply interaction to OriginTrail DKG  
+                        // Integrate with DKG - store reply interaction to OriginTrail DKG
                         try {
                             elizaLogger.info("Attempting to store Twitter reply to DKG...");
-                            
+
                             // Create synthetic memory for DKG action processing
                             const dkgActionMemory: Memory = {
                                 id: stringToUuid(`reply-action-${tweet.id}-${Date.now()}`),
@@ -641,7 +654,7 @@ export class TwitterInteractionClient {
                                         userQuery: tweet.text.substring(0, 100) + "..."
                                     });
                                 });
-                            
+
                         } catch (dkgError) {
                             // Log warning but don't throw - DKG failure shouldn't break replies
                             elizaLogger.warn("Failed to initiate DKG storage for reply, but reply was successful:", {

@@ -14,9 +14,7 @@ import {
     dkgMemoryTemplate,
     generalSparqlQuery,
 } from "../constants.ts";
-// @ts-ignore
 import DKG from "dkg.js";
-import { DKGSelectQuerySchema, isDKGSelectQuery } from "../types.ts";
 
 // Provider configuration
 const PROVIDER_CONFIG = {
@@ -102,19 +100,54 @@ async function constructSparqlQuery(
         response_preview: sparqlTextResult.substring(0, 100),
     });
 
-    const sparqlQueryMatch = sparqlTextResult.match(/```sparql([\s\S]*?)```/);
-    const sparqlQuery = sparqlQueryMatch ? sparqlQueryMatch[1].trim() : null;
+    // Try multiple extraction strategies for SPARQL query
+    let sparqlQuery = null;
+
+    // Strategy 1: Look for ```sparql code blocks
+    const sparqlCodeBlockMatch = sparqlTextResult.match(/```sparql([\s\S]*?)```/);
+    const anyCodeBlockMatch = sparqlTextResult.match(/```([\s\S]*?)```/);
+    const selectMatch = sparqlTextResult.match(/(SELECT[\s\S]*?)(?=\n\n|\n$|$)/i);
+
+    if (sparqlCodeBlockMatch) {
+        sparqlQuery = sparqlCodeBlockMatch[1].trim();
+        elizaLogger.debug("Extracted SPARQL from code block");
+    }
+
+    // Strategy 2: Look for any ``` code blocks
+    else if (anyCodeBlockMatch) {
+        sparqlQuery = anyCodeBlockMatch[1].trim();
+        elizaLogger.debug("Extracted SPARQL from generic code block");
+    }
+
+    // Strategy 3: Look for SELECT statement directly
+    else if (selectMatch) {
+        sparqlQuery = selectMatch[1].trim();
+        elizaLogger.debug("Extracted SPARQL from SELECT statement");
+    }
+
+    // Strategy 4: Use the entire response if it looks like SPARQL
+    if (!sparqlQuery && sparqlTextResult.toLowerCase().includes('select')) {
+        sparqlQuery = sparqlTextResult.trim();
+        elizaLogger.debug("Using entire response as SPARQL query");
+    }
 
     if (!sparqlQuery) {
         elizaLogger.warn(
-            "Failed to extract valid SPARQL query from LLM response",
+            "Failed to extract valid SPARQL query from LLM response with all strategies",
             {
+                response_length: sparqlTextResult.length,
+                has_select: sparqlTextResult.toLowerCase().includes('select'),
+                has_code_blocks: sparqlTextResult.includes('```'),
                 raw_response: sparqlTextResult,
             },
         );
+        return null;
     } else {
         elizaLogger.info("Successfully extracted SPARQL query", {
             query_length: sparqlQuery.length,
+            extraction_strategy: sparqlCodeBlockMatch ? 'sparql_block' :
+                               anyCodeBlockMatch ? 'generic_block' :
+                               selectMatch ? 'select_match' : 'full_response',
             query: sparqlQuery,
         });
     }
