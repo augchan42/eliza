@@ -285,15 +285,17 @@ export class ArxivService {
         elizaLogger.info(`Stack ranking ${papers.length} papers...`);
         const startTime = Date.now();
 
-        // Token budget validation: limit papers to prevent overflow (50k context limit)
-        const MAX_PAPERS_FOR_RANKING = 200; // ~8k tokens for 50k token limit
+        // Token budget validation: limit papers to prevent overflow (8k token response limit for DeepSeek)
+        // Estimate: ~40 chars per title avg, ~200 chars per ranking JSON entry
+        // With prompt overhead, aim for ~100 papers max to stay under 8k tokens
+        const MAX_PAPERS_FOR_RANKING = 100; // Conservative limit for 8k token response
         const papersToRank = papers.length > MAX_PAPERS_FOR_RANKING
             ? papers.slice(0, MAX_PAPERS_FOR_RANKING)
             : papers;
 
         elizaLogger.info(`Ranking ${papersToRank.length} papers (${papers.length - papersToRank.length} excluded for token budget)`);
 
-        // Prepare titles for LLM evaluation (reduced scope for token safety)
+        // Prepare titles for LLM evaluation (optimized for 8k token response limit)
         const titlesPrompt = `You are evaluating research papers for mystical/philosophical divination potential.
 Score each paper 0-10 based on these criteria:
 
@@ -333,7 +335,7 @@ Return ONLY the JSON object, nothing else.`;
                 elizaLogger.debug(`📊 LLM ranking attempt ${attempt}/${MAX_RETRIES}`);
 
                 // Circuit breaker: timeout for LLM ranking to prevent hanging (exponential timeout)
-                const timeout = 60000 * Math.pow(2, attempt - 1); // 60s, 120s, 240s
+                const timeout = 90000 * Math.pow(2, attempt - 1); // 90s, 180s, 360s
                 const rankingTimeout = new Promise<never>((_, reject) =>
                     setTimeout(() => reject(new Error(`LLM ranking timeout after ${timeout/1000}s (attempt ${attempt})`)), timeout)
                 );
@@ -342,7 +344,7 @@ Return ONLY the JSON object, nothing else.`;
                     runtime: this.runtime,
                     context: titlesPrompt,
                     modelClass: ModelClass.LARGE, // Use larger model for complex ranking
-                    max_response_length: 16000, // Increased to handle 200+ papers without truncation
+                    max_response_length: 8000, // Set below DeepSeek's 8192 token limit via OpenRouter
                 });
 
                 const response = await Promise.race([rankingPromise, rankingTimeout]);
@@ -406,7 +408,7 @@ Return ONLY the JSON object, nothing else.`;
                     maxRetries: MAX_RETRIES,
                     papersCount: papersToRank.length,
                     promptLength: titlesPrompt.length,
-                    timeoutUsed: 30000 * Math.pow(2, attempt - 1)
+                    timeoutUsed: 90000 * Math.pow(2, attempt - 1)
                 };
 
                 // Capture different error types and their specific properties
@@ -590,6 +592,12 @@ Return ONLY the JSON object, nothing else.`;
 
                 // Use robust JSON parser with multiple fallback strategies
                 const parseResult = RobustJSONParser.parseWithFallbacks(jsonString);
+
+                if (!parseResult.success) {
+                    elizaLogger.warn(`❌ All parsing strategies failed`);
+                    return null;
+                }
+
                 const parsed = parseResult.data;
 
                 if (parsed && parsed.rankings) {
