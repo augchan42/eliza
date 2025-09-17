@@ -62,6 +62,7 @@ function setOpenRouterHeaders(
  * @param opts.presence_penalty The presence penalty to apply to the generateText.
  * @param opts.temperature The temperature to apply to the generateText.
  * @param opts.max_context_length The maximum length of the context to apply to the generateText.
+ * @param opts.max_response_length The maximum length of the response to generate.
  * @returns The completed message.
  */
 
@@ -71,12 +72,14 @@ export async function generateText({
     modelClass,
     stop,
     customSystemPrompt,
+    max_response_length,
 }: {
     runtime: IAgentRuntime;
     context: string;
     modelClass: string;
     stop?: string[];
     customSystemPrompt?: string;
+    max_response_length?: number;
 }): Promise<string> {
     if (!context) {
         console.error("generateText context is empty");
@@ -176,7 +179,8 @@ export async function generateText({
     const max_context_length =
         modelConfiguration?.maxInputTokens ||
         models[provider].settings.maxInputTokens;
-    const max_response_length =
+    const computed_max_response_length =
+        max_response_length ||
         modelConfiguration?.max_response_length ||
         models[provider].settings.maxOutputTokens;
 
@@ -192,7 +196,7 @@ export async function generateText({
 
         const _stop = stop || models[provider].settings.stop;
         elizaLogger.debug(
-            `Using provider: ${provider}, model: ${model}, temperature: ${temperature}, max response length: ${max_response_length}`
+            `Using provider: ${provider}, model: ${model}, temperature: ${temperature}, max response length: ${computed_max_response_length}`
         );
 
         switch (provider) {
@@ -227,7 +231,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -250,7 +254,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -276,7 +280,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -302,7 +306,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -332,7 +336,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -353,7 +357,7 @@ export async function generateText({
                         runtime.character.system ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -381,7 +385,7 @@ export async function generateText({
                     _stop,
                     frequency_penalty,
                     presence_penalty,
-                    max_response_length
+                    computed_max_response_length
                 );
                 elizaLogger.debug("Received response from local Llama model.");
                 break;
@@ -404,7 +408,7 @@ export async function generateText({
                         runtime.character.system ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -430,7 +434,7 @@ export async function generateText({
                         model: ollama,
                         prompt: context,
                         temperature: temperature,
-                        maxTokens: max_response_length,
+                        maxTokens: computed_max_response_length,
                         frequencyPenalty: frequency_penalty,
                         presencePenalty: presence_penalty,
                     });
@@ -457,7 +461,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -506,7 +510,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -532,7 +536,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                 });
@@ -557,7 +561,7 @@ export async function generateText({
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
-                    maxTokens: max_response_length,
+                    maxTokens: computed_max_response_length,
                 });
 
                 response = veniceResponse;

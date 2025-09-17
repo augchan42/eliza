@@ -3,7 +3,7 @@ import {
     ModelClass,
     elizaLogger,
     generateText,
-    parseJSONObjectFromText,
+    RobustJSONParser,
 } from "@elizaos/core";
 
 export class ArxivService {
@@ -342,6 +342,7 @@ Return ONLY the JSON object, nothing else.`;
                     runtime: this.runtime,
                     context: titlesPrompt,
                     modelClass: ModelClass.LARGE, // Use larger model for complex ranking
+                    max_response_length: 16000, // Increased to handle 200+ papers without truncation
                 });
 
                 const response = await Promise.race([rankingPromise, rankingTimeout]);
@@ -475,7 +476,9 @@ Return ONLY the JSON object, nothing else.`;
                         if (stringified !== '[object Object]' && stringified !== serialized.message) {
                             serialized.toString = stringified;
                         }
-                    } catch {}
+                    } catch {
+                        // Ignore toString() errors
+                    }
 
                     return serialized;
                 };
@@ -507,22 +510,22 @@ Return ONLY the JSON object, nothing else.`;
         try {
             // First, strip any markdown code blocks
             let cleanedResponse = response;
-            
+
             // Remove markdown code blocks (```json ... ``` or ```...```)
             const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
             if (codeBlockMatch) {
                 elizaLogger.debug('   Found markdown code block, extracting content');
                 cleanedResponse = codeBlockMatch[1];
             }
-            
+
             // Try multiple extraction strategies
             let jsonString = null;
-            
+
             // Strategy 1: Direct parse if it's already clean JSON
             if (cleanedResponse.trim().startsWith('{')) {
                 jsonString = cleanedResponse.trim();
             }
-            
+
             // Strategy 2: Extract JSON object with balanced braces
             if (!jsonString) {
                 const jsonMatch = cleanedResponse.match(/\{(?:[^{}]|(?:\{[^{}]*\}))*\}/);
@@ -530,7 +533,7 @@ Return ONLY the JSON object, nothing else.`;
                     jsonString = jsonMatch[0];
                 }
             }
-            
+
             // Strategy 3: More aggressive JSON extraction with balanced brace counting
             if (!jsonString) {
                 const startIdx = cleanedResponse.indexOf('{');
@@ -539,22 +542,22 @@ Return ONLY the JSON object, nothing else.`;
                     let inString = false;
                     let escapeNext = false;
                     let endIdx = -1;
-                    
+
                     for (let i = startIdx; i < cleanedResponse.length; i++) {
                         const char = cleanedResponse[i];
-                        
+
                         // Handle string boundaries to ignore braces inside strings
                         if (!escapeNext && char === '"') {
                             inString = !inString;
                         }
-                        
+
                         // Handle escape characters
                         if (char === '\\' && !escapeNext) {
                             escapeNext = true;
                             continue;
                         }
                         escapeNext = false;
-                        
+
                         // Count braces only outside of strings
                         if (!inString) {
                             if (char === '{') braceCount++;
@@ -565,7 +568,7 @@ Return ONLY the JSON object, nothing else.`;
                             }
                         }
                     }
-                    
+
                     if (endIdx !== -1) {
                         jsonString = cleanedResponse.substring(startIdx, endIdx + 1);
                     }
@@ -573,7 +576,7 @@ Return ONLY the JSON object, nothing else.`;
             }
 
             elizaLogger.debug(`   JSON extraction result: ${jsonString ? 'found' : 'not found'}`);
-            
+
             if (jsonString) {
                 elizaLogger.debug(`   Extracted JSON length: ${jsonString.length} chars`);
 
@@ -585,52 +588,10 @@ Return ONLY the JSON object, nothing else.`;
                     elizaLogger.debug(`   JSON preview (first 1000 chars): ${jsonString.substring(0, 1000)}${jsonString.length > 1000 ? '...' : ''}`);
                 }
 
-                // Try multiple parsing strategies for robustness
-                let parsed = null;
+                // Use robust JSON parser with multiple fallback strategies
+                const parseResult = RobustJSONParser.parseWithFallbacks(jsonString);
+                const parsed = parseResult.data;
 
-                // Strategy 1: Direct parse with parseJSONObjectFromText
-                try {
-                    parsed = parseJSONObjectFromText(jsonString);
-                } catch (e1) {
-                    elizaLogger.debug('   Strategy 1 (parseJSONObjectFromText) failed:', e1.message);
-
-                    // Strategy 2: Try native JSON.parse as fallback
-                    try {
-                        parsed = JSON.parse(jsonString);
-                        elizaLogger.debug('   Strategy 2 (JSON.parse) succeeded');
-                    } catch (e2) {
-                        elizaLogger.debug('   Strategy 2 (JSON.parse) failed:', e2.message);
-
-                        // Strategy 3: Try to fix common JSON errors
-                        try {
-                            // Remove trailing commas
-                            let fixedJson = jsonString.replace(/,\s*([}\]])/g, '$1');
-                            // Ensure proper quote escaping
-                            fixedJson = fixedJson.replace(/([^\\])"([^"]*[^\\])"/g, (match, p1, p2) => {
-                                // Check if quotes inside need escaping
-                                const inner = p2.replace(/"/g, '\\"');
-                                return `${p1}"${inner}"`;
-                            });
-                            parsed = JSON.parse(fixedJson);
-                            elizaLogger.debug('   Strategy 3 (auto-fix JSON) succeeded');
-                        } catch (e3) {
-                            elizaLogger.debug('   Strategy 3 (auto-fix JSON) failed:', e3.message);
-
-                            // Strategy 4: Extract just the rankings array if possible
-                            try {
-                                const rankingsMatch = jsonString.match(/"rankings"\s*:\s*\[(.*?)\]/s);
-                                if (rankingsMatch) {
-                                    const rankingsJson = `{"rankings":[${rankingsMatch[1]}]}`;
-                                    parsed = JSON.parse(rankingsJson);
-                                    elizaLogger.debug('   Strategy 4 (extract rankings array) succeeded');
-                                }
-                            } catch (e4) {
-                                elizaLogger.debug('   Strategy 4 (extract rankings array) failed:', e4.message);
-                            }
-                        }
-                    }
-                }
-                
                 if (parsed && parsed.rankings) {
                     // Validate and sanitize rankings
                     if (Array.isArray(parsed.rankings)) {

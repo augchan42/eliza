@@ -19,6 +19,7 @@ export * from "./settings.ts";
 export * from "./types.ts";
 export * from "./logger.ts";
 export * from "./parsing.ts";
+export * from "./parsing/robust-json-parser.ts";
 export * from "./uuid.ts";
 export * from "./environment.ts";
 export * from "./cache.ts";
