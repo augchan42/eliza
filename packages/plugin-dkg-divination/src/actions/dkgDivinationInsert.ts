@@ -73,43 +73,6 @@ export const dkgDivinationInsert: Action = {
                 nodeApiVersion: "/v1",
             });
 
-            // Never-give-up DKG retry system with exponential backoff and jitter
-            const createPersistentDKGRetry = (operation, identifier) => {
-                const startTime = Date.now();
-                let attempt = 1;
-
-                const persistentRetry = async () => {
-                    try {
-                        elizaLogger.info(`DKG persistent attempt ${attempt} for ${identifier} (${Math.round((Date.now() - startTime) / 1000)}s elapsed)`);
-                        const result = await operation();
-                        elizaLogger.info(`✅ DKG operation succeeded on attempt ${attempt} after ${Math.round((Date.now() - startTime) / 1000)}s for ${identifier}`);
-                        return result;
-                    } catch (error) {
-                        // Calculate next delay: exponential backoff with cap + jitter
-                        const baseDelay = Math.min(30000 * Math.pow(1.5, attempt - 1), 300000); // Cap at 5 minutes
-                        const jitter = Math.random() * 10000; // 0-10s random jitter to prevent thundering herd
-                        const delay = baseDelay + jitter;
-
-                        elizaLogger.warn(`❌ DKG attempt ${attempt} failed for ${identifier}, retrying in ${Math.round(delay/1000)}s:`, {
-                            error: error.message,
-                            attempt,
-                            elapsed_seconds: Math.round((Date.now() - startTime) / 1000),
-                            next_delay_seconds: Math.round(delay / 1000)
-                        });
-
-                        attempt++;
-
-                        // Schedule next attempt - this creates an infinite retry chain
-                        setTimeout(() => {
-                            persistentRetry().catch(err => {
-                                elizaLogger.error(`Unexpected error in persistent retry chain for ${identifier}:`, err);
-                            });
-                        }, delay);
-                    }
-                };
-
-                return persistentRetry();
-            };
 
             // Extract data from state with error handling
             let hexagramData, contentItem;
@@ -225,6 +188,91 @@ export const dkgDivinationInsert: Action = {
                 divination_id: `divination-${message.id}`
             });
 
+            // DKG retry system with limits and smart error handling
+            const createBoundedDKGRetry = (operation, identifier) => {
+                const startTime = Date.now();
+                const MAX_ATTEMPTS = 5; // 1 initial + 4 retries
+                const MAX_TOTAL_TIME = 300000; // 5 minutes total
+                let attempt = 1;
+
+                // Check if error is retryable
+                const isRetryableError = (error) => {
+                    const errorMsg = error.message?.toLowerCase() || '';
+                    const errorStr = error.toString?.().toLowerCase() || '';
+
+                    // Permanent failures - don't retry
+                    if (errorMsg.includes('insufficient funds') ||
+                        errorMsg.includes('insufficient balance') ||
+                        errorMsg.includes('invalid private key') ||
+                        errorMsg.includes('invalid credentials') ||
+                        errorMsg.includes('unauthorized') ||
+                        errorMsg.includes('forbidden') ||
+                        errorStr.includes('401') ||
+                        errorStr.includes('403') ||
+                        errorStr.includes('400')) {
+                        elizaLogger.error(`🚫 Permanent DKG failure detected - not retrying: ${errorMsg}`);
+                        return false;
+                    }
+
+                    // Retryable errors: network issues, timeouts, 5xx, rate limits
+                    return errorMsg.includes('timeout') ||
+                           errorMsg.includes('network') ||
+                           errorMsg.includes('econnreset') ||
+                           errorMsg.includes('enotfound') ||
+                           errorStr.includes('5') || // 5xx errors
+                           errorMsg.includes('rate limit') ||
+                           errorMsg.includes('too many requests');
+                };
+
+                const boundedRetry = async () => {
+                    try {
+                        elizaLogger.info(`DKG attempt ${attempt}/${MAX_ATTEMPTS} for ${identifier} (${Math.round((Date.now() - startTime) / 1000)}s elapsed)`);
+                        const result = await operation();
+                        elizaLogger.info(`✅ DKG operation succeeded on attempt ${attempt}/${MAX_ATTEMPTS} after ${Math.round((Date.now() - startTime) / 1000)}s for ${identifier}`);
+                        return result;
+                    } catch (error) {
+                        const elapsedTime = Date.now() - startTime;
+                        const errorMsg = error.message || error.toString();
+
+                        // Check for permanent failures or limits exceeded
+                        if (!isRetryableError(error)) {
+                            elizaLogger.error(`🚫 DKG permanent failure for ${identifier}: ${errorMsg}`);
+                            throw new Error(`DKG permanent failure: ${errorMsg}`);
+                        }
+
+                        if (attempt >= MAX_ATTEMPTS) {
+                            elizaLogger.error(`🚫 DKG max attempts (${MAX_ATTEMPTS}) exceeded for ${identifier} after ${Math.round(elapsedTime/1000)}s: ${errorMsg}`);
+                            throw new Error(`DKG failed after ${MAX_ATTEMPTS} attempts: ${errorMsg}`);
+                        }
+
+                        if (elapsedTime >= MAX_TOTAL_TIME) {
+                            elizaLogger.error(`🚫 DKG max time (${MAX_TOTAL_TIME/1000}s) exceeded for ${identifier}: ${errorMsg}`);
+                            throw new Error(`DKG failed after ${MAX_TOTAL_TIME/1000}s timeout: ${errorMsg}`);
+                        }
+
+                        // Calculate next delay: exponential backoff with jitter
+                        const baseDelay = Math.min(3000 * Math.pow(1.5, attempt - 1), 60000); // Start 3s, cap at 1min
+                        const jitter = Math.random() * 2000; // 0-2s jitter
+                        const delay = baseDelay + jitter;
+
+                        elizaLogger.warn(`❌ DKG retryable failure, attempt ${attempt}/${MAX_ATTEMPTS} for ${identifier}, retrying in ${Math.round(delay/1000)}s:`, {
+                            error: errorMsg,
+                            attempt,
+                            max_attempts: MAX_ATTEMPTS,
+                            elapsed_seconds: Math.round(elapsedTime / 1000),
+                            next_delay_seconds: Math.round(delay / 1000)
+                        });
+
+                        attempt++;
+
+                        // Wait and retry (with proper promise chain)
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return boundedRetry();
+                    }
+                };
+                return boundedRetry();
+            };
+
             // Create persistent DKG operation with LLM JSON fix capability
             const dkgOperation = async () => {
                 elizaLogger.log("Publishing divination to DKG");
@@ -319,9 +367,14 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                 return createAssetResult;
             };
 
-            // Start persistent background retry - never gives up!
-            createPersistentDKGRetry(dkgOperation, `divination-${message.id}`).catch(err => {
-                elizaLogger.error(`Unexpected error in DKG persistent retry for divination-${message.id}:`, err);
+            // Start bounded background retry with intelligent error handling
+            createBoundedDKGRetry(dkgOperation, `divination-${message.id}`).catch(err => {
+                elizaLogger.error(`DKG storage failed permanently for divination-${message.id}:`, {
+                    error: err.message,
+                    memory_id: message.id,
+                    divination_id: `divination-${message.id}`,
+                    is_permanent_failure: true
+                });
             });
 
             // Return immediately - divination succeeded, DKG storage is background archival
