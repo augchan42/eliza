@@ -237,16 +237,19 @@ export const dkgDivinationInsert: Action = {
                         // Check for permanent failures or limits exceeded
                         if (!isRetryableError(error)) {
                             elizaLogger.error(`🚫 DKG permanent failure for ${identifier}: ${errorMsg}`);
+                            elizaLogger.error(`🔍 Raw DKG error object:`, error); // Log full error object
                             throw new Error(`DKG permanent failure: ${errorMsg}`);
                         }
 
                         if (attempt >= MAX_ATTEMPTS) {
                             elizaLogger.error(`🚫 DKG max attempts (${MAX_ATTEMPTS}) exceeded for ${identifier} after ${Math.round(elapsedTime/1000)}s: ${errorMsg}`);
+                            elizaLogger.error(`🔍 Raw DKG error object (max attempts):`, error); // Log full error object
                             throw new Error(`DKG failed after ${MAX_ATTEMPTS} attempts: ${errorMsg}`);
                         }
 
                         if (elapsedTime >= MAX_TOTAL_TIME) {
                             elizaLogger.error(`🚫 DKG max time (${MAX_TOTAL_TIME/1000}s) exceeded for ${identifier}: ${errorMsg}`);
+                            elizaLogger.error(`🔍 Raw DKG error object (timeout):`, error); // Log full error object
                             throw new Error(`DKG failed after ${MAX_TOTAL_TIME/1000}s timeout: ${errorMsg}`);
                         }
 
@@ -262,6 +265,7 @@ export const dkgDivinationInsert: Action = {
                             elapsed_seconds: Math.round(elapsedTime / 1000),
                             next_delay_seconds: Math.round(delay / 1000)
                         });
+                        elizaLogger.warn(`🔍 Raw DKG error object (retry ${attempt}):`, error); // Log full error object for retries
 
                         attempt++;
 
