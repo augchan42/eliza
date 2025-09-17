@@ -333,7 +333,7 @@ Return ONLY the JSON object, nothing else.`;
                 elizaLogger.debug(`📊 LLM ranking attempt ${attempt}/${MAX_RETRIES}`);
 
                 // Circuit breaker: timeout for LLM ranking to prevent hanging (exponential timeout)
-                const timeout = 30000 * Math.pow(2, attempt - 1); // 30s, 60s, 120s
+                const timeout = 60000 * Math.pow(2, attempt - 1); // 60s, 120s, 240s
                 const rankingTimeout = new Promise<never>((_, reject) =>
                     setTimeout(() => reject(new Error(`LLM ranking timeout after ${timeout/1000}s (attempt ${attempt})`)), timeout)
                 );
