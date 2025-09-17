@@ -444,17 +444,53 @@ Return ONLY the JSON object, nothing else.`;
                     }
                 }
 
+                // Properly serialize the error object for logging
+                const serializeError = (err: any) => {
+                    if (!err) return 'null';
+                    if (typeof err === 'string') return err;
+
+                    const serialized: any = {};
+
+                    // Get all properties (including non-enumerable)
+                    const props = Object.getOwnPropertyNames(err);
+                    for (const prop of props) {
+                        try {
+                            serialized[prop] = err[prop];
+                        } catch {
+                            serialized[prop] = '[Unable to serialize]';
+                        }
+                    }
+
+                    // Ensure we capture standard Error properties
+                    if (err instanceof Error) {
+                        serialized.name = err.name;
+                        serialized.message = err.message;
+                        serialized.stack = err.stack;
+                        if (err.cause) serialized.cause = err.cause;
+                    }
+
+                    // Capture toString() if it provides additional info
+                    try {
+                        const stringified = err.toString();
+                        if (stringified !== '[object Object]' && stringified !== serialized.message) {
+                            serialized.toString = stringified;
+                        }
+                    } catch {}
+
+                    return serialized;
+                };
+
                 // Log with different severity based on attempt
                 if (attempt < MAX_RETRIES) {
                     const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
                     elizaLogger.warn(`❌ LLM ranking failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms:`, errorDetails);
-                    elizaLogger.debug(`Full error object for debugging:`, error);
+                    elizaLogger.debug(`Full error object for debugging:`, serializeError(error));
 
                     // Exponential backoff delay
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     elizaLogger.error(`❌ LLM ranking failed permanently after ${MAX_RETRIES} attempts:`, errorDetails);
-                    elizaLogger.error(`Final error object for debugging:`, error);
+                    elizaLogger.error(`Final error object for debugging:`, serializeError(error));
                 }
             }
         }
@@ -540,29 +576,107 @@ Return ONLY the JSON object, nothing else.`;
             
             if (jsonString) {
                 elizaLogger.debug(`   Extracted JSON length: ${jsonString.length} chars`);
-                elizaLogger.debug(`   First 500 chars: ${jsonString.substring(0, 500)}...`);
-                
-                // Use parseJSONObjectFromText which handles additional edge cases
-                const parsed = parseJSONObjectFromText(jsonString);
+
+                // Log full JSON for debugging, but only in debug mode
+                if (process.env.DEBUG || process.env.VERBOSE) {
+                    elizaLogger.debug(`   Full JSON: ${jsonString}`);
+                } else {
+                    // In non-debug mode, show more context but still truncated
+                    elizaLogger.debug(`   JSON preview (first 1000 chars): ${jsonString.substring(0, 1000)}${jsonString.length > 1000 ? '...' : ''}`);
+                }
+
+                // Try multiple parsing strategies for robustness
+                let parsed = null;
+
+                // Strategy 1: Direct parse with parseJSONObjectFromText
+                try {
+                    parsed = parseJSONObjectFromText(jsonString);
+                } catch (e1) {
+                    elizaLogger.debug('   Strategy 1 (parseJSONObjectFromText) failed:', e1.message);
+
+                    // Strategy 2: Try native JSON.parse as fallback
+                    try {
+                        parsed = JSON.parse(jsonString);
+                        elizaLogger.debug('   Strategy 2 (JSON.parse) succeeded');
+                    } catch (e2) {
+                        elizaLogger.debug('   Strategy 2 (JSON.parse) failed:', e2.message);
+
+                        // Strategy 3: Try to fix common JSON errors
+                        try {
+                            // Remove trailing commas
+                            let fixedJson = jsonString.replace(/,\s*([}\]])/g, '$1');
+                            // Ensure proper quote escaping
+                            fixedJson = fixedJson.replace(/([^\\])"([^"]*[^\\])"/g, (match, p1, p2) => {
+                                // Check if quotes inside need escaping
+                                const inner = p2.replace(/"/g, '\\"');
+                                return `${p1}"${inner}"`;
+                            });
+                            parsed = JSON.parse(fixedJson);
+                            elizaLogger.debug('   Strategy 3 (auto-fix JSON) succeeded');
+                        } catch (e3) {
+                            elizaLogger.debug('   Strategy 3 (auto-fix JSON) failed:', e3.message);
+
+                            // Strategy 4: Extract just the rankings array if possible
+                            try {
+                                const rankingsMatch = jsonString.match(/"rankings"\s*:\s*\[(.*?)\]/s);
+                                if (rankingsMatch) {
+                                    const rankingsJson = `{"rankings":[${rankingsMatch[1]}]}`;
+                                    parsed = JSON.parse(rankingsJson);
+                                    elizaLogger.debug('   Strategy 4 (extract rankings array) succeeded');
+                                }
+                            } catch (e4) {
+                                elizaLogger.debug('   Strategy 4 (extract rankings array) failed:', e4.message);
+                            }
+                        }
+                    }
+                }
                 
                 if (parsed && parsed.rankings) {
-                    elizaLogger.debug(`   ✅ Successfully parsed rankings:`, {
-                        hasRankings: true,
-                        rankingsCount: parsed.rankings.length,
-                        firstRankingStructure: parsed.rankings[0] ? Object.keys(parsed.rankings[0]) : 'none',
-                        topScores: parsed.rankings.slice(0, 3).map(r => r.score)
-                    });
-                    return parsed;
+                    // Validate and sanitize rankings
+                    if (Array.isArray(parsed.rankings)) {
+                        // Filter out any invalid entries
+                        parsed.rankings = parsed.rankings.filter(r =>
+                            r &&
+                            typeof r === 'object' &&
+                            typeof r.index === 'number' &&
+                            typeof r.score === 'number'
+                        );
+
+                        if (parsed.rankings.length > 0) {
+                            elizaLogger.debug(`   ✅ Successfully parsed rankings:`, {
+                                hasRankings: true,
+                                rankingsCount: parsed.rankings.length,
+                                firstRankingStructure: parsed.rankings[0] ? Object.keys(parsed.rankings[0]) : 'none',
+                                topScores: parsed.rankings.slice(0, 3).map(r => r.score)
+                            });
+                            return parsed;
+                        } else {
+                            elizaLogger.warn('❌ Rankings array exists but has no valid entries after filtering');
+                        }
+                    } else {
+                        elizaLogger.warn('❌ Rankings field exists but is not an array');
+                    }
+                    return null;
                 } else if (parsed) {
                     elizaLogger.warn('❌ Parsed JSON but missing rankings array, structure:', Object.keys(parsed));
+                    // Log the actual parsed content for debugging
+                    if (process.env.DEBUG || process.env.VERBOSE) {
+                        elizaLogger.debug('   Parsed content:', JSON.stringify(parsed, null, 2));
+                    }
                     return null;
                 } else {
-                    elizaLogger.warn('❌ parseJSONObjectFromText returned null');
+                    elizaLogger.warn('❌ All parsing strategies failed');
                     return null;
                 }
             } else {
                 elizaLogger.warn('❌ No valid JSON structure found in LLM response');
-                elizaLogger.error(`   FULL RESPONSE DUMP:\n${response}`);  // Log entire response for debugging
+                // Only dump full response in debug mode to avoid log pollution
+                if (process.env.DEBUG || process.env.VERBOSE) {
+                    elizaLogger.error(`   FULL RESPONSE DUMP:\n${response}`);
+                } else {
+                    elizaLogger.error(`   Response preview (first 500 chars): ${response.substring(0, 500)}${response.length > 500 ? '...' : ''}`);
+                    elizaLogger.error(`   Use DEBUG=true or VERBOSE=true to see full response`);
+                }
             }
         } catch (error) {
             elizaLogger.error('💥 JSON Parse Error:', {
@@ -572,10 +686,26 @@ Return ONLY the JSON object, nothing else.`;
                 hasCodeBlock: response.includes('```'),
                 hasJsonKeyword: response.includes('"rankings"'),
                 hasOpenBrace: response.includes('{'),
-                hasCloseBrace: response.includes('}')
+                hasCloseBrace: response.includes('}'),
+                openBraceCount: (response.match(/{/g) || []).length,
+                closeBraceCount: (response.match(/}/g) || []).length,
+                braceMismatch: (response.match(/{/g) || []).length !== (response.match(/}/g) || []).length
             });
-            // Log the full response on error for debugging
-            elizaLogger.error(`   FULL FAILED RESPONSE:\n${response}`);
+
+            // Enhanced debugging for JSON issues
+            if (response.includes('"rankings"')) {
+                const rankingsIndex = response.indexOf('"rankings"');
+                elizaLogger.error(`   Rankings keyword found at position ${rankingsIndex}`);
+                elizaLogger.error(`   Context around rankings: ...${response.substring(Math.max(0, rankingsIndex - 50), Math.min(response.length, rankingsIndex + 200))}...`);
+            }
+
+            // Only log full response in debug mode
+            if (process.env.DEBUG || process.env.VERBOSE) {
+                elizaLogger.error(`   FULL FAILED RESPONSE:\n${response}`);
+            } else {
+                elizaLogger.error(`   Response preview (first 500 chars): ${response.substring(0, 500)}${response.length > 500 ? '...' : ''}`);
+                elizaLogger.error(`   Use DEBUG=true or VERBOSE=true to see full response`);
+            }
         }
         return null;
     }

@@ -67,11 +67,49 @@ export const dkgDivinationInsert: Action = {
                     publicKey: runtime.getSetting("DKG_PUBLIC_KEY"),
                     privateKey: runtime.getSetting("DKG_PRIVATE_KEY"),
                 },
-                maxNumberOfRetries: 300,
-                frequency: 2,
+                maxNumberOfRetries: 1,  // Let our custom retry wrapper handle persistence
+                frequency: 1,
                 contentType: "all",
                 nodeApiVersion: "/v1",
             });
+
+            // Never-give-up DKG retry system with exponential backoff and jitter
+            const createPersistentDKGRetry = (operation, identifier) => {
+                const startTime = Date.now();
+                let attempt = 1;
+
+                const persistentRetry = async () => {
+                    try {
+                        elizaLogger.info(`DKG persistent attempt ${attempt} for ${identifier} (${Math.round((Date.now() - startTime) / 1000)}s elapsed)`);
+                        const result = await operation();
+                        elizaLogger.info(`✅ DKG operation succeeded on attempt ${attempt} after ${Math.round((Date.now() - startTime) / 1000)}s for ${identifier}`);
+                        return result;
+                    } catch (error) {
+                        // Calculate next delay: exponential backoff with cap + jitter
+                        const baseDelay = Math.min(30000 * Math.pow(1.5, attempt - 1), 300000); // Cap at 5 minutes
+                        const jitter = Math.random() * 10000; // 0-10s random jitter to prevent thundering herd
+                        const delay = baseDelay + jitter;
+
+                        elizaLogger.warn(`❌ DKG attempt ${attempt} failed for ${identifier}, retrying in ${Math.round(delay/1000)}s:`, {
+                            error: error.message,
+                            attempt,
+                            elapsed_seconds: Math.round((Date.now() - startTime) / 1000),
+                            next_delay_seconds: Math.round(delay / 1000)
+                        });
+
+                        attempt++;
+
+                        // Schedule next attempt - this creates an infinite retry chain
+                        setTimeout(() => {
+                            persistentRetry().catch(err => {
+                                elizaLogger.error(`Unexpected error in persistent retry chain for ${identifier}:`, err);
+                            });
+                        }, delay);
+                    }
+                };
+
+                return persistentRetry();
+            };
 
             // Extract data from state with error handling
             let hexagramData, contentItem;
@@ -179,61 +217,35 @@ export const dkgDivinationInsert: Action = {
                 ],
             };
 
-            elizaLogger.info("Persisting divination to DKG:", {
-                hexagram_number:
-                    hexagramData.interpretation.currentHexagram.number,
+            elizaLogger.info("Starting persistent DKG storage:", {
+                hexagram_number: hexagramData.interpretation.currentHexagram.number,
                 hexagram_name: hexagramData.interpretation.currentHexagram.name,
-                has_transformed:
-                    !!hexagramData.interpretation.transformedHexagram,
-                asset_template: JSON.stringify(memoryKnowledgeGraph, null, 2),
+                has_transformed: !!hexagramData.interpretation.transformedHexagram,
+                memory_id: message.id,
+                divination_id: `divination-${message.id}`
             });
 
-            let createAssetResult;
-
-            try {
+            // Create persistent DKG operation with LLM JSON fix capability
+            const dkgOperation = async () => {
                 elizaLogger.log("Publishing divination to DKG");
-                elizaLogger.log(
-                    `Knowledge Asset: ${JSON.stringify(memoryKnowledgeGraph, null, 2)}`
-                );
+                elizaLogger.log(`Knowledge Asset: ${JSON.stringify(memoryKnowledgeGraph, null, 2)}`);
 
-                createAssetResult = await DkgClient.asset.create(
-                    {
-                        public: memoryKnowledgeGraph,
-                    },
-                    { epochsNum: 12 }
-                );
-
-                elizaLogger.log(
-                    "======================== DIVINATION ASSET CREATED"
-                );
-                elizaLogger.log(JSON.stringify(createAssetResult));
-            } catch (error) {
-                elizaLogger.error(
-                    "Error occurred while publishing divination to DKG:",
-                    error.message
-                );
-
-                if (error.stack) {
-                    elizaLogger.error("Stack trace:", error.stack);
-                }
-                if (error.response) {
-                    elizaLogger.error(
-                        "Response data:",
-                        JSON.stringify(error.response.data, null, 2)
+                let createAssetResult;
+                try {
+                    createAssetResult = await DkgClient.asset.create(
+                        { public: memoryKnowledgeGraph },
+                        { epochsNum: 12 }
                     );
-                }
+                } catch (error) {
+                    // LLM-powered JSON fix for schema/format errors
+                    if (
+                        error.message.includes("Unexpected") ||
+                        error.message.includes("JSON") ||
+                        error.message.includes("schema") ||
+                        error.message.includes("malformed")
+                    ) {
+                        elizaLogger.warn("Detected JSON/schema issue, attempting LLM fix...");
 
-                // LLM-powered JSON fix retry logic
-                if (
-                    error.message.includes("Unexpected") ||
-                    error.message.includes("JSON") ||
-                    error.message.includes("schema") ||
-                    error.message.includes("malformed")
-                ) {
-                    elizaLogger.warn(
-                        "Detected JSON/schema formatting issue. Attempting LLM fix..."
-                    );
-                    try {
                         const fixedJSON = await generateText({
                             runtime,
                             context: `Fix this malformed JSON-LD and return ONLY the corrected JSON:
@@ -241,35 +253,29 @@ export const dkgDivinationInsert: Action = {
 ${JSON.stringify(memoryKnowledgeGraph, null, 2)}
 
 Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
-                            modelClass: ModelClass.SMALL, // Use smaller model for simple JSON fixes
+                            modelClass: ModelClass.SMALL,
                         });
 
-                        elizaLogger.log(
-                            `Fixed JSON generated by LLM: ${fixedJSON}. Retrying...`
-                        );
-
+                        elizaLogger.log(`Fixed JSON generated by LLM: ${fixedJSON}. Retrying...`);
                         createAssetResult = await DkgClient.asset.create(
                             { public: JSON.parse(fixedJSON) },
                             { epochsNum: 12 }
                         );
 
-                        elizaLogger.log(
-                            "======================== DIVINATION ASSET CREATED AFTER LLM FIX"
-                        );
-                        elizaLogger.log(JSON.stringify(createAssetResult));
-                    } catch (llmError) {
-                        elizaLogger.error(
-                            "Failed to fix divination JSON using LLM:",
-                            llmError.message
-                        );
-                        throw error; // Re-throw original error
+                        elizaLogger.log("======================== DIVINATION ASSET CREATED AFTER LLM FIX");
+                    } else {
+                        throw error; // Re-throw non-JSON errors for retry
                     }
-                } else {
-                    throw error; // Re-throw non-JSON errors
                 }
-            }
 
-            if (createAssetResult?.UAL) {
+                if (!createAssetResult?.UAL) {
+                    throw new Error("No UAL returned from DKG after processing");
+                }
+
+                elizaLogger.log("======================== DIVINATION ASSET CREATED");
+                elizaLogger.log(JSON.stringify(createAssetResult));
+
+                // Process successful result
                 elizaLogger.debug("DKG UAL processing:", {
                     raw_UAL: createAssetResult.UAL,
                     UAL_type: createAssetResult.UAL.startsWith('https://') ? 'full_url' : 'identifier',
@@ -277,28 +283,20 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                     DKG_ENVIRONMENT: runtime.getSetting("DKG_ENVIRONMENT")
                 });
 
-                // Use the UAL directly if it's already a full URL, otherwise construct explorer URL
                 const finalUrl = createAssetResult.UAL.startsWith('https://')
                     ? createAssetResult.UAL
                     : `https://dkg-${runtime.getSetting("DKG_ENVIRONMENT")}.origintrail.io/explore?ual=${createAssetResult.UAL}`;
-
-                elizaLogger.debug("URL construction result:", {
-                    was_full_url: createAssetResult.UAL.startsWith('https://'),
-                    final_url: finalUrl,
-                    final_url_length: finalUrl.length
-                });
 
                 const akashicRecordUrl = `@origin_trail akashic record: ${finalUrl}`;
 
                 elizaLogger.info("Successfully persisted divination to DKG:", {
                     UAL: createAssetResult.UAL,
                     explorer_link: finalUrl,
-                    hexagram:
-                        hexagramData.interpretation.currentHexagram.number,
+                    hexagram: hexagramData.interpretation.currentHexagram.number,
                     akashic_record: akashicRecordUrl,
                 });
 
-                // Call callback only if provided (for interactive use or reply posting)
+                // Execute callback when DKG succeeds
                 if (callback) {
                     elizaLogger.debug("Sending callback with akashic record URL:", {
                         akashic_record_url: akashicRecordUrl,
@@ -309,7 +307,7 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
 
                     callback({
                         text: akashicRecordUrl,
-                        action: "REPLY_TWEET", // Signal to post as reply
+                        action: "REPLY_TWEET",
                         metadata: {
                             originalTweetId: state.tweetId,
                             roomId: state.roomId,
@@ -317,10 +315,18 @@ Fix: quotes, commas, brackets. Keep structure intact. No explanations.`,
                         },
                     });
                 }
-                return true;
-            } else {
-                throw new Error("No UAL returned from DKG after processing");
-            }
+
+                return createAssetResult;
+            };
+
+            // Start persistent background retry - never gives up!
+            createPersistentDKGRetry(dkgOperation, `divination-${message.id}`).catch(err => {
+                elizaLogger.error(`Unexpected error in DKG persistent retry for divination-${message.id}:`, err);
+            });
+
+            // Return immediately - divination succeeded, DKG storage is background archival
+            elizaLogger.info("✅ Divination completed successfully, DKG archival in progress");
+            return true;
         } catch (error) {
             const errorMsg =
                 error instanceof Error ? error.message : String(error);
