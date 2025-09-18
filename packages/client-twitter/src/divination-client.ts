@@ -873,7 +873,7 @@ export class TwitterDivinationClient {
                 return "No recent posts found.";
             }
 
-            // Get first 4-5 words from last 10 posts
+            // Get first 10 words from last 10 posts
             const recentOpenings = recentTitles
                 .slice(0, 10)
                 .map((title) => {
@@ -933,12 +933,41 @@ export class TwitterDivinationClient {
                 return;
             }
 
+            // Filter out expired failures (older than 60 days or more than 200 retries)
+            // Keep records in DB but stop retrying them
+            const MAX_AGE_DAYS = 60;
+            const MAX_RETRY_COUNT = 200;
+            const now = Date.now();
+            const activeFailures = [];
+            const skippedFailures = [];
+
+            for (const { key, record } of failedOperations) {
+                const ageInDays = (now - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+                const retryCount = record.retryCount || 0;
+
+                if (ageInDays > MAX_AGE_DAYS || retryCount > MAX_RETRY_COUNT) {
+                    skippedFailures.push(key);
+                    elizaLogger.info(`⏭️ Skipping expired DKG failure (kept in DB): ${key}`, {
+                        ageInDays: Math.round(ageInDays),
+                        retryCount: retryCount,
+                        reason: ageInDays > MAX_AGE_DAYS ? 'too_old' : 'max_retries_exceeded'
+                    });
+                } else {
+                    activeFailures.push({ key, record });
+                }
+            }
+
+            if (activeFailures.length === 0) {
+                elizaLogger.debug(`No active DKG operations to retry (${skippedFailures.length} expired)`);
+                return;
+            }
+
             elizaLogger.info(
-                `🔄 Found ${failedOperations.length} failed DKG operation(s) to retry`
+                `🔄 Found ${activeFailures.length} active DKG operation(s) to retry (${skippedFailures.length} expired/skipped)`
             );
 
-            // Retry each failed operation
-            for (const { key, record } of failedOperations) {
+            // Retry each active failed operation
+            for (const { key, record } of activeFailures) {
                 elizaLogger.info(`Retrying failed DKG operation: ${key}`, {
                     originalTimestamp: record.timestamp,
                     retryCount: record.retryCount || 0,

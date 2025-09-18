@@ -306,8 +306,21 @@ export class DKGOperationHandler {
             const failureRecord = await this.runtime.cacheManager.get(failureKey);
             return failureRecord || null;
         } catch (error) {
-            elizaLogger.warn(`Failed to retrieve operation for retry: ${failureKey}`, error.message);
+            elizaLogger.warn(`Failed to retrieve operation for retry: ${failureKey}`, error?.message);
             return null;
+        }
+    }
+
+    /**
+     * Remove a failed operation from storage (for cleanup)
+     */
+    async removeFailedOperation(failureKey: string): Promise<void> {
+        try {
+            await this.runtime.cacheManager.delete(failureKey);
+            await this.removeFromFailedOperationsList(failureKey);
+            elizaLogger.debug(`Removed failed operation: ${failureKey}`);
+        } catch (error) {
+            elizaLogger.warn(`Failed to remove operation: ${failureKey}`, error?.message);
         }
     }
 
