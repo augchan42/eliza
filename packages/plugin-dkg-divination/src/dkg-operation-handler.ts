@@ -82,17 +82,18 @@ export class DKGOperationHandler {
             }
         }
 
-        // All attempts failed - record for potential retry later
+        // All attempts failed - record for permanent retry until success
         const failureRecord = {
             timestamp: new Date().toISOString(),
             knowledgeGraph: knowledgeGraph,
             state: state,
             attempts: maxAttempts,
             lastError: lastError?.message,
-            allErrors: maxAttempts > 1 ? "Multiple errors across nodes" : lastError?.message
+            allErrors: maxAttempts > 1 ? "Multiple errors across nodes" : lastError?.message,
+            retryCount: 0  // Track how many retry sessions we've done
         };
 
-        // Store failure for potential daily retry
+        // Store failure permanently for retry on next divination cycle
         await this.recordFailureForRetry(failureRecord);
 
         const finalError = new Error(
@@ -192,23 +193,26 @@ export class DKGOperationHandler {
     }
 
     /**
-     * Record failed DKG operations for potential retry
+     * Record failed DKG operations permanently for retry in database
      */
     private async recordFailureForRetry(failureRecord: any): Promise<void> {
         try {
             const failureKey = `dkg_failure_${failureRecord.state.tweetId || failureRecord.timestamp}`;
 
-            // Store in runtime cache for retry mechanism
+            // Store permanently in database-backed cache (no expiry - retry until success)
             await this.runtime.cacheManager.set(
                 failureKey,
-                failureRecord,
-                86400000 // 24 hours expiry
+                failureRecord
+                // No expiry - never give up until it succeeds
             );
 
-            elizaLogger.info("📝 Recorded DKG failure for potential retry:", {
+            elizaLogger.info("📝 Recorded DKG failure permanently in database for retry:", {
                 failureKey: failureKey,
                 timestamp: failureRecord.timestamp,
-                willExpire: "24 hours"
+                originalTweetId: failureRecord.state.tweetId,
+                retryCount: failureRecord.retryCount,
+                neverExpires: true,
+                persistsAcrossRestarts: true
             });
 
         } catch (error) {
@@ -217,17 +221,55 @@ export class DKGOperationHandler {
     }
 
     /**
-     * Get failed operations for retry (could be called by a daily job)
+     * Retry a specific failed DKG operation
      */
-    async getFailedOperationsForRetry(): Promise<any[]> {
+    async retryFailedOperation(failureKey: string, failureRecord: any, callback?: HandlerCallback): Promise<boolean> {
         try {
-            // This would need cache enumeration capabilities
-            // For now, just log that the feature exists
-            elizaLogger.info("🔄 Failed operations retry mechanism available");
-            return [];
+            elizaLogger.info(`🔄 Retrying failed DKG operation: ${failureKey}`, {
+                originalTimestamp: failureRecord.timestamp,
+                retryCount: failureRecord.retryCount + 1,
+                originalTweetId: failureRecord.state.tweetId
+            });
+
+            // Increment retry count
+            failureRecord.retryCount = (failureRecord.retryCount || 0) + 1;
+
+            // Try the operation again (up to 4 attempts this retry session)
+            const result = await this.createAsset(
+                failureRecord.knowledgeGraph,
+                failureRecord.state,
+                callback
+            );
+
+            // Success! Remove from failure database
+            await this.runtime.cacheManager.delete(failureKey);
+            elizaLogger.info(`✅ DKG retry succeeded - removed from failure database: ${failureKey}`);
+
+            return true;
+
         } catch (error) {
-            elizaLogger.warn("Failed to retrieve operations for retry:", error.message);
-            return [];
+            // Still failing - update the retry count and keep in database
+            await this.runtime.cacheManager.set(failureKey, failureRecord);
+            elizaLogger.warn(`❌ DKG retry attempt failed: ${failureKey}`, {
+                retryCount: failureRecord.retryCount,
+                error: error.message,
+                willRetryNextCycle: true
+            });
+            return false;
+        }
+    }
+
+    /**
+     * Get all failed operations for retry (would need cache enumeration)
+     * For now, this would be called with specific failure keys
+     */
+    async getFailedOperation(failureKey: string): Promise<any | null> {
+        try {
+            const failureRecord = await this.runtime.cacheManager.get(failureKey);
+            return failureRecord || null;
+        } catch (error) {
+            elizaLogger.warn(`Failed to retrieve operation for retry: ${failureKey}`, error.message);
+            return null;
         }
     }
 }

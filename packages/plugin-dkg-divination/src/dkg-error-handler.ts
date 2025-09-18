@@ -9,7 +9,7 @@ export interface RetryConfig {
 }
 
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-    maxNodeAttempts: 3,
+    maxNodeAttempts: 2,      // 2 attempts per node = 4 total (2 nodes × 2 attempts)
     baseDelay: 30000,        // 30 seconds - conservative for RPC recovery
     maxDelay: 300000,        // 5 minutes max delay
     jitterRange: 10000,      // 0-10 second jitter for better distribution
@@ -22,6 +22,12 @@ export class DKGErrorHandler {
     static isRetryableError(error: any): boolean {
         const errorMsg = error?.message?.toLowerCase() || '';
         const errorStr = error?.toString?.().toLowerCase() || '';
+
+        elizaLogger.debug("🔍 Evaluating error for retry eligibility:", {
+            errorMessage: errorMsg,
+            errorString: errorStr,
+            errorType: typeof error
+        });
 
         // Permanent failures - don't retry
         if (errorMsg.includes('insufficient funds') ||
@@ -37,16 +43,28 @@ export class DKGErrorHandler {
             return false;
         }
 
-        // Retryable errors: network issues, timeouts, 5xx, rate limits
-        return errorMsg.includes('timeout') ||
-               errorMsg.includes('network') ||
-               errorMsg.includes('econnreset') ||
-               errorMsg.includes('enotfound') ||
-               errorMsg.includes('rate limit') ||
-               errorMsg.includes('too many requests') ||
-               errorMsg.includes('overload') ||
-               errorStr.includes('5') || // 5xx errors
-               errorMsg.includes('socket hang up');
+        // Retryable errors: network issues, timeouts, 5xx, rate limits, RPC overload
+        const isRetryable = errorMsg.includes('timeout') ||
+                           errorMsg.includes('network') ||
+                           errorMsg.includes('econnreset') ||
+                           errorMsg.includes('enotfound') ||
+                           errorMsg.includes('rate limit') ||
+                           errorMsg.includes('too many requests') ||
+                           errorMsg.includes('overload') ||
+                           errorMsg.includes('unable to get results') ||         // DKG RPC overload
+                           errorMsg.includes('max number of retries reached') ||  // DKG internal retry exhaustion
+                           errorMsg.includes('no ual found') ||                   // Missing UAL should trigger failover
+                           errorMsg.includes('connection refused') ||
+                           errorMsg.includes('service unavailable') ||
+                           errorStr.includes('5') || // 5xx errors
+                           errorMsg.includes('socket hang up');
+
+        elizaLogger.debug(`🔄 Error retry decision: ${isRetryable ? 'RETRYABLE' : 'PERMANENT'}`, {
+            errorMessage: errorMsg,
+            matchedPatterns: isRetryable ? 'Found retryable pattern' : 'No retryable patterns matched'
+        });
+
+        return isRetryable;
     }
 
     /**
