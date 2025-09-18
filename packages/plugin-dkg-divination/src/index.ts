@@ -5,6 +5,7 @@ import { graphSearch } from "./providers/graphSearch";
 
 export * as actions from "./actions/index";
 export * as providers from "./providers/index";
+export { DKGOperationHandler } from "./dkg-operation-handler";
 
 export const dkgDivinationPlugin: Plugin = {
     name: "@elizaos/plugin-dkg-divination",

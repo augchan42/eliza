@@ -264,6 +264,16 @@ export class TwitterDivinationClient {
                 return;
             }
 
+            // Log the papers available for final selection
+            elizaLogger.info(`🎯 Final paper selection: choosing from ${filteredContent.length} candidates`);
+            const candidatesForSelection = filteredContent.map((item, idx) => ({
+                rank: idx + 1,
+                title: item.title?.substring(0, 50) + '...',
+                authors: item.authors?.substring(0, 25) + '...' || 'N/A',
+                id: item.id || 'N/A'
+            }));
+            elizaLogger.debug("🏆 Candidates for final selection:", candidatesForSelection);
+
             // Now select the best content item from the unique items using research-focused criteria
             const researchCriteria: SelectionCriteria = {
                 contentType: "research",
@@ -280,11 +290,22 @@ export class TwitterDivinationClient {
                     "Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications",
             };
 
+            elizaLogger.debug("🔮 Applying I-Ching research selection criteria...");
             const selectedItem =
                 await this.contentSelectionService.selectMostRelevant(
                     filteredContent,
                     researchCriteria
                 );
+
+            // Log the final selected paper
+            elizaLogger.info(`✨ SELECTED PAPER: "${selectedItem.title?.substring(0, 80)}..." by ${selectedItem.authors?.substring(0, 40)}...`);
+            elizaLogger.debug("📄 Selected paper details:", {
+                title: selectedItem.title,
+                authors: selectedItem.authors,
+                arxivId: selectedItem.id,
+                link: selectedItem.link,
+                category: selectedItem.category || 'N/A'
+            });
 
             // Format the data before passing to template
             const formattedResearch = JSON.stringify(selectedItem, null, 2);
@@ -884,13 +905,27 @@ export class TwitterDivinationClient {
                 return;
             }
 
-            // Import DKG operation handler
-            const { DKGOperationHandler } = await import(
-                "@elizaos/plugin-dkg-divination/src/dkg-operation-handler"
-            );
+            // Import DKG operation handler with error handling
+            let DKGOperationHandler;
+            try {
+                const dkgModule = await import("@elizaos/plugin-dkg-divination");
+                DKGOperationHandler = dkgModule.DKGOperationHandler;
+                if (!DKGOperationHandler) {
+                    elizaLogger.warn("DKGOperationHandler not found in plugin exports");
+                    return;
+                }
+            } catch (importError) {
+                elizaLogger.warn("Failed to import DKG plugin:", {
+                    error_message: importError?.message,
+                    error_name: importError?.name
+                });
+                return;
+            }
+
             const dkgHandler = new DKGOperationHandler(this.runtime);
 
             // Get all failed operations
+            elizaLogger.debug("Checking for failed DKG operations...");
             const failedOperations = await dkgHandler.getAllFailedOperations();
 
             if (failedOperations.length === 0) {
@@ -974,10 +1009,13 @@ export class TwitterDivinationClient {
                 }
             }
         } catch (error) {
-            elizaLogger.error(
-                "Error checking/retrying failed DKG operations:",
-                error
-            );
+            elizaLogger.error("Error checking/retrying failed DKG operations:", {
+                error_message: error?.message || 'No message',
+                error_name: error?.name,
+                error_stack: error?.stack,
+                error_string: String(error),
+                error_type: typeof error
+            });
         }
     }
 }

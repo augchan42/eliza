@@ -268,22 +268,32 @@ export class DKGOperationHandler {
      */
     async getAllFailedOperations(): Promise<Array<{key: string, record: any}>> {
         try {
+            elizaLogger.debug("Getting failed operations list...");
             const failedKeys = await this.getFailedOperationsList();
+            elizaLogger.debug(`Found ${failedKeys.length} failed operation keys:`, failedKeys);
+
             const failedOperations: Array<{key: string, record: any}> = [];
 
             for (const key of failedKeys) {
                 const record = await this.runtime.cacheManager.get(key);
                 if (record) {
                     failedOperations.push({ key, record });
+                    elizaLogger.debug(`Loaded failed operation: ${key}`);
                 } else {
+                    elizaLogger.debug(`Stale key found, cleaning up: ${key}`);
                     // Clean up stale key from list
                     await this.removeFromFailedOperationsList(key);
                 }
             }
 
+            elizaLogger.debug(`Returning ${failedOperations.length} failed operations for retry`);
             return failedOperations;
         } catch (error) {
-            elizaLogger.warn("Failed to retrieve failed operations:", error.message);
+            elizaLogger.warn("Failed to retrieve failed operations:", {
+                error_message: error?.message || 'No message',
+                error_name: error?.name,
+                error_stack: error?.stack
+            });
             return [];
         }
     }

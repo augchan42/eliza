@@ -680,13 +680,17 @@ Return ONLY the JSON object, nothing else.`;
     }
 
     public async selectFromRankedPool(rankedPool: any[], recursionDepth: number = 0): Promise<any[]> {
+        elizaLogger.debug(`🎯 selectFromRankedPool: Processing ${rankedPool.length} papers (depth: ${recursionDepth})`);
+
         // Circuit breaker: prevent infinite recursion
         const MAX_RECURSION_DEPTH = 2;
         if (recursionDepth >= MAX_RECURSION_DEPTH) {
-            elizaLogger.warn(`Recursion limit reached (${MAX_RECURSION_DEPTH}). Returning available papers despite quality threshold.`);
+            elizaLogger.warn(`⚠️ Recursion limit reached (${MAX_RECURSION_DEPTH}). Returning available papers despite quality threshold.`);
             // Return whatever we have, sorted by score
             const sortedPapers = rankedPool.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
-            return sortedPapers.slice(0, 5);
+            const finalCandidates = sortedPapers.slice(0, 5);
+            elizaLogger.info(`🚨 Emergency selection: ${finalCandidates.length} papers returned due to recursion limit`);
+            return finalCandidates;
         }
 
         // Get history of posted papers
@@ -694,9 +698,20 @@ Return ONLY the JSON object, nothing else.`;
             this.getCacheKey('arxivPaperHistory')
         ) || [];
         const arxivHistory = new Set<string>(arxivHistoryArray);
+        elizaLogger.debug(`📖 ArXiv history contains ${arxivHistory.size} previously posted papers`);
 
         // Filter out already posted papers
         const availablePapers = rankedPool.filter(p => !arxivHistory.has(p.arxivId));
+        elizaLogger.info(`✅ After deduplication: ${availablePapers.length} available papers (filtered out ${rankedPool.length - availablePapers.length} duplicates)`);
+
+        if (availablePapers.length > 0) {
+            const topAvailable = availablePapers.slice(0, 3).map(p => ({
+                title: p.title?.substring(0, 40) + '...',
+                score: p.qualityScore,
+                arxivId: p.arxivId
+            }));
+            elizaLogger.debug("🔝 Top available papers after deduplication:", topAvailable);
+        }
 
         if (availablePapers.length === 0) {
             elizaLogger.warn("All papers in pool have been posted. Need refresh.");
@@ -718,48 +733,79 @@ Return ONLY the JSON object, nothing else.`;
 
         // Check quality threshold
         const topPaper = availablePapers[0];
-        const _poolMetadata = await this.runtime.cacheManager.get<any>(
+        const poolMetadata = await this.runtime.cacheManager.get<any>(
             this.getCacheKey('poolMetadata')
         );
 
+        elizaLogger.debug(`🎭 Quality assessment - Top paper score: ${topPaper?.qualityScore || 'N/A'}, Pool size: ${availablePapers.length}`);
+
         if (topPaper.qualityScore < 5.0 || availablePapers.length < 50) {
-            elizaLogger.info(`Pool quality below threshold (score: ${topPaper.qualityScore}, available: ${availablePapers.length}). Attempting refresh (depth: ${recursionDepth})...`);
+            elizaLogger.warn(`⚡ Pool quality below threshold (score: ${topPaper.qualityScore}, available: ${availablePapers.length}). Attempting refresh (depth: ${recursionDepth})...`);
 
             // Only refresh if we haven't recursed yet
             if (recursionDepth === 0) {
                 try {
+                    elizaLogger.info("🔄 Initiating pool refresh due to low quality...");
                     const newPapers = await this.fetchMegaArxivPool();
                     if (newPapers.length > 0) {
                         const newRankedPool = await this.stackRankPapers(newPapers);
+                        elizaLogger.info(`🆕 Refresh successful: ${newRankedPool.length} newly ranked papers`);
                         return this.selectFromRankedPool(newRankedPool, recursionDepth + 1);
                     }
                 } catch (error) {
-                    elizaLogger.error("Failed to refresh paper pool:", error);
+                    elizaLogger.error("❌ Failed to refresh paper pool:", error);
                     // Continue with available papers
                 }
+            } else {
+                elizaLogger.info("⏭️ Already recursed once, proceeding with available papers");
             }
+        } else {
+            elizaLogger.info(`✨ Pool quality acceptable (score: ${topPaper.qualityScore}, size: ${availablePapers.length})`);
         }
 
         // Return top 5 available papers for selection
         const candidates = availablePapers.slice(0, 5);
-        elizaLogger.debug(`Selected ${candidates.length} candidates from pool. Top score: ${topPaper?.qualityScore || 'N/A'} (depth: ${recursionDepth})`);
+
+        // Log detailed information about selected candidates
+        const candidateDetails = candidates.map((paper, idx) => ({
+            rank: idx + 1,
+            title: paper.title?.substring(0, 60) + '...',
+            score: paper.qualityScore,
+            arxivId: paper.arxivId,
+            authors: paper.authors?.substring(0, 30) + '...' || 'N/A'
+        }));
+
+        elizaLogger.info(`🎉 Selected ${candidates.length} final candidates from pool (depth: ${recursionDepth})`);
+        elizaLogger.debug("📋 Final candidate details:", candidateDetails);
 
         return candidates;
     }
 
     public async fetchArxivPapers(): Promise<any[]> {
+        elizaLogger.debug("🔍 fetchArxivPapers: Starting paper selection process...");
+
         // Check if we have a ranked pool in cache
         const rankedPool = await this.runtime.cacheManager.get<any[]>(
             this.getCacheKey('rankedPaperPool')
         );
 
         if (rankedPool && rankedPool.length > 0) {
+            elizaLogger.info(`📚 Found cached ranked pool with ${rankedPool.length} papers`);
+
+            // Log some details about the cached pool
+            const topScores = rankedPool.slice(0, 5).map(p => ({
+                title: p.title?.substring(0, 50) + '...',
+                score: p.qualityScore,
+                arxivId: p.arxivId
+            }));
+            elizaLogger.debug("🏆 Top 5 papers in cached pool:", topScores);
+
             // Use existing ranked pool
             return await this.selectFromRankedPool(rankedPool);
         }
 
         // No pool available, need to fetch and rank
-        elizaLogger.info("No ranked pool found, initiating mega fetch...");
+        elizaLogger.info("❌ No ranked pool found, initiating mega fetch...");
         const papers = await this.fetchMegaArxivPool();
 
         if (papers.length > 0) {
