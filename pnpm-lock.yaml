@@ -748,6 +748,9 @@ importers:
       '@elizaos/core':
         specifier: workspace:*
         version: link:../core
+      '@elizaos/plugin-dkg-divination':
+        specifier: workspace:*
+        version: link:../plugin-dkg-divination
       agent-twitter-client:
         specifier: 0.0.17
         version: 0.0.17
@@ -3130,7 +3133,7 @@ packages:
     peerDependencies:
       bitcoinjs-lib: ^7.0.0-rc.0
       bs58: ^6.0.0
-      viem: ^2.21.0
+      viem: 2.21.58
 
   '@braintree/sanitize-url@7.1.1':
     resolution: {integrity: sha512-i1L7noDNxtFyL5DmZafWy1wRVhGehQmzZaz1HiN5e7iylJMSZR7ekOV7NsIqa5qBldlLrsKv4HbgFUVlQrz8Mw==}
