@@ -20,12 +20,34 @@ export async function postTweet(
     elizaLogger.log(`Posting new tweet:\n`);
 
     try {
+        const requestContext = {
+            cleaned_content: cleanedContent,
+            cleaned_content_length: cleanedContent.length,
+            new_tweet_content: newTweetContent,
+            room_id: roomId,
+            twitter_username: twitterUsername,
+            use_note_tweet: cleanedContent.length > DEFAULT_MAX_TWEET_LENGTH,
+            max_tweet_length: DEFAULT_MAX_TWEET_LENGTH
+        };
+
+        elizaLogger.debug("New tweet request context:", requestContext);
+
         let result;
 
         if (cleanedContent.length > DEFAULT_MAX_TWEET_LENGTH) {
+            elizaLogger.debug("Using note tweet for long content");
             result = await handleNoteTweet(client, runtime, cleanedContent);
         } else {
+            elizaLogger.debug("Using standard tweet");
             result = await sendStandardTweet(client, cleanedContent);
+        }
+
+        if (!result) {
+            elizaLogger.error("Tweet API returned null/undefined result:", {
+                request_context: requestContext,
+                result_received: result
+            });
+            throw new Error("Tweet API returned null/undefined result");
         }
 
         const tweet = createTweetObject(result, client, twitterUsername);
@@ -37,11 +59,25 @@ export async function postTweet(
             roomId,
             newTweetContent
         );
-        
-        // Return the tweet ID for threading
+
+        elizaLogger.info(`✅ New tweet posted successfully: ${tweet.permanentUrl}`);
         return tweet.id;
     } catch (error) {
-        elizaLogger.error("Error sending tweet:", error);
+        const errorContext = {
+            error_name: error.name,
+            error_message: error.message,
+            error_stack: error.stack,
+            error_cause: error.cause,
+            cleaned_content: cleanedContent,
+            cleaned_content_length: cleanedContent.length,
+            new_tweet_content: newTweetContent,
+            room_id: roomId,
+            twitter_username: twitterUsername,
+            timestamp: new Date().toISOString()
+        };
+
+        elizaLogger.error("❌ Error sending tweet:", errorContext);
+        elizaLogger.error("🔍 Raw tweet error object:", error);
         throw error;
     }
 }
@@ -57,12 +93,34 @@ export async function postReplyTweet(
     elizaLogger.log(`Posting reply tweet to ${originalTweetId}:\n${replyContent}`);
 
     try {
+        const requestContext = {
+            reply_content: replyContent,
+            reply_content_length: replyContent.length,
+            original_tweet_id: originalTweetId,
+            room_id: roomId,
+            twitter_username: twitterUsername,
+            use_note_tweet: replyContent.length > DEFAULT_MAX_TWEET_LENGTH,
+            max_tweet_length: DEFAULT_MAX_TWEET_LENGTH
+        };
+
+        elizaLogger.debug("Reply tweet request context:", requestContext);
+
         let result;
 
         if (replyContent.length > DEFAULT_MAX_TWEET_LENGTH) {
+            elizaLogger.debug("Using note tweet for long reply content");
             result = await handleNoteTweet(client, runtime, replyContent, originalTweetId);
         } else {
+            elizaLogger.debug("Using standard tweet for reply");
             result = await sendStandardTweet(client, replyContent, originalTweetId);
+        }
+
+        if (!result) {
+            elizaLogger.error("Tweet API returned null/undefined result:", {
+                request_context: requestContext,
+                result_received: result
+            });
+            return null;
         }
 
         const tweet = createTweetObject(result, client, twitterUsername);
@@ -74,11 +132,25 @@ export async function postReplyTweet(
             roomId,
             replyContent
         );
-        
-        elizaLogger.log(`Reply tweet posted: ${tweet.permanentUrl}`);
+
+        elizaLogger.info(`✅ Reply tweet posted successfully: ${tweet.permanentUrl}`);
         return tweet.id;
     } catch (error) {
-        elizaLogger.error("Error sending reply tweet:", error);
+        const errorContext = {
+            error_name: error.name,
+            error_message: error.message,
+            error_stack: error.stack,
+            error_cause: error.cause,
+            reply_content: replyContent,
+            reply_content_length: replyContent.length,
+            original_tweet_id: originalTweetId,
+            room_id: roomId,
+            twitter_username: twitterUsername,
+            timestamp: new Date().toISOString()
+        };
+
+        elizaLogger.error("❌ Error sending reply tweet:", errorContext);
+        elizaLogger.error("🔍 Raw reply tweet error object:", error);
         return null;
     }
 }
@@ -169,17 +241,56 @@ async function sendStandardTweet(
     tweetId?: string
 ) {
     try {
+        elizaLogger.debug("Attempting to send standard tweet:", {
+            content_length: content.length,
+            is_reply: !!tweetId,
+            reply_to: tweetId,
+            content_preview: content.slice(0, 100)
+        });
+
         const standardTweetResult = await client.requestQueue.add(
             async () => await client.twitterClient.sendTweet(content, tweetId)
         );
+
+        // Enhanced response logging
+        elizaLogger.debug("Twitter API response received:", {
+            status: standardTweetResult.status,
+            status_text: standardTweetResult.statusText,
+            headers: Object.fromEntries(standardTweetResult.headers.entries()),
+            content_type: standardTweetResult.headers.get('content-type')
+        });
+
         const body = await standardTweetResult.json();
+        elizaLogger.debug("Twitter API response body:", body);
+
         if (!body?.data?.create_tweet?.tweet_results?.result) {
-            console.error("Error sending tweet; Bad response:", body);
-            return;
+            const errorDetails = {
+                response_body: body,
+                errors: body?.errors || [],
+                status: standardTweetResult.status,
+                status_text: standardTweetResult.statusText,
+                request_content: content,
+                request_reply_to: tweetId
+            };
+            elizaLogger.error("Twitter API bad response - missing result:", errorDetails);
+            throw new Error(`Twitter API bad response: ${JSON.stringify(errorDetails)}`);
         }
         return body.data.create_tweet.tweet_results.result;
     } catch (error) {
-        elizaLogger.error("Error sending standard Tweet:", error);
+        // Enhanced error logging with full context
+        const errorContext = {
+            error_name: error.name,
+            error_message: error.message,
+            error_stack: error.stack,
+            error_cause: error.cause,
+            request_content: content,
+            request_reply_to: tweetId,
+            content_length: content.length,
+            timestamp: new Date().toISOString()
+        };
+
+        elizaLogger.error("Error sending standard Tweet:", errorContext);
+        elizaLogger.error("Raw Twitter error object:", error);
         throw error;
     }
 }
@@ -191,26 +302,64 @@ async function handleNoteTweet(
     tweetId?: string
 ) {
     try {
+        elizaLogger.debug("Attempting to send note tweet:", {
+            content_length: content.length,
+            is_reply: !!tweetId,
+            reply_to: tweetId,
+            content_preview: content.slice(0, 100)
+        });
+
         const noteTweetResult = await client.requestQueue.add(
             async () =>
                 await client.twitterClient.sendNoteTweet(content, tweetId)
         );
 
+        elizaLogger.debug("Note tweet API response:", {
+            has_errors: !!(noteTweetResult.errors && noteTweetResult.errors.length > 0),
+            errors: noteTweetResult.errors || [],
+            response: noteTweetResult
+        });
+
         if (noteTweetResult.errors && noteTweetResult.errors.length > 0) {
+            elizaLogger.warn("Note Tweet failed, falling back to standard tweet:", {
+                note_errors: noteTweetResult.errors,
+                fallback_reason: "authorization_issues"
+            });
+
             // Note Tweet failed due to authorization. Falling back to standard Tweet.
             const truncateContent = truncateToCompleteSentence(
                 content,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                client.twitterConfig.MAX_TWEET_LENGTH
             );
-            return await this.sendStandardTweet(
+            return await sendStandardTweet(
                 client,
                 truncateContent,
                 tweetId
             );
         } else {
+            if (!noteTweetResult.data?.notetweet_create?.tweet_results?.result) {
+                elizaLogger.error("Note tweet missing result:", {
+                    response: noteTweetResult,
+                    has_data: !!noteTweetResult.data,
+                    has_notetweet_create: !!noteTweetResult.data?.notetweet_create
+                });
+                throw new Error(`Note tweet missing result: ${JSON.stringify(noteTweetResult)}`);
+            }
             return noteTweetResult.data.notetweet_create.tweet_results.result;
         }
     } catch (error) {
-        throw new Error(`Note Tweet failed: ${error}`);
+        const errorContext = {
+            error_name: error.name,
+            error_message: error.message,
+            error_stack: error.stack,
+            request_content: content,
+            request_reply_to: tweetId,
+            content_length: content.length,
+            timestamp: new Date().toISOString()
+        };
+
+        elizaLogger.error("Note Tweet failed:", errorContext);
+        elizaLogger.error("Raw note tweet error object:", error);
+        throw new Error(`Note Tweet failed: ${error.message || error}`);
     }
 }

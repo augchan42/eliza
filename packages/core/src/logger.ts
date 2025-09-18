@@ -113,6 +113,11 @@ class ElizaLogger {
         return this.isNode ? "\x1b[0m" : "";
     }
 
+    #getTimestamp() {
+        const now = new Date();
+        return now.toISOString().replace('T', ' ').replace('Z', '');
+    }
+
     clear() {
         console.clear();
     }
@@ -128,12 +133,18 @@ class ElizaLogger {
             return item;
         });
 
+        // Add timestamp prefix
+        const timestamp = this.#getTimestamp();
+        const timestampPrefix = `[${timestamp}]`;
+
         if (this.isNode) {
             const c = this.#getColor(foregroundColor, backgroundColor);
-            console.log(c, processedStrings.join(""), this.#getColorReset());
+            const resetColor = this.#getColorReset();
+            // Timestamp in gray, then colored content
+            console.log(`\x1b[90m${timestampPrefix}\x1b[0m ${c}${processedStrings.join("")}${resetColor}`);
         } else {
             const style = this.#getColor(foregroundColor, backgroundColor);
-            console.log(`%c${processedStrings.join("")}`, style);
+            console.log(`${timestampPrefix} %c${processedStrings.join("")}`, style);
         }
 
         if (this.closeByNewLine) console.log("");
@@ -149,15 +160,19 @@ class ElizaLogger {
         }
     ) {
         const { fg, bg, icon, groupTitle } = options;
+        const timestamp = this.#getTimestamp();
+        const timestampPrefix = `[${timestamp}]`;
 
         if (strings.length > 1) {
             if (this.isNode) {
                 const c = this.#getColor(fg, bg);
-                console.group(c, (this.useIcons ? icon : "") + groupTitle);
+                const resetColor = this.#getColorReset();
+                // Timestamp in gray, then colored group title
+                console.group(`\x1b[90m${timestampPrefix}\x1b[0m ${c}${(this.useIcons ? icon : "") + groupTitle}${resetColor}`);
             } else {
                 const style = this.#getColor(fg, bg);
                 console.group(
-                    `%c${this.useIcons ? icon : ""}${groupTitle}`,
+                    `${timestampPrefix} %c${this.useIcons ? icon : ""}${groupTitle}`,
                     style
                 );
             }
@@ -253,13 +268,16 @@ class ElizaLogger {
     }
 
     progress(message: string) {
+        const timestamp = this.#getTimestamp();
+        const timestampedMessage = `\x1b[90m[${timestamp}]\x1b[0m ${message}`;
+
         if (this.isNode) {
             // Clear the current line and move cursor to beginning
             process.stdout.clearLine(0);
             process.stdout.cursorTo(0);
-            process.stdout.write(message);
+            process.stdout.write(timestampedMessage);
         } else {
-            console.log(message);
+            console.log(`[${timestamp}] ${message}`);
         }
     }
 }
