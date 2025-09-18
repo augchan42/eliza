@@ -206,6 +206,9 @@ export class DKGOperationHandler {
                 // No expiry - never give up until it succeeds
             );
 
+            // Also maintain a list of all failed operation keys for enumeration
+            await this.addToFailedOperationsList(failureKey);
+
             elizaLogger.info("📝 Recorded DKG failure permanently in database for retry:", {
                 failureKey: failureKey,
                 timestamp: failureRecord.timestamp,
@@ -241,8 +244,9 @@ export class DKGOperationHandler {
                 callback
             );
 
-            // Success! Remove from failure database
+            // Success! Remove from failure database and failed operations list
             await this.runtime.cacheManager.delete(failureKey);
+            await this.removeFromFailedOperationsList(failureKey);
             elizaLogger.info(`✅ DKG retry succeeded - removed from failure database: ${failureKey}`);
 
             return true;
@@ -260,8 +264,32 @@ export class DKGOperationHandler {
     }
 
     /**
-     * Get all failed operations for retry (would need cache enumeration)
-     * For now, this would be called with specific failure keys
+     * Get all failed operations for retry
+     */
+    async getAllFailedOperations(): Promise<Array<{key: string, record: any}>> {
+        try {
+            const failedKeys = await this.getFailedOperationsList();
+            const failedOperations: Array<{key: string, record: any}> = [];
+
+            for (const key of failedKeys) {
+                const record = await this.runtime.cacheManager.get(key);
+                if (record) {
+                    failedOperations.push({ key, record });
+                } else {
+                    // Clean up stale key from list
+                    await this.removeFromFailedOperationsList(key);
+                }
+            }
+
+            return failedOperations;
+        } catch (error) {
+            elizaLogger.warn("Failed to retrieve failed operations:", error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Get a specific failed operation
      */
     async getFailedOperation(failureKey: string): Promise<any | null> {
         try {
@@ -270,6 +298,49 @@ export class DKGOperationHandler {
         } catch (error) {
             elizaLogger.warn(`Failed to retrieve operation for retry: ${failureKey}`, error.message);
             return null;
+        }
+    }
+
+    /**
+     * Add a failure key to the failed operations list
+     */
+    private async addToFailedOperationsList(failureKey: string): Promise<void> {
+        try {
+            const listKey = "dkg_failed_operations_list";
+            const currentList = await this.runtime.cacheManager.get<string[]>(listKey) || [];
+            if (!currentList.includes(failureKey)) {
+                currentList.push(failureKey);
+                await this.runtime.cacheManager.set(listKey, currentList);
+            }
+        } catch (error) {
+            elizaLogger.warn("Failed to add to failed operations list:", error.message);
+        }
+    }
+
+    /**
+     * Remove a failure key from the failed operations list
+     */
+    private async removeFromFailedOperationsList(failureKey: string): Promise<void> {
+        try {
+            const listKey = "dkg_failed_operations_list";
+            const currentList = await this.runtime.cacheManager.get<string[]>(listKey) || [];
+            const updatedList = currentList.filter(key => key !== failureKey);
+            await this.runtime.cacheManager.set(listKey, updatedList);
+        } catch (error) {
+            elizaLogger.warn("Failed to remove from failed operations list:", error.message);
+        }
+    }
+
+    /**
+     * Get the list of failed operation keys
+     */
+    private async getFailedOperationsList(): Promise<string[]> {
+        try {
+            const listKey = "dkg_failed_operations_list";
+            return await this.runtime.cacheManager.get<string[]>(listKey) || [];
+        } catch (error) {
+            elizaLogger.warn("Failed to get failed operations list:", error.message);
+            return [];
         }
     }
 }
