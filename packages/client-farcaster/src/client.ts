@@ -90,7 +90,7 @@ export class FarcasterClient {
                 name: response.cast.author.display_name || "anon",
                 username: response.cast.author.username,
             },
-            ...(response.cast.parent_hash
+            ...(response.cast.parent_hash && response.cast.parent_author?.fid
                 ? {
                       inReplyTo: {
                           hash: response.cast.parent_hash,
@@ -148,7 +148,7 @@ export class FarcasterClient {
                     name: notification.cast!.author.display_name || "anon",
                     username: notification.cast!.author.username,
                 },
-                ...(notification.cast!.parent_hash
+                ...(notification.cast!.parent_hash && notification.cast!.parent_author?.fid
                     ? {
                           inReplyTo: {
                               hash: notification.cast!.parent_hash,
