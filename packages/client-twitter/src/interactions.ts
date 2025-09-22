@@ -634,7 +634,26 @@ export class TwitterInteractionClient {
                                 userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
                                 replyToUser: tweet.username,               // Who we're replying to
                                 originalTweetId: tweet.id,                 // Reference to original tweet
-                                tweetId: tweetId                           // Set tweetId for proper DKG failure deduplication
+                                tweetId: tweetId,                          // Set tweetId for proper DKG failure deduplication
+
+                                // Enhanced context for mention replies
+                                contentItem: JSON.stringify({
+                                    type: "mention_reply",
+                                    originalMention: {
+                                        text: tweet.text,
+                                        author: tweet.username,
+                                        tweetId: tweet.id,
+                                        timestamp: tweet.timestamp || new Date().toISOString()
+                                    },
+                                    replyContent: response.text,
+                                    conversationContext: {
+                                        isReply: true,
+                                        replyToUser: tweet.username,
+                                        mentionedUsers: tweet.text.match(/@\w+/g) || [],
+                                        hashtagsUsed: tweet.text.match(/#\w+/g) || []
+                                    }
+                                }),
+                                contentType: "mention_reply"               // Specific content type for mention replies
                             };
 
                             // Process DKG action asynchronously - don't await to avoid blocking
