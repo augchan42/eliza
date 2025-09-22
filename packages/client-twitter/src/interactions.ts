@@ -633,7 +633,8 @@ export class TwitterInteractionClient {
                                 userId: this.runtime.agentId,
                                 userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
                                 replyToUser: tweet.username,               // Who we're replying to
-                                originalTweetId: tweet.id                  // Reference to original tweet
+                                originalTweetId: tweet.id,                 // Reference to original tweet
+                                tweetId: tweetId                           // Set tweetId for proper DKG failure deduplication
                             };
 
                             // Process DKG action asynchronously - don't await to avoid blocking
