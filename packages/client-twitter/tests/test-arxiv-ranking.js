@@ -126,4 +126,109 @@ async function testStackRanking(papers) {
     } finally {
         global.generateText = originalGenerateText;
     }
-}\n\nasync function testFullPipeline() {\n    console.log('Testing full pipeline...');\n    \n    try {\n        const papers = await testMegaFetch();\n        if (papers.length === 0) return;\n        \n        const rankedPapers = await testStackRanking(papers);\n        if (rankedPapers.length === 0) return;\n        \n        // Test selection from ranked pool\n        const mockRuntime = {\n            cacheManager: {\n                get: async (key) => {\n                    if (key.includes('rankedPaperPool')) return rankedPapers;\n                    if (key.includes('arxivPaperHistory')) return [];\n                    if (key.includes('poolMetadata')) return {\n                        fetchedAt: Date.now(),\n                        totalPapers: papers.length,\n                        rankedCount: rankedPapers.length,\n                        topScore: rankedPapers[0]?.qualityScore || 0\n                    };\n                    return null;\n                }\n            }\n        };\n        \n        const mockClient = {\n            profile: { username: 'test-user' }\n        };\n        \n        const divination = new TwitterDivinationClient(mockRuntime, mockClient);\n        const candidates = await divination.selectFromRankedPool(rankedPapers);\n        \n        const pipelineResults = {\n            timestamp: new Date().toISOString(),\n            totalFetched: papers.length,\n            totalRanked: rankedPapers.length,\n            candidatesSelected: candidates.length,\n            topCandidate: candidates[0] ? {\n                arxivId: candidates[0].arxivId,\n                title: candidates[0].title,\n                qualityScore: candidates[0].qualityScore,\n                themes: candidates[0].themes,\n                reasoning: candidates[0].reasoning\n            } : null,\n            allCandidates: candidates.map(c => ({\n                arxivId: c.arxivId,\n                title: c.title,\n                qualityScore: c.qualityScore,\n                ranking: c.ranking\n            }))\n        };\n        \n        writeFileSync('test-output-full-pipeline.json', JSON.stringify(pipelineResults, null, 2));\n        console.log(`✓ Full pipeline test complete. Results saved to test-output-full-pipeline.json`);\n        \n    } catch (error) {\n        console.error('❌ Full pipeline test failed:', error);\n    }\n}\n\nasync function main() {\n    const args = process.argv.slice(2);\n    \n    if (args.includes('--mega-fetch') || args.length === 0) {\n        await testMegaFetch();\n    }\n    \n    if (args.includes('--ranking') || args.length === 0) {\n        // Load papers from previous fetch if available\n        let papers = [];\n        try {\n            const fetchResults = JSON.parse(require('fs').readFileSync('test-output-mega-fetch.json', 'utf8'));\n            // For testing, create mock paper objects\n            papers = Array.from({length: fetchResults.totalPapers}, (_, i) => ({\n                arxivId: `2024.${String(i).padStart(5, '0')}`,\n                title: `Test Paper ${i}: Quantum Consciousness Emergence`,\n                category: 'cs.AI',\n                authors: ['Test Author'],\n                abstract: 'This paper explores the emergence of consciousness in quantum systems...',\n                publishedDate: new Date().toISOString()\n            }));\n        } catch (e) {\n            console.log('No previous fetch results found. Running mega fetch first...');\n            papers = await testMegaFetch();\n        }\n        \n        await testStackRanking(papers);\n    }\n    \n    if (args.includes('--full-pipeline')) {\n        await testFullPipeline();\n    }\n    \n    console.log('\\n📁 Check the following files for results:');\n    console.log('  - test-output-mega-fetch.json');\n    console.log('  - test-output-stack-ranking.json');\n    console.log('  - test-output-full-pipeline.json');\n}\n\nif (require.main === module) {\n    main().catch(console.error);\n}
+}
+
+async function testFullPipeline() {
+    console.log('Testing full pipeline...');
+
+    try {
+        const papers = await testMegaFetch();
+        if (papers.length === 0) return;
+
+        const rankedPapers = await testStackRanking(papers);
+        if (rankedPapers.length === 0) return;
+
+        // Test selection from ranked pool
+        const mockRuntime = {
+            cacheManager: {
+                get: async (key) => {
+                    if (key.includes('rankedPaperPool')) return rankedPapers;
+                    if (key.includes('arxivPaperHistory')) return [];
+                    if (key.includes('poolMetadata')) return {
+                        fetchedAt: Date.now(),
+                        totalPapers: papers.length,
+                        rankedCount: rankedPapers.length,
+                        topScore: rankedPapers[0]?.qualityScore || 0
+                    };
+                    return null;
+                }
+            }
+        };
+
+        const mockClient = {
+            profile: { username: 'test-user' }
+        };
+
+        const divination = new TwitterDivinationClient(mockRuntime, mockClient);
+        const candidates = await divination.selectFromRankedPool(rankedPapers);
+
+        const pipelineResults = {
+            timestamp: new Date().toISOString(),
+            totalFetched: papers.length,
+            totalRanked: rankedPapers.length,
+            candidatesSelected: candidates.length,
+            topCandidate: candidates[0] ? {
+                arxivId: candidates[0].arxivId,
+                title: candidates[0].title,
+                qualityScore: candidates[0].qualityScore,
+                themes: candidates[0].themes,
+                reasoning: candidates[0].reasoning
+            } : null,
+            allCandidates: candidates.map(c => ({
+                arxivId: c.arxivId,
+                title: c.title,
+                qualityScore: c.qualityScore,
+                ranking: c.ranking
+            }))
+        };
+
+        writeFileSync('test-output-full-pipeline.json', JSON.stringify(pipelineResults, null, 2));
+        console.log('✓ Full pipeline test complete. Results saved to test-output-full-pipeline.json');
+
+    } catch (error) {
+        console.error('❌ Full pipeline test failed:', error);
+    }
+}
+
+async function main() {
+    const args = process.argv.slice(2);
+
+    if (args.includes('--mega-fetch') || args.length === 0) {
+        await testMegaFetch();
+    }
+
+    if (args.includes('--ranking') || args.length === 0) {
+        // Load papers from previous fetch if available
+        let papers = [];
+        try {
+            const fetchResults = JSON.parse(require('fs').readFileSync('test-output-mega-fetch.json', 'utf8'));
+            // For testing, create mock paper objects
+            papers = Array.from({length: fetchResults.totalPapers}, (_, i) => ({
+                arxivId: `2024.${String(i).padStart(5, '0')}`,
+                title: `Test Paper ${i}: Quantum Consciousness Emergence`,
+                category: 'cs.AI',
+                authors: ['Test Author'],
+                abstract: 'This paper explores the emergence of consciousness in quantum systems...',
+                publishedDate: new Date().toISOString()
+            }));
+        } catch (e) {
+            console.log('No previous fetch results found. Running mega fetch first...');
+            papers = await testMegaFetch();
+        }
+
+        await testStackRanking(papers);
+    }
+
+    if (args.includes('--full-pipeline')) {
+        await testFullPipeline();
+    }
+
+    console.log('\n📁 Check the following files for results:');
+    console.log('  - test-output-mega-fetch.json');
+    console.log('  - test-output-stack-ranking.json');
+    console.log('  - test-output-full-pipeline.json');
+}
+
+if (require.main === module) {
+    main().catch(console.error);
+}

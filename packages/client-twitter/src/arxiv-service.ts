@@ -733,7 +733,7 @@ Return ONLY the JSON object, nothing else.`;
 
         // Check quality threshold
         const topPaper = availablePapers[0];
-        const poolMetadata = await this.runtime.cacheManager.get<any>(
+        const _poolMetadata = await this.runtime.cacheManager.get<any>(
             this.getCacheKey('poolMetadata')
         );
 

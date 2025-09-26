@@ -1,5 +1,5 @@
 import { IAgentRuntime, ModelClass, generateText, parseJSONObjectFromText, elizaLogger } from "@elizaos/core";
-import { ContentItem, ContentTypeConfig } from "./content-types";
+import { ContentItem } from "./content-types";
 
 export interface SelectionCriteria {
     contentType: string; // Support any content type (news, research, podcast, etc.)

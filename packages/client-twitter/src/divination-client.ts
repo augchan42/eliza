@@ -873,20 +873,113 @@ export class TwitterDivinationClient {
                 return "No recent posts found.";
             }
 
-            // Get first 10 words from last 10 posts
-            const recentOpenings = recentTitles
-                .slice(0, 10)
-                .map((title) => {
-                    const words = title.split(" ");
-                    return words.slice(0, 10).join(" ") + "...";
-                })
-                .join(" | ");
+            // Analyze last 10 posts with hard data metrics
+            const posts = recentTitles.slice(0, 10);
+            const metrics = this.calculatePatternMetrics(posts);
+            const constraints = this.generateHardConstraints(metrics, posts.length);
 
-            return `Recent post openings: ${recentOpenings}`;
+            return `PATTERN ANALYSIS (Last ${posts.length} posts):
+${metrics}
+
+HARD CONSTRAINTS:
+${constraints}
+
+USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
         } catch (error) {
             elizaLogger.warn("Error getting recent post patterns:", error);
             return "Unable to retrieve recent posts.";
         }
+    }
+
+    private calculatePatternMetrics(posts: string[]): string {
+        // Word frequency analysis
+        const wordCounts = new Map<string, number>();
+        const openingPhrases = new Map<string, number>();
+
+        // Structural pattern counts
+        let questions = 0;
+        let secondPerson = 0;
+        let firstPerson = 0;
+        let exclamations = 0;
+        let presentTense = 0;
+
+        posts.forEach(post => {
+            // Count opening 2-3 word phrases
+            const words = post.toLowerCase().split(' ');
+            if (words.length >= 2) {
+                const opening2 = words.slice(0, 2).join(' ');
+                const opening3 = words.length >= 3 ? words.slice(0, 3).join(' ') : '';
+
+                openingPhrases.set(opening2, (openingPhrases.get(opening2) || 0) + 1);
+                if (opening3) openingPhrases.set(opening3, (openingPhrases.get(opening3) || 0) + 1);
+            }
+
+            // Count high-frequency words
+            words.forEach(word => {
+                if (word.length > 3) {
+                    wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+                }
+            });
+
+            // Structural analysis
+            if (post.includes('?')) questions++;
+            if (/\b(you|your|yourself)\b/i.test(post)) secondPerson++;
+            if (/\b(i|me|my|myself)\b/i.test(post)) firstPerson++;
+            if (post.includes('!')) exclamations++;
+            if (/\b(is|are|does|has|turns out|this|that)\b/i.test(post)) presentTense++;
+        });
+
+        // Get top overused elements
+        const topWords = Array.from(wordCounts.entries())
+            .filter(([_, count]) => count >= 2)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([word, count]) => `${word}:${count}`)
+            .join(', ');
+
+        const topPhrases = Array.from(openingPhrases.entries())
+            .filter(([_, count]) => count >= 2)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([phrase, count]) => `"${phrase}":${count}`)
+            .join(', ');
+
+        return `Overused words: ${topWords || 'none'}\nRepeated openings: ${topPhrases || 'none'}\nStructural: Questions:${questions} SecondPerson:${secondPerson} FirstPerson:${firstPerson} Exclamations:${exclamations} PresentTense:${presentTense}`;
+    }
+
+    private generateHardConstraints(metrics: string, totalPosts: number): string {
+        const constraints = [];
+
+        // Parse metrics to generate specific constraints
+        if (metrics.includes('ever:') && metrics.match(/ever:(\d+)/)?.[1] >= '3') {
+            constraints.push('❌ NO "Ever..." openings');
+        }
+
+        if (metrics.includes('turns:') && metrics.match(/turns:(\d+)/)?.[1] >= '2') {
+            constraints.push('❌ NO "Turns out" reveals');
+        }
+
+        if (metrics.includes('okay:') || metrics.includes('so:')) {
+            constraints.push('❌ NO "Okay/So..." casual starts');
+        }
+
+        if (metrics.includes('Questions:') && parseInt(metrics.match(/Questions:(\d+)/)?.[1] || '0') >= Math.floor(totalPosts * 0.6)) {
+            constraints.push('❌ NO question format (overused)');
+        }
+
+        if (metrics.includes('SecondPerson:') && parseInt(metrics.match(/SecondPerson:(\d+)/)?.[1] || '0') >= Math.floor(totalPosts * 0.7)) {
+            constraints.push('❌ NO second-person address (you/your)');
+        }
+
+        if (metrics.includes('remember:') && metrics.match(/remember:(\d+)/)?.[1] >= '2') {
+            constraints.push('❌ NO "Remember..." nostalgia hooks');
+        }
+
+        // Add required alternatives
+        constraints.push('✅ REQUIRED: Use declarative statement OR observational tone OR narrative approach');
+        constraints.push('✅ REQUIRED: Third-person or conceptual framing, NOT personal experience');
+
+        return constraints.length > 2 ? constraints.join('\n') : 'No specific constraints detected - vary freely';
     }
 
     /**
