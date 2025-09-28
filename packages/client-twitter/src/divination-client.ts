@@ -855,30 +855,35 @@ export class TwitterDivinationClient {
     }
 
     /**
-     * Get first few words of recent posts to show opening patterns
+     * Get first words of recent main tweets to show opening patterns
      */
     private async getRecentPostPatterns(): Promise<string> {
         try {
-            // Get recent divination posts from cache
-            const recentTitlesCacheKey =
-                this.contentManager.getRecentContentCacheKey(
-                    this.client.twitterConfig.TWITTER_USERNAME
-                );
-            const recentTitles =
-                (await this.runtime.cacheManager.get<string[]>(
-                    recentTitlesCacheKey
-                )) || [];
+            // Get our own tweets from timeline cache
+            const cachedTimeline = await this.client.getCachedTimeline();
 
-            if (recentTitles.length === 0) {
-                return "No recent posts found.";
+            if (!cachedTimeline) {
+                return "No recent tweets found.";
             }
 
-            // Analyze last 10 posts with hard data metrics
-            const posts = recentTitles.slice(0, 10);
-            const metrics = this.calculatePatternMetrics(posts);
-            const constraints = this.generateHardConstraints(metrics, posts.length);
+            // Filter for our main research tweets (not replies)
+            const ourMainTweets = cachedTimeline
+                .filter(tweet => tweet.username === this.client.twitterConfig.TWITTER_USERNAME)
+                .filter(tweet => !tweet.inReplyToStatusId) // Exclude replies
+                .slice(0, 10);
 
-            return `PATTERN ANALYSIS (Last ${posts.length} posts):
+            if (ourMainTweets.length === 0) {
+                return "No main tweets found.";
+            }
+
+            elizaLogger.info(`🔍 Found ${ourMainTweets.length} main tweets for analysis`);
+
+            // Analyze first words from actual tweet content
+            const tweetTexts = ourMainTweets.map(t => t.text);
+            const metrics = this.calculatePatternMetrics(tweetTexts);
+            const constraints = this.generateHardConstraints(metrics, ourMainTweets.length);
+
+            return `PATTERN ANALYSIS (Last ${ourMainTweets.length} main tweets):
 ${metrics}
 
 HARD CONSTRAINTS:
