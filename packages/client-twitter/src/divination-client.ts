@@ -874,35 +874,31 @@ export class TwitterDivinationClient {
      */
     private async getRecentPostPatterns(): Promise<string> {
         try {
-            // Get our own tweets from timeline cache, or fetch if not cached
-            let cachedTimeline = await this.client.getCachedTimeline();
-
-            if (!cachedTimeline) {
-                elizaLogger.info(
-                    "⚠️ Timeline cache empty - fetching fresh timeline for pattern analysis"
+            // Always analyze from own posts (skip home timeline entirely)
+            const ownPosts = await this.client.fetchOwnPosts(50);
+            if (!ownPosts || ownPosts.length === 0) {
+                elizaLogger.warn(
+                    "⚠️ No own posts available for pattern analysis"
                 );
-                cachedTimeline = await this.client.fetchHomeTimeline(20);
-                if (cachedTimeline && cachedTimeline.length > 0) {
-                    await this.client.cacheTimeline(cachedTimeline);
-                }
-            }
-
-            if (!cachedTimeline || cachedTimeline.length === 0) {
-                elizaLogger.warn("⚠️ No tweets available for pattern analysis");
                 return "No recent tweets found.";
             }
 
-            // Filter for our main research tweets (not replies)
-            const ourMainTweets = cachedTimeline
-                .filter(
-                    (tweet) =>
-                        tweet.username ===
-                        this.client.twitterConfig.TWITTER_USERNAME
-                )
-                .filter((tweet) => !tweet.inReplyToStatusId) // Exclude replies
+            const totalOwn = ownPosts.length;
+            const ownByMe = ownPosts.filter(
+                (tweet) =>
+                    tweet.username ===
+                    this.client.twitterConfig.TWITTER_USERNAME
+            );
+            const ownByMeCount = ownByMe.length;
+            const ourMainTweets = ownByMe
+                .filter((tweet) => !tweet.inReplyToStatusId)
                 .slice(0, 10);
+            elizaLogger.info(
+                `🧮 Pattern analysis candidates (own posts) - totalOwn: ${totalOwn}, mine: ${ownByMeCount}, mineNonReplies: ${ourMainTweets.length}`
+            );
 
             if (ourMainTweets.length === 0) {
+                elizaLogger.warn("⚠️ No main tweets found in own posts");
                 return "No main tweets found.";
             }
 
