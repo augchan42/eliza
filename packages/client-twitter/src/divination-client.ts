@@ -859,10 +859,19 @@ export class TwitterDivinationClient {
      */
     private async getRecentPostPatterns(): Promise<string> {
         try {
-            // Get our own tweets from timeline cache
-            const cachedTimeline = await this.client.getCachedTimeline();
+            // Get our own tweets from timeline cache, or fetch if not cached
+            let cachedTimeline = await this.client.getCachedTimeline();
 
             if (!cachedTimeline) {
+                elizaLogger.info("⚠️ Timeline cache empty - fetching fresh timeline for pattern analysis");
+                cachedTimeline = await this.client.fetchHomeTimeline(20);
+                if (cachedTimeline && cachedTimeline.length > 0) {
+                    await this.client.cacheTimeline(cachedTimeline);
+                }
+            }
+
+            if (!cachedTimeline || cachedTimeline.length === 0) {
+                elizaLogger.warn("⚠️ No tweets available for pattern analysis");
                 return "No recent tweets found.";
             }
 
