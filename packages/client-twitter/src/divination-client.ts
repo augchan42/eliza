@@ -131,8 +131,7 @@ export class TwitterDivinationClient {
 
     private async performDivination() {
         try {
-            // First, check for and retry any failed DKG operations
-            await this.retryFailedDKGOperations();
+            // Delay DKG retries until after posting so analysis/posting are not blocked
 
             const researchPapers = await this.arxivService.fetchArxivPapers();
             const oracleReading = await this.oracleService.fetch8BitOracle();
@@ -265,14 +264,19 @@ export class TwitterDivinationClient {
             }
 
             // Log the papers available for final selection
-            elizaLogger.info(`🎯 Final paper selection: choosing from ${filteredContent.length} candidates`);
+            elizaLogger.info(
+                `🎯 Final paper selection: choosing from ${filteredContent.length} candidates`
+            );
             const candidatesForSelection = filteredContent.map((item, idx) => ({
                 rank: idx + 1,
-                title: item.title?.substring(0, 50) + '...',
-                authors: item.authors?.substring(0, 25) + '...' || 'N/A',
-                id: item.id || 'N/A'
+                title: item.title?.substring(0, 50) + "...",
+                authors: item.authors?.substring(0, 25) + "..." || "N/A",
+                id: item.id || "N/A",
             }));
-            elizaLogger.debug("🏆 Candidates for final selection:", candidatesForSelection);
+            elizaLogger.debug(
+                "🏆 Candidates for final selection:",
+                candidatesForSelection
+            );
 
             // Now select the best content item from the unique items using research-focused criteria
             const researchCriteria: SelectionCriteria = {
@@ -290,7 +294,9 @@ export class TwitterDivinationClient {
                     "Breakthrough research > Paradigm shifts > Pattern recognition > Practical applications",
             };
 
-            elizaLogger.debug("🔮 Applying I-Ching research selection criteria...");
+            elizaLogger.debug(
+                "🔮 Applying I-Ching research selection criteria..."
+            );
             const selectedItem =
                 await this.contentSelectionService.selectMostRelevant(
                     filteredContent,
@@ -298,13 +304,15 @@ export class TwitterDivinationClient {
                 );
 
             // Log the final selected paper
-            elizaLogger.info(`✨ SELECTED PAPER: "${selectedItem.title?.substring(0, 80)}..." by ${selectedItem.authors?.substring(0, 40)}...`);
+            elizaLogger.info(
+                `✨ SELECTED PAPER: "${selectedItem.title?.substring(0, 80)}..." by ${selectedItem.authors?.substring(0, 40)}...`
+            );
             elizaLogger.debug("📄 Selected paper details:", {
                 title: selectedItem.title,
                 authors: selectedItem.authors,
                 arxivId: selectedItem.id,
                 link: selectedItem.link,
-                category: selectedItem.category || 'N/A'
+                category: selectedItem.category || "N/A",
             });
 
             // Format the data before passing to template
@@ -447,6 +455,13 @@ export class TwitterDivinationClient {
                         );
                         // Don't throw - main tweet was successful
                     }
+                }
+
+                // After posting, optionally retry any failed DKG operations (non-blocking to posting)
+                if (
+                    process?.env?.DKG_RETRY_AFTER_POST?.toLowerCase() === "true"
+                ) {
+                    await this.retryFailedDKGOperations();
                 }
 
                 // Update recent content cache after successful post
@@ -863,7 +878,9 @@ export class TwitterDivinationClient {
             let cachedTimeline = await this.client.getCachedTimeline();
 
             if (!cachedTimeline) {
-                elizaLogger.info("⚠️ Timeline cache empty - fetching fresh timeline for pattern analysis");
+                elizaLogger.info(
+                    "⚠️ Timeline cache empty - fetching fresh timeline for pattern analysis"
+                );
                 cachedTimeline = await this.client.fetchHomeTimeline(20);
                 if (cachedTimeline && cachedTimeline.length > 0) {
                     await this.client.cacheTimeline(cachedTimeline);
@@ -877,20 +894,29 @@ export class TwitterDivinationClient {
 
             // Filter for our main research tweets (not replies)
             const ourMainTweets = cachedTimeline
-                .filter(tweet => tweet.username === this.client.twitterConfig.TWITTER_USERNAME)
-                .filter(tweet => !tweet.inReplyToStatusId) // Exclude replies
+                .filter(
+                    (tweet) =>
+                        tweet.username ===
+                        this.client.twitterConfig.TWITTER_USERNAME
+                )
+                .filter((tweet) => !tweet.inReplyToStatusId) // Exclude replies
                 .slice(0, 10);
 
             if (ourMainTweets.length === 0) {
                 return "No main tweets found.";
             }
 
-            elizaLogger.info(`🔍 Found ${ourMainTweets.length} main tweets for analysis`);
+            elizaLogger.info(
+                `🔍 Found ${ourMainTweets.length} main tweets for analysis`
+            );
 
             // Analyze first words from actual tweet content
-            const tweetTexts = ourMainTweets.map(t => t.text);
+            const tweetTexts = ourMainTweets.map((t) => t.text);
             const metrics = this.calculatePatternMetrics(tweetTexts);
-            const constraints = this.generateHardConstraints(metrics, ourMainTweets.length);
+            const constraints = this.generateHardConstraints(
+                metrics,
+                ourMainTweets.length
+            );
 
             return `PATTERN ANALYSIS (Last ${ourMainTweets.length} main tweets):
 ${metrics}
@@ -911,9 +937,12 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
         elizaLogger.info(`🔍 ANALYZING FIRST WORDS from ${posts.length} posts`);
 
         posts.forEach((post, index) => {
-            const firstWord = post.toLowerCase().split(' ')[0];
+            const firstWord = post.toLowerCase().split(" ")[0];
             if (firstWord) {
-                firstWordCounts.set(firstWord, (firstWordCounts.get(firstWord) || 0) + 1);
+                firstWordCounts.set(
+                    firstWord,
+                    (firstWordCounts.get(firstWord) || 0) + 1
+                );
                 elizaLogger.info(`📝 Post ${index + 1}: "${firstWord}"`);
             }
         });
@@ -923,26 +952,31 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
             .map(([word, count]) => `${word}:${count}`)
-            .join(', ');
+            .join(", ");
 
         elizaLogger.info(`📊 TOP 10 FIRST WORDS: ${top10Words}`);
 
         return `Top 10 first words: ${top10Words}`;
     }
 
-    private generateHardConstraints(metrics: string, totalPosts: number): string {
+    private generateHardConstraints(
+        metrics: string,
+        _totalPosts: number
+    ): string {
         const constraints = [];
 
         // Just pass through the raw data
         const countsMatch = metrics.match(/Top 10 first words: (.+)/);
         if (countsMatch && countsMatch[1]) {
             constraints.push(`📊 FIRST WORD USAGE DATA: ${countsMatch[1]}`);
-            constraints.push('🎯 INSTRUCTION: Use a different first word to create variety');
+            constraints.push(
+                "🎯 INSTRUCTION: Use a different first word to create variety"
+            );
         }
 
         elizaLogger.info(`📋 PROVIDING RAW DATA: ${constraints.length} items`);
 
-        return constraints.join('\n');
+        return constraints.join("\n");
     }
 
     /**
@@ -964,16 +998,20 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
             // Import DKG operation handler with error handling
             let DKGOperationHandler;
             try {
-                const dkgModule = await import("@elizaos/plugin-dkg-divination");
+                const dkgModule = await import(
+                    "@elizaos/plugin-dkg-divination"
+                );
                 DKGOperationHandler = dkgModule.DKGOperationHandler;
                 if (!DKGOperationHandler) {
-                    elizaLogger.warn("DKGOperationHandler not found in plugin exports");
+                    elizaLogger.warn(
+                        "DKGOperationHandler not found in plugin exports"
+                    );
                     return;
                 }
             } catch (importError) {
                 elizaLogger.warn("Failed to import DKG plugin:", {
                     error_message: importError?.message,
-                    error_name: importError?.name
+                    error_name: importError?.name,
                 });
                 return;
             }
@@ -998,23 +1036,33 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
             const skippedFailures = [];
 
             for (const { key, record } of failedOperations) {
-                const ageInDays = (now - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+                const ageInDays =
+                    (now - new Date(record.timestamp).getTime()) /
+                    (1000 * 60 * 60 * 24);
                 const retryCount = record.retryCount || 0;
 
                 if (ageInDays > MAX_AGE_DAYS || retryCount > MAX_RETRY_COUNT) {
                     skippedFailures.push(key);
-                    elizaLogger.info(`⏭️ Skipping expired DKG failure (kept in DB): ${key}`, {
-                        ageInDays: Math.round(ageInDays),
-                        retryCount: retryCount,
-                        reason: ageInDays > MAX_AGE_DAYS ? 'too_old' : 'max_retries_exceeded'
-                    });
+                    elizaLogger.info(
+                        `⏭️ Skipping expired DKG failure (kept in DB): ${key}`,
+                        {
+                            ageInDays: Math.round(ageInDays),
+                            retryCount: retryCount,
+                            reason:
+                                ageInDays > MAX_AGE_DAYS
+                                    ? "too_old"
+                                    : "max_retries_exceeded",
+                        }
+                    );
                 } else {
                     activeFailures.push({ key, record });
                 }
             }
 
             if (activeFailures.length === 0) {
-                elizaLogger.debug(`No active DKG operations to retry (${skippedFailures.length} expired)`);
+                elizaLogger.debug(
+                    `No active DKG operations to retry (${skippedFailures.length} expired)`
+                );
                 return;
             }
 
@@ -1094,13 +1142,16 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
                 }
             }
         } catch (error) {
-            elizaLogger.error("Error checking/retrying failed DKG operations:", {
-                error_message: error?.message || 'No message',
-                error_name: error?.name,
-                error_stack: error?.stack,
-                error_string: String(error),
-                error_type: typeof error
-            });
+            elizaLogger.error(
+                "Error checking/retrying failed DKG operations:",
+                {
+                    error_message: error?.message || "No message",
+                    error_name: error?.name,
+                    error_stack: error?.stack,
+                    error_string: String(error),
+                    error_type: typeof error,
+                }
+            );
         }
     }
 }
