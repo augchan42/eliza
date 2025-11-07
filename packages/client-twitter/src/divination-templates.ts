@@ -139,14 +139,13 @@ Conduct full oracle analysis:
 - Formulate specific, testable predictions
 
 # Output Format (Twitter-optimized)
-Output ONLY these three concise elements:
+Output ONLY these three concise elements with proper Twitter formatting (line breaks, no markdown):
 
-**Hexagram transformation:**
-{{oracleReading.interpretation.currentHexagram.unicode}} {{oracleReading.interpretation.currentHexagram.meaning}} / {{oracleReading.interpretation.currentHexagram.name.pinyin}} ({{oracleReading.interpretation.currentHexagram.upperTrigram.description}}/{{oracleReading.interpretation.currentHexagram.lowerTrigram.description}}){{#if oracleReading.interpretation.transformedHexagram}} → {{oracleReading.interpretation.transformedHexagram.unicode}} {{oracleReading.interpretation.transformedHexagram.meaning}} / {{oracleReading.interpretation.transformedHexagram.name.pinyin}}{{/if}}
+🔮 {{oracleReading.interpretation.currentHexagram.unicode}} {{oracleReading.interpretation.currentHexagram.meaning}} / {{oracleReading.interpretation.currentHexagram.name.pinyin}} ({{oracleReading.interpretation.currentHexagram.upperTrigram.description}}/{{oracleReading.interpretation.currentHexagram.lowerTrigram.description}}){{#if oracleReading.interpretation.transformedHexagram}} → {{oracleReading.interpretation.transformedHexagram.unicode}} {{oracleReading.interpretation.transformedHexagram.meaning}} / {{oracleReading.interpretation.transformedHexagram.name.pinyin}}{{/if}}
 
-**Verdict:** [1-2 sentences: breakthrough/incremental/false progress with reasoning]
+⚖️ VERDICT: [1-2 sentences: breakthrough/incremental/false progress with reasoning]
 
-**Oracle prediction:** [Specific, testable claim that can be validated in 2-5 years]
+🔭 PREDICTION: [Specific, testable claim that can be validated in 2-5 years]
 
 # Requirements
 - Keep total output under 500 characters for Twitter threading
