@@ -17,6 +17,8 @@ import {
 } from "agent-twitter-client";
 import { EventEmitter } from "events";
 import { TwitterConfig } from "./environment.ts";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -169,11 +171,18 @@ export class ClientBase extends EventEmitter {
             throw new Error("Twitter username not configured");
         }
 
-        const cachedCookies = await this.getCachedCookies(username);
-
-        if (cachedCookies) {
-            elizaLogger.info("Using cached cookies");
-            await this.setCookiesFromArray(cachedCookies);
+        // Try loading cookies from file first (highest priority)
+        const fileCookies = await this.loadCookiesFromFile();
+        if (fileCookies) {
+            elizaLogger.info("Using cookies from file");
+            await this.twitterClient.setCookies(fileCookies);
+        } else {
+            // Fall back to cached cookies
+            const cachedCookies = await this.getCachedCookies(username);
+            if (cachedCookies) {
+                elizaLogger.info("Using cached cookies");
+                await this.setCookiesFromArray(cachedCookies);
+            }
         }
 
         elizaLogger.log("Waiting for Twitter login");
@@ -887,6 +896,84 @@ export class ClientBase extends EventEmitter {
             `twitter/${username}/cookies`,
             cookies
         );
+    }
+
+    /**
+     * Load cookies from Netscape cookie file format
+     * File location: data/{agentName}/x.com_cookies.txt
+     * (relative to agent working directory)
+     */
+    async loadCookiesFromFile(): Promise<string[] | null> {
+        try {
+            // Preserve case sensitivity - directory should match character.name exactly
+            const agentName = this.runtime.character.name;
+            // When run via pnpm --filter, cwd is already agent/, so use relative path
+            const cookieFilePath = join(
+                process.cwd(),
+                "data",
+                agentName,
+                "x.com_cookies.txt"
+            );
+
+            elizaLogger.debug(`Attempting to load cookies from: ${cookieFilePath}`);
+            const fileContent = await readFile(cookieFilePath, "utf-8");
+            const lines = fileContent.split("\n");
+
+            const cookieStrings: string[] = [];
+
+            for (const line of lines) {
+                // Skip comments and empty lines
+                const trimmedLine = line.trim();
+                if (
+                    !trimmedLine ||
+                    trimmedLine.startsWith("#") ||
+                    trimmedLine.startsWith("//")
+                ) {
+                    continue;
+                }
+
+                // Parse Netscape cookie format: domain	flag	path	secure	expiration	name	value
+                const parts = trimmedLine.split("\t");
+                if (parts.length < 7) {
+                    continue;
+                }
+
+                const [
+                    domain,
+                    _flag,
+                    path,
+                    secure,
+                    _expiration,
+                    name,
+                    value,
+                ] = parts;
+
+                // Build cookie string
+                const cookieParts = [`${name}=${value}`];
+                if (domain) cookieParts.push(`Domain=${domain}`);
+                if (path) cookieParts.push(`Path=${path}`);
+                if (secure === "TRUE") cookieParts.push("Secure");
+                cookieParts.push("HttpOnly");
+                cookieParts.push("SameSite=Lax");
+
+                cookieStrings.push(cookieParts.join("; "));
+            }
+
+            if (cookieStrings.length > 0) {
+                elizaLogger.info(
+                    `Loaded ${cookieStrings.length} cookies from file: ${cookieFilePath}`
+                );
+                return cookieStrings;
+            }
+
+            return null;
+        } catch (error) {
+            // File doesn't exist or can't be read - this is okay, we'll fall back to other methods
+            elizaLogger.debug(
+                `Could not load cookies from file: ${error.message}`
+            );
+            return null;
+        }
     }
 
     async fetchProfile(username: string): Promise<TwitterProfile> {
