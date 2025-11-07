@@ -171,12 +171,18 @@ export class ClientBase extends EventEmitter {
             throw new Error("Twitter username not configured");
         }
 
-        // Try loading cookies from file first (highest priority)
-        const fileCookies = await this.loadCookiesFromFile();
-        if (fileCookies) {
-            elizaLogger.info("Using cookies from file");
-            await this.twitterClient.setCookies(fileCookies);
-        } else {
+        // Cookie-file loading temporarily disabled while we stabilize export format
+        const shouldLoadCookiesFromFile = false;
+
+        if (shouldLoadCookiesFromFile) {
+            const fileCookies = await this.loadCookiesFromFile();
+            if (fileCookies) {
+                elizaLogger.info("Using cookies from file");
+                await this.twitterClient.setCookies(fileCookies);
+            }
+        }
+
+        if (!(await this.twitterClient.isLoggedIn())) {
             // Fall back to cached cookies
             const cachedCookies = await this.getCachedCookies(username);
             if (cachedCookies) {
