@@ -58,3 +58,4 @@ agent.log
 
 .cursor
 .claude
+*.log

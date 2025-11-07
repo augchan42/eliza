@@ -938,7 +938,7 @@ export class ClientBase extends EventEmitter {
                     continue;
                 }
 
-                const [
+                let [
                     domain,
                     _flag,
                     path,
@@ -947,6 +947,11 @@ export class ClientBase extends EventEmitter {
                     name,
                     value,
                 ] = parts;
+
+                if (domain?.toLowerCase().includes("x.com")) {
+                    // agent-twitter-client still targets twitter.com, so rewrite x.com cookies
+                    domain = domain.replace(/x\.com/gi, "twitter.com");
+                }
 
                 // Build cookie string
                 const cookieParts = [`${name}=${value}`];
