@@ -13,43 +13,18 @@ const twitterUsernameSchema = z
 
 export const twitterEnvSchema = z.object({
     TWITTER_DRY_RUN: z.boolean(),
-    TWITTER_USERNAME: z.string().min(1, "Twitter username is required"),
-    TWITTER_PASSWORD: z.string().min(1, "Twitter password is required"),
-    TWITTER_EMAIL: z.string().email("Valid Twitter email is required"),
+    // OAuth 1.0a credentials
+    TWITTER_API_KEY: z.string().min(1, "Twitter API key is required"),
+    TWITTER_API_SECRET_KEY: z.string().min(1, "Twitter API secret key is required"),
+    TWITTER_ACCESS_TOKEN: z.string().min(1, "Twitter access token is required"),
+    TWITTER_ACCESS_TOKEN_SECRET: z.string().min(1, "Twitter access token secret is required"),
+    // Username is fetched from API after auth, but can be pre-configured for cache keys
+    TWITTER_USERNAME: z.string().optional(),
     MAX_TWEET_LENGTH: z.number().int().default(DEFAULT_MAX_TWEET_LENGTH),
     TWITTER_SEARCH_ENABLE: z.boolean().default(false),
-    TWITTER_2FA_SECRET: z.string(),
     TWITTER_RETRY_LIMIT: z.number().int(),
     TWITTER_POLL_INTERVAL: z.number().int(),
     TWITTER_TARGET_USERS: z.array(twitterUsernameSchema).default([]),
-    // I guess it's possible to do the transformation with zod
-    // not sure it's preferable, maybe a readability issue
-    // since more people will know js/ts than zod
-    /*
-        z
-        .string()
-        .transform((val) => val.trim())
-        .pipe(
-            z.string()
-                .transform((val) =>
-                    val ? val.split(',').map((u) => u.trim()).filter(Boolean) : []
-                )
-                .pipe(
-                    z.array(
-                        z.string()
-                            .min(1)
-                            .max(15)
-                            .regex(
-                                /^[A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]$|^[A-Za-z]$/,
-                                'Invalid Twitter username format'
-                            )
-                    )
-                )
-                .transform((users) => users.join(','))
-        )
-        .optional()
-        .default(''),
-    */
     POST_INTERVAL_MIN: z.number().int(),
     POST_INTERVAL_MAX: z.number().int(),
     DIVINATION_INTERVAL_MIN: z.number().int(),
@@ -104,15 +79,24 @@ export async function validateTwitterConfig(
                     runtime.getSetting("TWITTER_DRY_RUN") ||
                         process.env.TWITTER_DRY_RUN
                 ) ?? false, // parseBooleanFromText return null if "", map "" to false
+            // OAuth 1.0a credentials
+            TWITTER_API_KEY:
+                runtime.getSetting("TWITTER_API_KEY") ||
+                process.env.TWITTER_API_KEY,
+            TWITTER_API_SECRET_KEY:
+                runtime.getSetting("TWITTER_API_SECRET_KEY") ||
+                process.env.TWITTER_API_SECRET_KEY,
+            TWITTER_ACCESS_TOKEN:
+                runtime.getSetting("TWITTER_ACCESS_TOKEN") ||
+                process.env.TWITTER_ACCESS_TOKEN,
+            TWITTER_ACCESS_TOKEN_SECRET:
+                runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") ||
+                process.env.TWITTER_ACCESS_TOKEN_SECRET,
+            // Username (optional, fetched from API if not provided)
             TWITTER_USERNAME:
                 runtime.getSetting("TWITTER_USERNAME") ||
-                process.env.TWITTER_USERNAME,
-            TWITTER_PASSWORD:
-                runtime.getSetting("TWITTER_PASSWORD") ||
-                process.env.TWITTER_PASSWORD,
-            TWITTER_EMAIL:
-                runtime.getSetting("TWITTER_EMAIL") ||
-                process.env.TWITTER_EMAIL,
+                process.env.TWITTER_USERNAME ||
+                undefined,
             // number as string?
             MAX_TWEET_LENGTH: safeParseInt(
                 runtime.getSetting("MAX_TWEET_LENGTH") ||
@@ -125,11 +109,6 @@ export async function validateTwitterConfig(
                     runtime.getSetting("TWITTER_SEARCH_ENABLE") ||
                         process.env.TWITTER_SEARCH_ENABLE
                 ) ?? false,
-            // string passthru
-            TWITTER_2FA_SECRET:
-                runtime.getSetting("TWITTER_2FA_SECRET") ||
-                process.env.TWITTER_2FA_SECRET ||
-                "",
             // int
             TWITTER_RETRY_LIMIT: safeParseInt(
                 runtime.getSetting("TWITTER_RETRY_LIMIT") ||

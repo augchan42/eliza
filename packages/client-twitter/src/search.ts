@@ -1,4 +1,4 @@
-import { SearchMode } from "agent-twitter-client";
+import { SearchMode } from "./client/index.ts";
 import {composeContext, elizaLogger} from "@elizaos/core";
 import { generateMessageResponse, generateText } from "@elizaos/core";
 import { messageCompletionFooter } from "@elizaos/core";
@@ -45,13 +45,11 @@ Your response should not contain any questions. Brief, concise statements only. 
 export class TwitterSearchClient {
     client: ClientBase;
     runtime: IAgentRuntime;
-    twitterUsername: string;
     private respondedTweets: Set<string> = new Set();
 
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
-        this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
     }
 
     async start() {
@@ -118,7 +116,7 @@ export class TwitterSearchClient {
           // ignore tweets where any of the thread tweets contain a tweet by the bot
           const thread = tweet.thread;
           const botTweet = thread.find(
-              (t) => t.username === this.twitterUsername
+              (t) => t.username === this.client.username
           );
           return !botTweet;
       })
@@ -159,7 +157,7 @@ export class TwitterSearchClient {
 
             console.log("Selected tweet to reply to:", selectedTweet?.text);
 
-            if (selectedTweet.username === this.twitterUsername) {
+            if (selectedTweet.username === this.client.username) {
                 console.log("Skipping tweet from bot itself");
                 return;
             }
@@ -209,7 +207,7 @@ export class TwitterSearchClient {
             // Fetch replies and retweets
             const replies = selectedTweet.thread;
             const replyContext = replies
-                .filter((reply) => reply.username !== this.twitterUsername)
+                .filter((reply) => reply.username !== this.client.username)
                 .map((reply) => `@${reply.username}: ${reply.text}`)
                 .join("\n");
 
@@ -234,7 +232,7 @@ export class TwitterSearchClient {
 
             let state = await this.runtime.composeState(message, {
                 twitterClient: this.client.twitterClient,
-                twitterUserName: this.twitterUsername,
+                twitterUserName: this.client.username,
                 timeline: formattedHomeTimeline,
                 tweetContext: `${tweetBackground}
 
@@ -279,7 +277,7 @@ export class TwitterSearchClient {
                         this.client,
                         response,
                         message.roomId,
-                        this.twitterUsername,
+                        this.client.username,
                         tweetId
                     );
                     return memories;

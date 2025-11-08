@@ -1,4 +1,4 @@
-import { SearchMode, Tweet } from "agent-twitter-client";
+import { SearchMode, Tweet } from "./client/index.ts";
 import {
     composeContext,
     generateMessageResponse,
@@ -120,7 +120,7 @@ export class TwitterInteractionClient {
     async handleTwitterInteractions() {
         try {
             let uniqueTweetCandidates: Tweet[] = [];
-            const twitterUsername = this.client.profile.username;
+            const twitterUsername = this.client.username;
 
             // Get mentions using search
             elizaLogger.log(`🔍 Searching for mentions of @${twitterUsername}...`);
@@ -148,7 +148,7 @@ export class TwitterInteractionClient {
                     id: tweet.id,
                     username: tweet.username,
                     text: tweet.text.substring(0, 100) + (tweet.text.length > 100 ? '...' : ''),
-                    isOwnTweet: tweet.userId === this.client.profile.id,
+                    isOwnTweet: tweet.userId === this.client.userId,
                     isNewer: !this.client.lastCheckedTweetId || BigInt(tweet.id) > this.client.lastCheckedTweetId,
                     url: tweet.permanentUrl
                 });
@@ -186,7 +186,7 @@ export class TwitterInteractionClient {
             elizaLogger.log(`📋 Before filtering own tweets: ${uniqueTweetCandidates.length} candidates`);
             uniqueTweetCandidates = uniqueTweetCandidates
                 .filter((tweet) => {
-                    const isOwnTweet = tweet.userId === this.client.profile.id;
+                    const isOwnTweet = tweet.userId === this.client.userId;
                     if (isOwnTweet) {
                         elizaLogger.log(`🚫 Filtering out own tweet: ${tweet.id}`);
                     }
@@ -279,7 +279,7 @@ export class TwitterInteractionClient {
                     );
 
                     const userIdUUID =
-                        tweet.userId === this.client.profile.id
+                        tweet.userId === this.client.userId
                             ? this.runtime.agentId
                             : stringToUuid(tweet.userId!);
 
@@ -343,7 +343,7 @@ export class TwitterInteractionClient {
                 tweetUrl: tweet.permanentUrl,
             });
 
-            if (tweet.userId === this.client.profile.id) {
+            if (tweet.userId === this.client.userId) {
                 // console.log("skipping tweet from bot itself", tweet.id);
                 // Skip processing if the tweet is from the bot itself
                 return;
@@ -390,7 +390,7 @@ export class TwitterInteractionClient {
 
             let state = await this.runtime.composeState(message, {
                 twitterClient: this.client.twitterClient,
-                twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
+                twitterUserName: this.client.username,
                 currentPost,
                 formattedConversation,
             });
@@ -570,7 +570,7 @@ export class TwitterInteractionClient {
                                 this.client,
                                 response,
                                 message.roomId,
-                                this.client.twitterConfig.TWITTER_USERNAME,
+                                this.client.username,
                                 tweet.id
                             );
                             return memories;
@@ -631,7 +631,7 @@ export class TwitterInteractionClient {
                                 interpretation: response.text,              // The reply text
                                 userQuery: state.userQuery,                // Original mention
                                 userId: this.runtime.agentId,
-                                userIdentifier: this.client.twitterConfig.TWITTER_USERNAME,
+                                userIdentifier: this.client.username,
                                 replyToUser: tweet.username,               // Who we're replying to
                                 originalTweetId: tweet.id,                 // Reference to original tweet
                                 tweetId: tweetId,                          // Set tweetId for proper DKG failure deduplication
@@ -796,7 +796,7 @@ export class TwitterInteractionClient {
                     createdAt: currentTweet.timestamp * 1000,
                     roomId,
                     userId:
-                        currentTweet.userId === this.twitterUserId
+                        currentTweet.userId === this.client.userId
                             ? this.runtime.agentId
                             : stringToUuid(currentTweet.userId),
                     embedding: getEmbeddingZeroVector(),

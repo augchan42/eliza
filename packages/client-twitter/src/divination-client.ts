@@ -31,7 +31,6 @@ import {
 export class TwitterDivinationClient {
     client: ClientBase;
     runtime: IAgentRuntime;
-    private twitterUsername: string;
     private isDryRun: boolean;
     private arxivService: ArxivService;
     public newsService: NewsService;
@@ -42,9 +41,7 @@ export class TwitterDivinationClient {
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
-        // Use config username since profile isn't initialized yet
-        const username = client.twitterConfig.TWITTER_USERNAME;
-        this.arxivService = new ArxivService(runtime, username);
+        // Don't initialize ArxivService yet - username not available until after OAuth
         this.newsService = new NewsService(runtime);
         this.oracleService = new OracleService();
         this.contentSelectionService = new ContentSelectionService(runtime);
@@ -61,6 +58,8 @@ export class TwitterDivinationClient {
 
     async start() {
         elizaLogger.log("🔮 Starting Twitter divination client...");
+        // Initialize ArxivService now that username is available from OAuth
+        this.arxivService = new ArxivService(this.runtime, this.client.username);
         this.divinationLoop();
     }
 
@@ -83,7 +82,7 @@ export class TwitterDivinationClient {
                 timestamp: number;
             }>(
                 "twitter/" +
-                    this.client.twitterConfig.TWITTER_USERNAME +
+                    this.client.username +
                     "/lastDivination"
             );
 
@@ -160,7 +159,7 @@ export class TwitterDivinationClient {
             // Load recent content titles cache
             const recentTitlesCacheKey =
                 this.contentManager.getRecentContentCacheKey(
-                    this.client.twitterConfig.TWITTER_USERNAME
+                    this.client.username
                 );
             const recentTitles =
                 (await this.runtime.cacheManager.get<string[]>(
@@ -169,7 +168,7 @@ export class TwitterDivinationClient {
 
             // Load permanent history (if applicable for this content type)
             const historyCacheKey = this.contentManager.getHistoryCacheKey(
-                this.client.twitterConfig.TWITTER_USERNAME
+                this.client.username
             );
             const historyArray = historyCacheKey
                 ? (await this.runtime.cacheManager.get<string[]>(
@@ -321,11 +320,10 @@ export class TwitterDivinationClient {
 
             const roomId = stringToUuid(
                 "twitter_generate_room-" +
-                    this.client.twitterConfig.TWITTER_USERNAME
+                    this.client.username
             );
             const topics = this.runtime.character.topics.join(", ");
 
-            this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
             this.isDryRun = this.client.twitterConfig.TWITTER_DRY_RUN;
 
             // Get recent post patterns for template variation
@@ -345,7 +343,7 @@ export class TwitterDivinationClient {
                     researchPaper: formattedResearch,
                     oracleReading: formattedOracle,
                     maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
-                    twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
+                    twitterUserName: this.client.username,
                     recentPostPatterns: recentPostPatterns,
                 }
             );
@@ -416,7 +414,7 @@ export class TwitterDivinationClient {
                     cleanedResearchTweet,
                     roomId,
                     researchTweet, // Raw response for memory
-                    this.twitterUsername
+                    this.client.username
                 );
 
                 // Post hexagram reading + citation as reply (Tweet 2)
@@ -436,7 +434,7 @@ export class TwitterDivinationClient {
                             hexagramWithCitation,
                             mainTweetId,
                             roomId,
-                            this.twitterUsername
+                            this.client.username
                         );
 
                         if (hexagramReplyId) {
@@ -467,7 +465,7 @@ export class TwitterDivinationClient {
                 // Update recent content cache after successful post
                 const recentTitlesCacheKey =
                     this.contentManager.getRecentContentCacheKey(
-                        this.client.twitterConfig.TWITTER_USERNAME
+                        this.client.username
                     );
                 const recentTitles =
                     (await this.runtime.cacheManager.get<string[]>(
@@ -487,7 +485,7 @@ export class TwitterDivinationClient {
 
                 // Permanently store content ID if it exists and history is configured
                 const historyCacheKey = this.contentManager.getHistoryCacheKey(
-                    this.client.twitterConfig.TWITTER_USERNAME
+                    this.client.username
                 );
                 if (selectedItem.id && historyCacheKey) {
                     const historyArray =
@@ -517,7 +515,7 @@ export class TwitterDivinationClient {
                 // Also update the divination timestamp cache for interval management
                 await this.runtime.cacheManager.set(
                     "twitter/" +
-                        this.client.twitterConfig.TWITTER_USERNAME +
+                        this.client.username +
                         "/lastDivination",
                     {
                         timestamp: Date.now(),
@@ -555,7 +553,7 @@ export class TwitterDivinationClient {
                         hexagramReading: cleanedHexagramReading, // Hexagram reply content
                         userId: this.runtime.agentId,
                         userIdentifier:
-                            this.client.twitterConfig.TWITTER_USERNAME,
+                            this.client.username,
                         tweetId: mainTweetId, // Main tweet ID for threading
                         replyTweetId: hexagramReplyId || null, // Reply tweet ID (null if reply failed)
                         roomId: roomId, // Room ID for reply posting
@@ -579,7 +577,7 @@ export class TwitterDivinationClient {
                                     response.metadata.replyContent,
                                     response.metadata.originalTweetId,
                                     response.metadata.roomId,
-                                    this.twitterUsername
+                                    this.client.username
                                 )
                                     .then((replyTweetId) => {
                                         if (replyTweetId) {
@@ -887,7 +885,7 @@ export class TwitterDivinationClient {
             const ownByMe = ownPosts.filter(
                 (tweet) =>
                     tweet.username ===
-                    this.client.twitterConfig.TWITTER_USERNAME
+                    this.client.username
             );
             const ownByMeCount = ownByMe.length;
             const ourMainTweets = ownByMe
@@ -1092,7 +1090,7 @@ USE A COMPLETELY DIFFERENT APPROACH FROM THE OVERUSED PATTERNS ABOVE.`;
                                     response.metadata.replyContent,
                                     response.metadata.originalTweetId,
                                     response.metadata.roomId,
-                                    this.client.twitterConfig.TWITTER_USERNAME
+                                    this.client.username
                                 );
 
                                 if (replyTweetId) {

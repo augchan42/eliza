@@ -1,4 +1,4 @@
-import { Tweet } from "agent-twitter-client";
+import { Tweet } from "./client/index.ts";
 import {
     composeContext,
     generateText,
@@ -97,7 +97,6 @@ function truncateToCompleteSentence(
 export class TwitterPostClient {
     client: ClientBase;
     runtime: IAgentRuntime;
-    twitterUsername: string;
     private isProcessing: boolean = false;
     private lastProcessTime: number = 0;
     private stopProcessingActions: boolean = false;
@@ -106,12 +105,11 @@ export class TwitterPostClient {
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
-        this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
         this.isDryRun = this.client.twitterConfig.TWITTER_DRY_RUN;
 
         // Log configuration on initialization
         elizaLogger.log("Twitter Client Configuration:");
-        elizaLogger.log(`- Username: ${this.twitterUsername}`);
+        elizaLogger.log(`- Username: ${this.client.username || 'not yet initialized'}`);
         elizaLogger.log(
             `- Dry Run Mode: ${this.isDryRun ? "enabled" : "disabled"}`
         );
@@ -151,7 +149,7 @@ export class TwitterPostClient {
         const generateNewTweetLoop = async () => {
             const lastPost = await this.runtime.cacheManager.get<{
                 timestamp: number;
-            }>("twitter/" + this.twitterUsername + "/lastPost");
+            }>("twitter/" + this.client.username + "/lastPost");
 
             const lastPostTimestamp = lastPost?.timestamp ?? 0;
             const minMinutes = this.client.twitterConfig.POST_INTERVAL_MIN;
@@ -235,31 +233,6 @@ export class TwitterPostClient {
         }
     }
 
-    createTweetObject(
-        tweetResult: any,
-        client: any,
-        twitterUsername: string
-    ): Tweet {
-        return {
-            id: tweetResult.rest_id,
-            name: client.profile.screenName,
-            username: client.profile.username,
-            text: tweetResult.legacy.full_text,
-            conversationId: tweetResult.legacy.conversation_id_str,
-            createdAt: tweetResult.legacy.created_at,
-            timestamp: new Date(tweetResult.legacy.created_at).getTime(),
-            userId: client.profile.id,
-            inReplyToStatusId: tweetResult.legacy.in_reply_to_status_id_str,
-            permanentUrl: `https://twitter.com/${twitterUsername}/status/${tweetResult.rest_id}`,
-            hashtags: [],
-            mentions: [],
-            photos: [],
-            thread: [],
-            urls: [],
-            videos: [],
-        } as Tweet;
-    }
-
     async processAndCacheTweet(
         runtime: IAgentRuntime,
         client: ClientBase,
@@ -298,7 +271,7 @@ export class TwitterPostClient {
             },
             roomId,
             embedding: getEmbeddingZeroVector(),
-            createdAt: tweet.timestamp,
+            createdAt: tweet.timestamp * 1000, // Convert seconds to milliseconds
         });
     }
 
@@ -307,30 +280,33 @@ export class TwitterPostClient {
         runtime: IAgentRuntime,
         content: string,
         tweetId?: string
-    ) {
+    ): Promise<Tweet> {
         try {
-            const noteTweetResult = await client.requestQueue.add(
+            // sendNoteTweet now returns a Tweet object directly
+            const tweet = await client.requestQueue.add(
                 async () =>
                     await client.twitterClient.sendNoteTweet(content, tweetId)
             );
-
-            if (noteTweetResult.errors && noteTweetResult.errors.length > 0) {
-                // Note Tweet failed due to authorization. Falling back to standard Tweet.
-                const truncateContent = truncateToCompleteSentence(
-                    content,
-                    this.client.twitterConfig.MAX_TWEET_LENGTH
-                );
-                return await this.sendStandardTweet(
-                    client,
-                    truncateContent,
-                    tweetId
-                );
-            } else {
-                return noteTweetResult.data.notetweet_create.tweet_results
-                    .result;
-            }
+            return tweet;
         } catch (error) {
-            throw new Error(`Note Tweet failed: ${error}`);
+            elizaLogger.warn("Note Tweet failed, falling back to standard tweet:", {
+                error_message: error.message,
+                error_stack: error.stack,
+                content_length: content.length,
+                content_preview: content.slice(0, 100),
+                is_reply: !!tweetId,
+                reply_to: tweetId
+            });
+            // Fallback to standard tweet with truncation
+            const truncateContent = truncateToCompleteSentence(
+                content,
+                this.client.twitterConfig.MAX_TWEET_LENGTH
+            );
+            return await this.sendStandardTweet(
+                client,
+                truncateContent,
+                tweetId
+            );
         }
     }
 
@@ -338,20 +314,34 @@ export class TwitterPostClient {
         client: ClientBase,
         content: string,
         tweetId?: string
-    ) {
+    ): Promise<Tweet> {
         try {
-            const standardTweetResult = await client.requestQueue.add(
+            // sendTweet now returns a Tweet object directly
+            const tweet = await client.requestQueue.add(
                 async () =>
                     await client.twitterClient.sendTweet(content, tweetId)
             );
-            const body = await standardTweetResult.json();
-            if (!body?.data?.create_tweet?.tweet_results?.result) {
-                console.error("Error sending tweet; Bad response:", body);
-                return;
+
+            if (!tweet) {
+                elizaLogger.error("Tweet API returned null/undefined", {
+                    content_length: content.length,
+                    content_preview: content.slice(0, 100),
+                    is_reply: !!tweetId,
+                    reply_to: tweetId
+                });
+                throw new Error("Tweet API returned null/undefined");
             }
-            return body.data.create_tweet.tweet_results.result;
+
+            return tweet;
         } catch (error) {
-            elizaLogger.error("Error sending standard Tweet:", error);
+            elizaLogger.error("Error sending standard Tweet:", {
+                error_message: error.message,
+                error_stack: error.stack,
+                content_length: content.length,
+                content_preview: content.slice(0, 100),
+                is_reply: !!tweetId,
+                reply_to: tweetId
+            });
             throw error;
         }
     }
@@ -379,11 +369,8 @@ export class TwitterPostClient {
                 result = await this.sendStandardTweet(client, cleanedContent);
             }
 
-            const tweet = this.createTweetObject(
-                result,
-                client,
-                twitterUsername
-            );
+            // result is already a Tweet object from sendStandardTweet/handleNoteTweet
+            const tweet = result;
 
             await this.processAndCacheTweet(
                 runtime,
@@ -405,11 +392,11 @@ export class TwitterPostClient {
 
         try {
             const roomId = stringToUuid(
-                "twitter_generate_room-" + this.client.profile.username
+                "twitter_generate_room-" + this.client.username
             );
             await this.runtime.ensureUserExists(
                 this.runtime.agentId,
-                this.client.profile.username,
+                this.client.username,
                 this.runtime.character.name,
                 "twitter"
             );
@@ -427,7 +414,7 @@ export class TwitterPostClient {
                     },
                 },
                 {
-                    twitterUserName: this.client.profile.username,
+                    twitterUserName: this.client.username,
                 }
             );
 

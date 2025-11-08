@@ -1,4 +1,4 @@
-import { Tweet } from "agent-twitter-client";
+import { Tweet } from "./client/index.ts";
 import { getEmbeddingZeroVector } from "@elizaos/core";
 import { Content, Memory, UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
@@ -93,7 +93,7 @@ export async function buildConversationThread(
                 createdAt: currentTweet.timestamp * 1000,
                 roomId,
                 userId:
-                    currentTweet.userId === client.profile.id
+                    currentTweet.userId === client.userId
                         ? client.runtime.agentId
                         : stringToUuid(currentTweet.userId),
                 embedding: getEmbeddingZeroVector(),
@@ -212,40 +212,20 @@ export async function sendTweet(
                 })
             );
         }
-        const result = await client.requestQueue.add(async () =>
+        // New API v2 returns Tweet object directly
+        const tweetResult = await client.requestQueue.add(async () =>
             isLongTweet
                 ? client.twitterClient.sendLongTweet(chunk.trim(), previousTweetId, mediaData)
                 : client.twitterClient.sendTweet(chunk.trim(), previousTweetId, mediaData)
         );
 
-        const body = await result.json();
-        const tweetResult = isLongTweet
-            ? body.data.notetweet_create.tweet_results.result
-            : body.data.create_tweet.tweet_results.result;
-
         // if we have a response
         if (tweetResult) {
-            // Parse the response
-            const finalTweet: Tweet = {
-                id: tweetResult.rest_id,
-                text: tweetResult.legacy.full_text,
-                conversationId: tweetResult.legacy.conversation_id_str,
-                timestamp:
-                    new Date(tweetResult.legacy.created_at).getTime() / 1000,
-                userId: tweetResult.legacy.user_id_str,
-                inReplyToStatusId: tweetResult.legacy.in_reply_to_status_id_str,
-                permanentUrl: `https://twitter.com/${twitterUsername}/status/${tweetResult.rest_id}`,
-                hashtags: [],
-                mentions: [],
-                photos: [],
-                thread: [],
-                urls: [],
-                videos: [],
-            };
-            sentTweets.push(finalTweet);
-            previousTweetId = finalTweet.id;
+            // tweetResult is already a Tweet object from API v2
+            sentTweets.push(tweetResult);
+            previousTweetId = tweetResult.id;
         } else {
-            elizaLogger.error("Error sending tweet chunk:", { chunk, response: body });
+            elizaLogger.error("Error sending tweet chunk:", { chunk, tweetResult });
         }
 
         // Wait a bit between tweets to avoid rate limiting issues
