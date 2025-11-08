@@ -6,6 +6,28 @@ Twitter platform client with research-focused divination system that generates c
 ## Narrative Summary
 The Twitter client provides comprehensive platform integration with automated divination capabilities. The divination system has evolved from simple oracle readings to a sophisticated three-tweet architecture: a research-focused main tweet with engagement hooks, a hexagram reading reply providing oracle analysis, and an optional DKG record tweet linking to akashic storage. The client includes deduplication systems, content selection services, and integrates with OriginTrail DKG for permanent record keeping.
 
+## Architecture
+
+### API Integration
+- **Authentication**: OAuth 1.0a via Twitter API v2 (official)
+- **Library**: `twitter-api-v2` (replaces legacy `agent-twitter-client` scraping)
+- **Account Management**: Multi-account support with per-account client caching
+- **Cache Keys**: Account-specific using `ACCESS_TOKEN` to prevent credential bleeding
+
+### Platform-Agnostic Design
+The `ClientBase` class implements platform-agnostic fields for extensibility:
+- `username: string` - Generic user identifier (populated during init from OAuth)
+- `userId: string` - Generic user ID (populated during init from OAuth)
+- `profile: TwitterProfile | null` - Platform-specific profile data
+
+This design allows the client to be adapted for other platforms (Telegram, Discord) without core logic changes.
+
+### Client Lifecycle
+1. **Construction**: `ClientBase` created with OAuth credentials
+2. **Initialization**: `init()` authenticates via OAuth, fetches profile, populates `username`/`userId`
+3. **Service Start**: Sub-clients (post, search, divination, interactions) start after init completes
+4. **Runtime**: All operations use generic `username`/`userId` fields for platform independence
+
 ## Key Files
 - `src/index.ts` - Main client interface and TwitterManager initialization
 - `src/divination-client.ts:20-626` - Core divination logic with three-tweet flow
@@ -54,12 +76,27 @@ The Twitter client provides comprehensive platform integration with automated di
 - Content deduplication services
 
 ## Configuration
-Required environment variables:
-- `TWITTER_USERNAME` - Account identifier
-- `TWITTER_DRY_RUN` - Testing mode flag
+
+### Required Environment Variables
+OAuth 1.0a credentials (from https://developer.twitter.com/en/portal):
+- `TWITTER_API_KEY` - Twitter API Consumer Key
+- `TWITTER_API_SECRET_KEY` - Twitter API Consumer Secret
+- `TWITTER_ACCESS_TOKEN` - Twitter Access Token
+- `TWITTER_ACCESS_TOKEN_SECRET` - Twitter Access Token Secret
+
+### Optional Environment Variables
+- `TWITTER_USERNAME` - Account identifier (auto-fetched if not provided)
+- `TWITTER_DRY_RUN` - Testing mode flag (default: false)
 - `DIVINATION_INTERVAL_MIN/MAX` - Posting frequency control
 - `MAX_TWEET_LENGTH` - Character limit enforcement
 - `TWITTER_SEARCH_ENABLE` - Search functionality toggle
+
+### Getting Twitter API Credentials
+1. Go to https://developer.twitter.com/en/portal/projects-and-apps
+2. Create a new project and app (or use existing)
+3. Enable "Read and Write" permissions
+4. Generate OAuth 1.0a credentials (API Key, API Secret, Access Token, Access Token Secret)
+5. Add credentials to `.env` file
 
 ## Key Patterns
 - **Two-stage generation**: Research hook + Oracle analysis (see divination-client.ts:240-270)
