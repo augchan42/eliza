@@ -192,54 +192,51 @@ export class ClientBase extends EventEmitter {
 
         elizaLogger.log("Waiting for Twitter login");
 
-        // If using file cookies, trust them and skip verification
-        // (avoids api.twitter.com -> api.x.com migration issues)
-        if (usingFileCookies) {
-            elizaLogger.info("Trusting cookies from file, skipping verification");
-        } else {
-            // For cached cookies or fresh login, verify as usual
-            while (retries > 0) {
-                try {
-                    if (await this.twitterClient.isLoggedIn()) {
-                        // cookies are valid, no login required
-                        elizaLogger.info("Successfully logged in.");
-                        break;
-                    } else {
-                        await this.twitterClient.login(
-                            username,
-                            password,
-                            email,
-                            twitter2faSecret
-                        );
-                        if (await this.twitterClient.isLoggedIn()) {
-                            // fresh login, store new cookies
-                            elizaLogger.info("Successfully logged in.");
-                            elizaLogger.info("Caching cookies");
-                            await this.cacheCookies(
-                                username,
-                                await this.twitterClient.getCookies()
-                            );
-                            break;
-                        }
-                    }
-                } catch (error) {
-                    elizaLogger.error(`Login attempt failed: ${error.message}`);
-                }
+        // Always verify login status, even for file cookies
+        elizaLogger.info("Checking if cookies are valid...");
 
-                retries--;
-                elizaLogger.error(
-                    `Failed to login to Twitter. Retrying... (${retries} attempts left)`
-                );
-
-                if (retries === 0) {
-                    elizaLogger.error(
-                        "Max retries reached. Exiting login process."
+        while (retries > 0) {
+            try {
+                if (await this.twitterClient.isLoggedIn()) {
+                    // cookies are valid, no login required
+                    elizaLogger.info("Successfully logged in with existing cookies.");
+                    break;
+                } else {
+                    elizaLogger.warn("Cookies invalid or expired, attempting fresh login...");
+                    await this.twitterClient.login(
+                        username,
+                        password,
+                        email,
+                        twitter2faSecret
                     );
-                    throw new Error("Twitter login failed after maximum retries.");
+                    if (await this.twitterClient.isLoggedIn()) {
+                        // fresh login, store new cookies
+                        elizaLogger.info("Successfully logged in.");
+                        elizaLogger.info("Caching cookies");
+                        await this.cacheCookies(
+                            username,
+                            await this.twitterClient.getCookies()
+                        );
+                        break;
+                    }
                 }
-
-                await new Promise((resolve) => setTimeout(resolve, 2000));
+            } catch (error) {
+                elizaLogger.error(`Login attempt failed: ${error.message}`);
             }
+
+            retries--;
+            elizaLogger.error(
+                `Failed to login to Twitter. Retrying... (${retries} attempts left)`
+            );
+
+            if (retries === 0) {
+                elizaLogger.error(
+                    "Max retries reached. Exiting login process."
+                );
+                throw new Error("Twitter login failed after maximum retries.");
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         // Initialize Twitter profile
         this.profile = await this.fetchProfile(username);
