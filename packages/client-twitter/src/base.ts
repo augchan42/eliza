@@ -32,21 +32,32 @@ type TwitterProfile = {
     nicknames: string[];
 };
 
+type QueuedRequest<T> = {
+    request: () => Promise<T>;
+    resolve: (value: T) => void;
+    reject: (error: any) => void;
+};
+
 class RequestQueue {
-    private queue: (() => Promise<any>)[] = [];
+    private maxRetries: number;
+    private minDelay: number = 2000; // Minimum delay between requests (2s = 30 req/min, safe for 450/15min limit)
+    private queue: QueuedRequest<any>[] = [];
     private processing: boolean = false;
+    private lastRequestTime: number = 0;
+
+    constructor(maxRetries: number = 5) {
+        this.maxRetries = maxRetries;
+    }
 
     async add<T>(request: () => Promise<T>): Promise<T> {
         return new Promise((resolve, reject) => {
-            this.queue.push(async () => {
-                try {
-                    const result = await request();
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-            this.processQueue();
+            // Add request to queue
+            this.queue.push({ request, resolve, reject });
+
+            // Start processing if not already running
+            if (!this.processing) {
+                this.processQueue();
+            }
         });
     }
 
@@ -54,31 +65,117 @@ class RequestQueue {
         if (this.processing || this.queue.length === 0) {
             return;
         }
+
         this.processing = true;
 
         while (this.queue.length > 0) {
-            const request = this.queue.shift()!;
+            const queuedRequest = this.queue.shift()!;
+
             try {
-                await request();
+                // Enforce rate limiting: wait for minimum delay since last request
+                const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+                const waitTime = Math.max(
+                    0,
+                    this.minDelay + Math.random() * 500 - timeSinceLastRequest
+                );
+
+                if (waitTime > 0) {
+                    await this.wait(waitTime);
+                }
+
+                // Execute request with retry logic
+                const result = await this.executeWithRetry(
+                    queuedRequest.request,
+                    0
+                );
+
+                this.lastRequestTime = Date.now();
+                queuedRequest.resolve(result);
             } catch (error) {
-                console.error("Error processing request:", error);
-                this.queue.unshift(request);
-                await this.exponentialBackoff(this.queue.length);
+                queuedRequest.reject(error);
             }
-            await this.randomDelay();
         }
 
         this.processing = false;
     }
 
-    private async exponentialBackoff(retryCount: number): Promise<void> {
-        const delay = Math.pow(2, retryCount) * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+    private async executeWithRetry<T>(
+        request: () => Promise<T>,
+        retryCount: number
+    ): Promise<T> {
+        try {
+            return await request();
+        } catch (error) {
+            // Max retries exceeded
+            if (retryCount >= this.maxRetries) {
+                elizaLogger.error(
+                    `Max retries (${this.maxRetries}) exceeded for Twitter API request`,
+                    { error }
+                );
+                throw error;
+            }
+
+            // Handle rate limit errors (429)
+            if (this.isRateLimitError(error)) {
+                const waitTime = this.calculateRateLimitWait(error, retryCount);
+                elizaLogger.warn(
+                    `Rate limited by Twitter API. Waiting ${Math.round(waitTime / 1000)}s before retry ${retryCount + 1}/${this.maxRetries}`,
+                    {
+                        resetTime: error?.rateLimit?.reset,
+                        remaining: error?.rateLimit?.remaining,
+                    }
+                );
+                await this.wait(waitTime);
+                return this.executeWithRetry(request, retryCount + 1);
+            }
+
+            // Handle other errors with exponential backoff
+            const backoff = this.calculateExponentialBackoff(retryCount);
+            elizaLogger.warn(
+                `Twitter API error. Retrying in ${Math.round(backoff / 1000)}s (attempt ${retryCount + 1}/${this.maxRetries})`,
+                { error: error?.message || error }
+            );
+            await this.wait(backoff);
+            return this.executeWithRetry(request, retryCount + 1);
+        }
     }
 
-    private async randomDelay(): Promise<void> {
-        const delay = Math.floor(Math.random() * 2000) + 1500;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+    private isRateLimitError(error: any): boolean {
+        return error?.code === 429 || error?.rateLimit;
+    }
+
+    private calculateRateLimitWait(error: any, retryCount: number): number {
+        // Try to get reset time from Twitter API headers
+        const resetTime = error?.rateLimit?.reset;
+        if (resetTime) {
+            const now = Math.floor(Date.now() / 1000);
+            const waitSeconds = Math.max(0, resetTime - now);
+            // Add jitter to prevent thundering herd (0-5s)
+            const jitter = Math.random() * 5000;
+            return waitSeconds * 1000 + jitter;
+        }
+
+        // Fallback to exponential backoff if no reset time available
+        elizaLogger.warn(
+            "Rate limit error but no reset time in headers, using exponential backoff"
+        );
+        return this.calculateExponentialBackoff(retryCount);
+    }
+
+    private calculateExponentialBackoff(retryCount: number): number {
+        const baseDelay = 2000; // 2 seconds
+        const maxDelay = 300000; // 5 minutes
+        const exponentialDelay = Math.min(
+            baseDelay * Math.pow(2, retryCount),
+            maxDelay
+        );
+        // Add jitter (±25% of delay) to prevent thundering herd
+        const jitter = exponentialDelay * (0.5 * Math.random() - 0.25);
+        return Math.max(0, exponentialDelay + jitter);
+    }
+
+    private async wait(ms: number): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, ms));
     }
 }
 
@@ -92,7 +189,7 @@ export class ClientBase extends EventEmitter {
     imageDescriptionService: IImageDescriptionService;
     temperature: number = 0.5;
 
-    requestQueue: RequestQueue = new RequestQueue();
+    requestQueue: RequestQueue;
 
     // Generic platform-agnostic fields (populated during init)
     username: string;
@@ -145,6 +242,11 @@ export class ClientBase extends EventEmitter {
         super();
         this.runtime = runtime;
         this.twitterConfig = twitterConfig;
+
+        // Initialize request queue with retry limit from config
+        this.requestQueue = new RequestQueue(
+            this.twitterConfig.TWITTER_RETRY_LIMIT
+        );
 
         // Use access token as identifier to avoid credential bleeding between accounts
         // (API key/secret are app-level, access token is account-specific)

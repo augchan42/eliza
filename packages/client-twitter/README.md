@@ -26,9 +26,11 @@ Official Twitter/X platform integration using Twitter API v2 with OAuth 1.0a aut
    - Access Token
    - Access Token Secret
 
-### 2. Configure Environment Variables
+### 2. Configure Settings
 
-Add to your `.env` file:
+You can configure Twitter credentials in two ways:
+
+#### Option A: Environment Variables (`.env` file)
 
 ```bash
 # Required OAuth 1.0a Credentials
@@ -48,11 +50,47 @@ DIVINATION_INTERVAL_MIN=360       # Minimum minutes between divination posts
 DIVINATION_INTERVAL_MAX=720       # Maximum minutes between divination posts
 ```
 
+#### Option B: Character Card Settings (Recommended for Multiple Bots)
+
+Add to your character JSON file:
+
+```json
+{
+  "name": "MyBot",
+  "settings": {
+    "TWITTER_API_KEY": "your_api_key_here",
+    "TWITTER_API_SECRET_KEY": "your_api_secret_here",
+    "TWITTER_ACCESS_TOKEN": "your_access_token_here",
+    "TWITTER_ACCESS_TOKEN_SECRET": "your_access_token_secret_here",
+    "TWITTER_USERNAME": "mybothandle",
+    "TWITTER_DRY_RUN": "false",
+    "POST_INTERVAL_MIN": "90",
+    "POST_INTERVAL_MAX": "180",
+    "DIVINATION_INTERVAL_MIN": "360",
+    "DIVINATION_INTERVAL_MAX": "720"
+  }
+}
+```
+
+**Character settings override environment variables**, allowing you to run multiple bots with different Twitter accounts.
+
 ### 3. Run the Client
 
 ```bash
 pnpm start
 ```
+
+## Configuration Priority
+
+Settings are loaded in this order (later sources override earlier ones):
+
+1. **Environment variables** (`.env` file) - Global defaults
+2. **Character card settings** - Per-character overrides
+
+This allows you to:
+- Set global defaults in `.env` for all characters
+- Override specific settings per character in their JSON file
+- Run multiple Twitter bots with different accounts from the same codebase
 
 ## Architecture
 
@@ -60,6 +98,8 @@ pnpm start
 
 ```
 ClientBase.init()
+    ↓
+Load config (character settings → env vars)
     ↓
 OAuth 1.0a authentication (twitter-api-v2)
     ↓
@@ -85,6 +125,36 @@ This allows adapting the codebase for other platforms (Telegram, Discord) withou
 - **TwitterSearchClient** (`src/search.ts`) - Search and engagement
 - **TwitterInteractionClient** (`src/interactions.ts`) - Mention and timeline replies
 - **TwitterDivinationClient** (`src/divination-client.ts`) - Research content with oracle analysis
+
+## Multi-Bot Setup
+
+To run multiple Twitter bots simultaneously:
+
+1. **Create separate character files** for each bot:
+   - `characters/bot1.character.json`
+   - `characters/bot2.character.json`
+
+2. **Add Twitter credentials to each character**:
+
+```json
+{
+  "name": "Bot1",
+  "settings": {
+    "TWITTER_API_KEY": "bot1_api_key",
+    "TWITTER_API_SECRET_KEY": "bot1_api_secret",
+    "TWITTER_ACCESS_TOKEN": "bot1_access_token",
+    "TWITTER_ACCESS_TOKEN_SECRET": "bot1_access_secret"
+  }
+}
+```
+
+3. **Load characters at startup**:
+
+```bash
+pnpm start --characters="characters/bot1.character.json,characters/bot2.character.json"
+```
+
+Each bot will use its own credentials and operate independently.
 
 ## API Usage
 

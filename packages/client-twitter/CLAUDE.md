@@ -77,19 +77,27 @@ This design allows the client to be adapted for other platforms (Telegram, Disco
 
 ## Configuration
 
-### Required Environment Variables
+Settings can be configured via **environment variables** (`.env` file) or **character card settings** (JSON `settings` field). Character settings take precedence.
+
+### Required Configuration
 OAuth 1.0a credentials (from https://developer.twitter.com/en/portal):
 - `TWITTER_API_KEY` - Twitter API Consumer Key
 - `TWITTER_API_SECRET_KEY` - Twitter API Consumer Secret
 - `TWITTER_ACCESS_TOKEN` - Twitter Access Token
 - `TWITTER_ACCESS_TOKEN_SECRET` - Twitter Access Token Secret
 
-### Optional Environment Variables
+### Optional Configuration
 - `TWITTER_USERNAME` - Account identifier (auto-fetched if not provided)
 - `TWITTER_DRY_RUN` - Testing mode flag (default: false)
 - `DIVINATION_INTERVAL_MIN/MAX` - Posting frequency control
 - `MAX_TWEET_LENGTH` - Character limit enforcement
 - `TWITTER_SEARCH_ENABLE` - Search functionality toggle
+
+### Configuration Priority
+1. Character card `settings` field (highest priority)
+2. Environment variables from `.env` file (fallback)
+
+This enables running multiple bots with different Twitter accounts by setting credentials in each character's JSON file.
 
 ### Getting Twitter API Credentials
 1. Go to https://developer.twitter.com/en/portal/projects-and-apps

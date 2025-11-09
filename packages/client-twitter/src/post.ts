@@ -97,6 +97,7 @@ function truncateToCompleteSentence(
 export class TwitterPostClient {
     client: ClientBase;
     runtime: IAgentRuntime;
+    private twitterUsername: string;
     private isProcessing: boolean = false;
     private lastProcessTime: number = 0;
     private stopProcessingActions: boolean = false;
@@ -145,6 +146,9 @@ export class TwitterPostClient {
         if (!this.client.profile) {
             await this.client.init();
         }
+
+        // Initialize twitterUsername after client is ready
+        this.twitterUsername = this.client.username;
 
         const generateNewTweetLoop = async () => {
             const lastPost = await this.runtime.cacheManager.get<{
@@ -673,8 +677,10 @@ export class TwitterPostClient {
                                 );
                                 executedActions.push("like (dry run)");
                             } else {
-                                await this.client.twitterClient.likeTweet(
-                                    tweet.id
+                                await this.client.requestQueue.add(() =>
+                                    this.client.twitterClient.likeTweet(
+                                        tweet.id
+                                    )
                                 );
                                 executedActions.push("like");
                                 elizaLogger.log(`Liked tweet ${tweet.id}`);
@@ -695,8 +701,10 @@ export class TwitterPostClient {
                                 );
                                 executedActions.push("retweet (dry run)");
                             } else {
-                                await this.client.twitterClient.retweet(
-                                    tweet.id
+                                await this.client.requestQueue.add(() =>
+                                    this.client.twitterClient.retweet(
+                                        tweet.id
+                                    )
                                 );
                                 executedActions.push("retweet");
                                 elizaLogger.log(`Retweeted tweet ${tweet.id}`);
@@ -826,11 +834,11 @@ export class TwitterPostClient {
 
                             const body = await result.json();
 
-                            if (
-                                body?.data?.create_tweet?.tweet_results?.result
-                            ) {
+                            // Twitter API v2 returns { data: { id, text } } format
+                            if (body?.data?.id) {
                                 elizaLogger.log(
-                                    "Successfully posted quote tweet"
+                                    "Successfully posted quote tweet:",
+                                    body.data.id
                                 );
                                 executedActions.push("quote");
 
