@@ -82,18 +82,23 @@ export class DKGOperationHandler {
             }
         }
 
-        // All attempts failed - record for permanent retry until success
+        // All attempts failed - record for retry with minimal payload
         const failureRecord = {
             timestamp: new Date().toISOString(),
             knowledgeGraph: knowledgeGraph,
-            state: state,
+            // Only store essential state fields needed for retry
+            state: {
+                tweetId: state.tweetId,
+                roomId: state.roomId,
+                userId: state.userId
+            },
             attempts: maxAttempts,
             lastError: lastError?.message,
             allErrors: maxAttempts > 1 ? "Multiple errors across nodes" : lastError?.message,
             retryCount: 0  // Track how many retry sessions we've done
         };
 
-        // Store failure permanently for retry on next divination cycle
+        // Store failure for retry on next divination cycle
         await this.recordFailureForRetry(failureRecord);
 
         const finalError = new Error(
@@ -199,22 +204,23 @@ export class DKGOperationHandler {
         try {
             const failureKey = `dkg_failure_${failureRecord.state.tweetId || failureRecord.timestamp}`;
 
-            // Store permanently in database-backed cache (no expiry - retry until success)
+            // Store with 60-day TTL to prevent unbounded growth (matches MAX_AGE_DAYS filtering)
+            const TTL_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days in milliseconds
             await this.runtime.cacheManager.set(
                 failureKey,
-                failureRecord
-                // No expiry - never give up until it succeeds
+                failureRecord,
+                { expires: Date.now() + TTL_MS }
             );
 
             // Also maintain a list of all failed operation keys for enumeration
             await this.addToFailedOperationsList(failureKey);
 
-            elizaLogger.info("📝 Recorded DKG failure permanently in database for retry:", {
+            elizaLogger.info("📝 Recorded DKG failure in database for retry:", {
                 failureKey: failureKey,
                 timestamp: failureRecord.timestamp,
                 originalTweetId: failureRecord.state.tweetId,
                 retryCount: failureRecord.retryCount,
-                neverExpires: true,
+                expiresInDays: 60,
                 persistsAcrossRestarts: true
             });
 

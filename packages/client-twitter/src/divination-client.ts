@@ -455,11 +455,14 @@ export class TwitterDivinationClient {
                     }
                 }
 
-                // After posting, optionally retry any failed DKG operations (non-blocking to posting)
+                // After posting, optionally retry any failed DKG operations (fire-and-forget, non-blocking)
                 if (
                     process?.env?.DKG_RETRY_AFTER_POST?.toLowerCase() === "true"
                 ) {
-                    await this.retryFailedDKGOperations();
+                    // Fire and forget - don't block the divination loop
+                    this.retryFailedDKGOperations().catch(error => {
+                        elizaLogger.error("Error in background DKG retry:", error);
+                    });
                 }
 
                 // Update recent content cache after successful post
