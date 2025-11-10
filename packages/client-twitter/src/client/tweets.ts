@@ -633,10 +633,14 @@ async function createCreateTweetRequestV1(
 
     // v1.1 returns complete tweet data, map to our Tweet interface
     const me = await auth.me();
+    const conversationId =
+      (result as { conversation_id_str?: string }).conversation_id_str ||
+      result.id_str;
+
     return {
       id: result.id_str,
       text: result.full_text || result.text,
-      conversationId: result.conversation_id_str || result.id_str,
+      conversationId,
       timestamp: new Date(result.created_at).getTime() / 1000,
       userId: result.user.id_str,
       username: result.user.screen_name,
@@ -880,10 +884,17 @@ export async function createCreateTweetRequest(
     if (!tweet) {
       console.warn(`getTweetV2 returned null for newly posted tweet ${result.data.id}, using minimal Tweet from result.data`);
       const me = await auth.me();
+      const minimalConversationId =
+        (
+          result.data as {
+            conversation_id?: string;
+          }
+        ).conversation_id || result.data.id;
+
       tweet = {
         id: result.data.id,
         text: result.data.text,
-        conversationId: result.data.conversation_id || result.data.id,
+        conversationId: minimalConversationId,
         timestamp: Date.now() / 1000,
         userId: me?.userId || "",
         username: me?.username || "",
