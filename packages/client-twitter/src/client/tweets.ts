@@ -392,7 +392,10 @@ export async function fetchTweets(
       }
       // If paginationState.mode was 'v2', we restart from beginning (no max_id)
 
-      const v1Client = auth.getV1Client();
+      const v1Client = auth.getV1ClientIfAvailable();
+      if (!v1Client) {
+        throw new Error("Twitter API v1.1 client unavailable");
+      }
       const timeline = await v1Client.userTimeline(userId, v1Params);
 
       const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
@@ -444,8 +447,15 @@ export async function fetchTweets(
           : undefined,
       };
     } catch (v1Error) {
+      if (auth.handleV1AccessError(v1Error, "fetchTweets")) {
+        throw new Error(
+          `Failed to fetch tweets. v2: ${error?.message}. v1.1: access denied`
+        );
+      }
       console.error("Both v2 and v1.1 userTimeline failed:", v1Error);
-      throw new Error(`Failed to fetch tweets. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+      throw new Error(
+        `Failed to fetch tweets. v2: ${error?.message}. v1.1: ${v1Error?.message}`
+      );
     }
   }
 }
@@ -546,7 +556,10 @@ export async function fetchTweetsAndReplies(
       }
       // If paginationState.mode was 'v2', we restart from beginning (no max_id)
 
-      const v1Client = auth.getV1Client();
+      const v1Client = auth.getV1ClientIfAvailable();
+      if (!v1Client) {
+        throw new Error("Twitter API v1.1 client unavailable");
+      }
       const timeline = await v1Client.userTimeline(userId, v1Params);
 
       const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
@@ -598,7 +611,15 @@ export async function fetchTweetsAndReplies(
           : undefined,
       };
     } catch (v1Error) {
-      console.error("Both v2 and v1.1 userTimeline (with replies) failed:", v1Error);
+      if (auth.handleV1AccessError(v1Error, "fetchTweetsAndReplies")) {
+        throw new Error(
+          `Failed to fetch tweets and replies. v2: ${error?.message}. v1.1: access denied`,
+        );
+      }
+      console.error(
+        "Both v2 and v1.1 userTimeline (with replies) failed:",
+        v1Error
+      );
       throw new Error(
         `Failed to fetch tweets and replies. v2: ${error?.message}. v1.1: ${v1Error?.message}`,
       );

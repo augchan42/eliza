@@ -1,4 +1,5 @@
 import type { TwitterAuth } from "./auth";
+import { elizaLogger } from "@elizaos/core";
 import type { Profile } from "./profile";
 import type { Tweet } from "./tweets";
 
@@ -126,7 +127,13 @@ export async function* searchTweets(
 
     // Fall back to v1.1
     try {
-      const v1Client = auth.getV1Client();
+      const v1Client = auth.getV1ClientIfAvailable();
+      if (!v1Client) {
+        elizaLogger.warn(
+          "Twitter API v1.1 client unavailable - skipping search fallback"
+        );
+        return;
+      }
       const v1Params: Record<string, any> = {
         q: finalQuery,
         count: Math.min(maxTweets, 100),
@@ -184,8 +191,13 @@ export async function* searchTweets(
         yield convertedTweet;
       }
     } catch (v1Error) {
+      if (auth.handleV1AccessError(v1Error, "searchTweets")) {
+        return;
+      }
       console.error("Both v2 and v1.1 search failed:", v1Error);
-      throw new Error(`Search failed. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+      throw new Error(
+        `Search failed. v2: ${error?.message}. v1.1: ${v1Error?.message}`
+      );
     }
   }
 }

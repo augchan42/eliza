@@ -1,3 +1,4 @@
+import { elizaLogger } from "@elizaos/core";
 import { TwitterApi, TwitterApiv1 } from "twitter-api-v2";
 import { Profile } from "./profile";
 
@@ -7,6 +8,7 @@ import { Profile } from "./profile";
 export class TwitterAuth {
     private v2Client: TwitterApi | null = null;
     private v1Client: TwitterApiv1 | null = null;
+    private v1AccessDisabled = false;
     private authenticated = false;
     private profile?: Profile;
 
@@ -45,10 +47,41 @@ export class TwitterAuth {
      * Get the Twitter API v1.1 client (read/write)
      */
     getV1Client(): TwitterApiv1 {
-        if (!this.v1Client) {
+        if (this.v1AccessDisabled || !this.v1Client) {
             throw new Error("Twitter API v1.1 client not initialized");
         }
         return this.v1Client;
+    }
+
+    getV1ClientIfAvailable(): TwitterApiv1 | null {
+        if (this.v1AccessDisabled || !this.v1Client) {
+            return null;
+        }
+        return this.v1Client;
+    }
+
+    handleV1AccessError(error: any, context: string): boolean {
+        const isAccessError =
+            error?.code === 403 ||
+            error?.code === 453 ||
+            error?.errors?.some?.((err: any) => err?.code === 453);
+
+        if (isAccessError) {
+            if (!this.v1AccessDisabled) {
+                this.v1AccessDisabled = true;
+                elizaLogger.warn(
+                    `Twitter API v1.1 access disabled after "${context}" (insufficient account permissions). Future v1.1 fallbacks will be skipped.`,
+                    {
+                        context,
+                        errorCode: error?.code,
+                        errors: error?.errors,
+                    }
+                );
+            }
+            return true;
+        }
+
+        return false;
     }
 
   /**

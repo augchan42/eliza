@@ -14,6 +14,7 @@ import {
   type RequestApiResult,
 } from "./api-types";
 import { TwitterAuth } from "./auth";
+import { elizaLogger } from "@elizaos/core";
 // Removed messages imports - using Twitter API v2 instead
 import {
   type Profile,
@@ -343,7 +344,14 @@ export class Client {
 
       // Fall back to v1.1
       try {
-        const v1Client = this.auth.getV1Client();
+        const v1Client = this.auth.getV1ClientIfAvailable();
+        if (!v1Client) {
+          elizaLogger.warn(
+            "Twitter API v1.1 client unavailable - skipping home timeline fallback"
+          );
+          throw error;
+        }
+
         const timeline = await v1Client.homeTimeline({
           count: Math.min(count, 200),
           tweet_mode: 'extended',
@@ -380,8 +388,16 @@ export class Client {
           replies: tweet.reply_count || 0,
         }));
       } catch (v1Error) {
+        if (this.auth.handleV1AccessError(v1Error, "homeTimeline")) {
+          elizaLogger.warn(
+            "Twitter API v1.1 homeTimeline access denied; continuing without timeline fallback."
+          );
+          return [];
+        }
         console.error("Both v2 and v1.1 homeTimeline failed:", v1Error);
-        throw new Error(`Failed to fetch home timeline. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+        throw new Error(
+          `Failed to fetch home timeline. v2: ${error?.message}. v1.1: ${v1Error?.message}`
+        );
       }
     }
   }
