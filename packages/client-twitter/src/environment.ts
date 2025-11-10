@@ -30,6 +30,7 @@ export const twitterEnvSchema = z.object({
     POST_INTERVAL_MAX: z.number().int(),
     DIVINATION_INTERVAL_MIN: z.number().int(),
     DIVINATION_INTERVAL_MAX: z.number().int(),
+    DKG_QUERY_TIMEOUT: z.number().int().default(10000),
     ENABLE_ACTION_PROCESSING: z.boolean(),
     ACTION_INTERVAL: z.number().int(),
     POST_IMMEDIATELY: z.boolean(),
@@ -157,6 +158,12 @@ export async function validateTwitterConfig(
                     process.env.DIVINATION_INTERVAL_MAX,
                 180
             ), // 3 hours
+            // int in milliseconds
+            DKG_QUERY_TIMEOUT: safeParseInt(
+                runtime.getSetting("DKG_QUERY_TIMEOUT") ||
+                    process.env.DKG_QUERY_TIMEOUT,
+                10000
+            ), // 10 seconds
             // bool
             ENABLE_ACTION_PROCESSING:
                 parseBooleanFromText(

@@ -329,24 +329,46 @@ export class TwitterDivinationClient {
             // Get recent post patterns for template variation
             const recentPostPatterns = await this.getRecentPostPatterns();
 
-            const state = await this.runtime.composeState(
-                {
-                    userId: this.runtime.agentId,
-                    roomId: roomId,
-                    agentId: this.runtime.agentId,
-                    content: {
-                        text: topics || "",
-                        action: "TWEET",
+            // Compose state with DKG query timeout
+            const state = await Promise.race([
+                this.runtime.composeState(
+                    {
+                        userId: this.runtime.agentId,
+                        roomId: roomId,
+                        agentId: this.runtime.agentId,
+                        content: {
+                            text: topics || "",
+                            action: "TWEET",
+                        },
                     },
-                },
-                {
+                    {
+                        researchPaper: formattedResearch,
+                        oracleReading: formattedOracle,
+                        maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
+                        twitterUserName: this.client.username,
+                        recentPostPatterns: recentPostPatterns,
+                    }
+                ),
+                new Promise<never>((_, reject) =>
+                    setTimeout(
+                        () => reject(new Error('DKG query timeout')),
+                        this.client.twitterConfig.DKG_QUERY_TIMEOUT
+                    )
+                )
+            ]).catch(error => {
+                elizaLogger.warn(
+                    `DKG search timed out after ${this.client.twitterConfig.DKG_QUERY_TIMEOUT}ms, using fallback state`,
+                    error
+                );
+                // Return minimal state without DKG knowledge
+                return {
                     researchPaper: formattedResearch,
                     oracleReading: formattedOracle,
                     maxTweetLength: this.client.twitterConfig.MAX_TWEET_LENGTH,
                     twitterUserName: this.client.username,
                     recentPostPatterns: recentPostPatterns,
-                }
-            );
+                };
+            });
 
             // Generate research tweet (main tweet with hook)
             const researchContext = composeContext({
@@ -875,36 +897,43 @@ export class TwitterDivinationClient {
      */
     private async getRecentPostPatterns(): Promise<string> {
         try {
-            // Always analyze from own posts (skip home timeline entirely)
-            const ownPosts = await this.client.fetchOwnPosts(50);
-            if (!ownPosts || ownPosts.length === 0) {
+            // Use database instead of API - zero API calls!
+            elizaLogger.debug("📚 Fetching own posts from memory database");
+            const roomId = stringToUuid(
+                "twitter_generate_room-" + this.client.username
+            );
+
+            const memories = await this.runtime.messageManager.getMemories({
+                roomId: roomId,
+                count: 50,
+                unique: false,
+            });
+
+            if (!memories || memories.length === 0) {
                 elizaLogger.warn(
-                    "⚠️ No own posts available for pattern analysis"
+                    "⚠️ No memories available for pattern analysis"
                 );
                 return "No recent tweets found.";
             }
 
-            const totalOwn = ownPosts.length;
-            const ownByMe = ownPosts.filter(
-                (tweet) =>
-                    tweet.username ===
-                    this.client.username
-            );
-            const ownByMeCount = ownByMe.length;
-            const ourMainTweets = ownByMe
-                .filter((tweet) => !tweet.inReplyToStatusId)
-                .slice(0, 10);
+            // Filter for agent's own posts (not replies)
+            const ourMainTweets = memories
+                .filter((m) => m.userId === this.runtime.agentId)
+                .filter((m) => !m.content.inReplyTo)
+                .slice(0, 10)
+                .map((m) => ({ text: m.content.text }));
+
             elizaLogger.info(
-                `🧮 Pattern analysis candidates (own posts) - totalOwn: ${totalOwn}, mine: ${ownByMeCount}, mineNonReplies: ${ourMainTweets.length}`
+                `🧮 Pattern analysis from database - totalMemories: ${memories.length}, mainTweets: ${ourMainTweets.length}`
             );
 
             if (ourMainTweets.length === 0) {
-                elizaLogger.warn("⚠️ No main tweets found in own posts");
+                elizaLogger.warn("⚠️ No main tweets found in memories");
                 return "No main tweets found.";
             }
 
             elizaLogger.info(
-                `🔍 Found ${ourMainTweets.length} main tweets for analysis`
+                `🔍 Found ${ourMainTweets.length} main tweets for analysis (from database)`
             );
 
             // Analyze first words from actual tweet content
