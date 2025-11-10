@@ -107,11 +107,23 @@ export class TwitterInteractionClient {
 
     async start() {
         const handleTwitterInteractionsLoop = async () => {
-            const waitTime = await this.handleTwitterInteractions();
-            setTimeout(
-                handleTwitterInteractionsLoop,
-                waitTime
-            );
+            const defaultWait =
+                this.client.twitterConfig.TWITTER_POLL_INTERVAL * 1000;
+            let waitTime = defaultWait;
+
+            try {
+                const result = await this.handleTwitterInteractions();
+                if (typeof result === "number" && result > 0) {
+                    waitTime = result;
+                }
+            } catch (error) {
+                elizaLogger.error(
+                    "Unhandled error in Twitter interactions loop:",
+                    error
+                );
+            } finally {
+                setTimeout(handleTwitterInteractionsLoop, waitTime);
+            }
         };
         handleTwitterInteractionsLoop();
     }

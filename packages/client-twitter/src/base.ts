@@ -442,7 +442,8 @@ export class ClientBase extends EventEmitter {
     private async populateTimeline() {
         elizaLogger.debug("populating timeline...");
 
-        const cachedTimeline = await this.getCachedTimeline();
+        try {
+            const cachedTimeline = await this.getCachedTimeline();
 
         // Check if the cache file exists
         if (cachedTimeline) {
@@ -673,6 +674,27 @@ export class ClientBase extends EventEmitter {
         // Cache
         await this.cacheTimeline(timeline);
         await this.cacheMentions(mentionsAndInteractions.tweets);
+        } catch (error) {
+            // Check if this is a usage cap error
+            if (error?.code === 429 && error?.error?.title === 'UsageCapExceeded') {
+                elizaLogger.warn(
+                    "⚠️ Twitter API usage cap exceeded - timeline population skipped"
+                );
+                elizaLogger.warn(
+                    `📊 Monthly cap exceeded for account. Bot will continue with posting functionality.`
+                );
+                elizaLogger.warn(
+                    `🔄 Timeline will auto-populate when the cap resets (no restart needed)`
+                );
+            } else if (error?.code === 429) {
+                elizaLogger.warn(
+                    "⚠️ Twitter API rate limited - timeline population skipped, will retry later"
+                );
+            } else {
+                elizaLogger.error("Error populating timeline:", error);
+            }
+            // Don't throw - allow bot to continue starting up
+        }
     }
 
     async saveRequestMessage(message: Memory, state: State) {
