@@ -14,7 +14,7 @@ import type {
 } from "twitter-api-v2";
 import type { TwitterAuth } from "./auth";
 import { getEntityIdByScreenName } from "./profile";
-import type { QueryTweetsResponse } from "./api-types";
+import type { QueryTweetsResponse, PaginationState } from "./api-types";
 
 /**
  * Default options for Twitter API v2 request parameters.
@@ -295,16 +295,35 @@ export type TweetQuery =
   | Partial<Tweet>
   | ((tweet: Tweet) => boolean | Promise<boolean>);
 
+/**
+ * Fetch tweets from a user's timeline (excluding replies and retweets).
+ * Tries v2 API first, falls back to v1.1 on failure.
+ *
+ * IMPORTANT: When v2 fails mid-pagination (after successful pages), the v1.1
+ * fallback restarts from the beginning. Callers should dedupe if needed.
+ *
+ * @param userId - Twitter user ID
+ * @param maxTweets - Maximum number of tweets to fetch
+ * @param cursor - Pagination cursor (string for legacy v2, PaginationState for explicit mode)
+ * @param auth - Authentication
+ * @returns Response with tweets and next pagination state
+ */
 export async function fetchTweets(
   userId: string,
   maxTweets: number,
-  cursor: string | undefined,
+  cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
   const client = auth.getV2Client();
 
+  // Normalize cursor to PaginationState (backward compatibility)
+  const paginationState: PaginationState | undefined =
+    typeof cursor === 'string'
+      ? { mode: 'v2', cursor } // Legacy: assume string cursors are v2 tokens
+      : cursor;
+
   try {
-    const response = await client.v2.userTimeline(userId, {
+    const v2Params: any = {
       max_results: Math.min(maxTweets, 100),
       exclude: ["retweets", "replies"],
       "tweet.fields": [
@@ -324,8 +343,14 @@ export async function fetchTweets(
         "attachments.media_keys",
         "referenced_tweets.id",
       ],
-      pagination_token: cursor,
-    });
+    };
+
+    // Only use cursor if it's from v2
+    if (paginationState?.mode === 'v2') {
+      v2Params.pagination_token = paginationState.cursor;
+    }
+
+    const response = await client.v2.userTimeline(userId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -337,23 +362,122 @@ export async function fetchTweets(
 
     return {
       tweets: convertedTweets,
-      next: response.meta.next_token,
+      next: response.meta.next_token
+        ? { mode: 'v2', cursor: response.meta.next_token }
+        : undefined,
     };
   } catch (error) {
-    throw new Error(`Failed to fetch tweets: ${error?.message || error}`);
+    // Log the fallback situation
+    if (paginationState?.mode === 'v2') {
+      console.warn(
+        "v2 userTimeline failed mid-pagination, restarting with v1.1 from beginning:",
+        error
+      );
+    } else {
+      console.warn("v2 userTimeline failed, trying v1.1 fallback:", error);
+    }
+
+    // Fall back to v1.1
+    try {
+      const v1Params: any = {
+        count: Math.min(maxTweets, 200),
+        exclude_replies: true,
+        include_rts: false,
+        tweet_mode: 'extended',
+      };
+
+      // Only use cursor if it's from v1 (numeric tweet ID)
+      if (paginationState?.mode === 'v1' && paginationState.cursor) {
+        v1Params.max_id = paginationState.cursor;
+      }
+      // If paginationState.mode was 'v2', we restart from beginning (no max_id)
+
+      const timeline = await client.v1.userTimeline(userId, v1Params);
+
+      const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
+        id: tweet.id_str,
+        text: tweet.full_text || tweet.text,
+        timestamp: new Date(tweet.created_at).getTime() / 1000,
+        timeParsed: new Date(tweet.created_at),
+        userId: tweet.user.id_str,
+        name: tweet.user.name,
+        username: tweet.user.screen_name,
+        conversationId: tweet.conversation_id_str || tweet.id_str,
+        hashtags: tweet.entities?.hashtags?.map((h: any) => h.text) || [],
+        mentions: tweet.entities?.user_mentions?.map((m: any) => ({
+          id: m.id_str,
+          username: m.screen_name,
+          name: m.name,
+        })) || [],
+        photos: tweet.entities?.media?.filter((m: any) => m.type === 'photo').map((m: any) => ({
+          id: m.id_str,
+          url: m.media_url_https,
+        })) || [],
+        thread: [],
+        urls: tweet.entities?.urls?.map((u: any) => u.expanded_url) || [],
+        videos: tweet.entities?.media?.filter((m: any) => m.type === 'video').map((m: any) => ({
+          id: m.id_str,
+          preview: m.media_url_https,
+        })) || [],
+        isRetweet: false,
+        isReply: !!tweet.in_reply_to_status_id_str,
+        isQuoted: !!tweet.quoted_status,
+        isPin: false,
+        sensitiveContent: tweet.possibly_sensitive || false,
+        likes: tweet.favorite_count || undefined,
+        replies: tweet.reply_count || undefined,
+        retweets: tweet.retweet_count || undefined,
+        views: undefined,
+        quotes: tweet.quote_count || undefined,
+      }));
+
+      // Extract last tweet ID for pagination
+      const lastTweetId = timeline.tweets.length > 0
+        ? timeline.tweets[timeline.tweets.length - 1]?.id_str
+        : undefined;
+
+      return {
+        tweets: convertedTweets,
+        next: lastTweetId
+          ? { mode: 'v1', cursor: lastTweetId }
+          : undefined,
+      };
+    } catch (v1Error) {
+      console.error("Both v2 and v1.1 userTimeline failed:", v1Error);
+      throw new Error(`Failed to fetch tweets. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+    }
   }
 }
 
+/**
+ * Fetch tweets and replies from a user's timeline (includes all tweet types).
+ * Tries v2 API first, falls back to v1.1 on failure.
+ *
+ * IMPORTANT: When v2 fails mid-pagination (after successful pages), the v1.1
+ * fallback restarts from the beginning. Callers should dedupe if needed.
+ *
+ * @param userId - Twitter user ID
+ * @param maxTweets - Maximum number of tweets to fetch
+ * @param cursor - Pagination cursor (string for legacy v2, PaginationState for explicit mode)
+ * @param auth - Authentication
+ * @returns Response with tweets and next pagination state
+ */
 export async function fetchTweetsAndReplies(
   userId: string,
   maxTweets: number,
-  cursor: string | undefined,
+  cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
   const client = auth.getV2Client();
 
+  // Normalize cursor to PaginationState (backward compatibility)
+  const paginationState: PaginationState | undefined =
+    typeof cursor === 'string'
+      ? { mode: 'v2', cursor } // Legacy: assume string cursors are v2 tokens
+      : cursor;
+
   try {
-    const response = await client.v2.userTimeline(userId, {
+    const v2Params: any = {
       max_results: Math.min(maxTweets, 100),
       "tweet.fields": [
         "id",
@@ -372,8 +496,14 @@ export async function fetchTweetsAndReplies(
         "attachments.media_keys",
         "referenced_tweets.id",
       ],
-      pagination_token: cursor,
-    });
+    };
+
+    // Only use cursor if it's from v2
+    if (paginationState?.mode === 'v2') {
+      v2Params.pagination_token = paginationState.cursor;
+    }
+
+    const response = await client.v2.userTimeline(userId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -385,12 +515,157 @@ export async function fetchTweetsAndReplies(
 
     return {
       tweets: convertedTweets,
-      next: response.meta.next_token,
+      next: response.meta.next_token
+        ? { mode: 'v2', cursor: response.meta.next_token }
+        : undefined,
     };
   } catch (error) {
-    throw new Error(
-      `Failed to fetch tweets and replies: ${error?.message || error}`,
-    );
+    // Log the fallback situation
+    if (paginationState?.mode === 'v2') {
+      console.warn(
+        "v2 userTimeline (with replies) failed mid-pagination, restarting with v1.1 from beginning:",
+        error
+      );
+    } else {
+      console.warn("v2 userTimeline (with replies) failed, trying v1.1 fallback:", error);
+    }
+
+    // Fall back to v1.1
+    try {
+      const v1Params: any = {
+        count: Math.min(maxTweets, 200),
+        exclude_replies: false, // Include replies for this function
+        include_rts: true,
+        tweet_mode: 'extended',
+      };
+
+      // Only use cursor if it's from v1 (numeric tweet ID)
+      if (paginationState?.mode === 'v1' && paginationState.cursor) {
+        v1Params.max_id = paginationState.cursor;
+      }
+      // If paginationState.mode was 'v2', we restart from beginning (no max_id)
+
+      const timeline = await client.v1.userTimeline(userId, v1Params);
+
+      const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
+        id: tweet.id_str,
+        text: tweet.full_text || tweet.text,
+        timestamp: new Date(tweet.created_at).getTime() / 1000,
+        timeParsed: new Date(tweet.created_at),
+        userId: tweet.user.id_str,
+        name: tweet.user.name,
+        username: tweet.user.screen_name,
+        conversationId: tweet.conversation_id_str || tweet.id_str,
+        hashtags: tweet.entities?.hashtags?.map((h: any) => h.text) || [],
+        mentions: tweet.entities?.user_mentions?.map((m: any) => ({
+          id: m.id_str,
+          username: m.screen_name,
+          name: m.name,
+        })) || [],
+        photos: tweet.entities?.media?.filter((m: any) => m.type === 'photo').map((m: any) => ({
+          id: m.id_str,
+          url: m.media_url_https,
+        })) || [],
+        thread: [],
+        urls: tweet.entities?.urls?.map((u: any) => u.expanded_url) || [],
+        videos: tweet.entities?.media?.filter((m: any) => m.type === 'video').map((m: any) => ({
+          id: m.id_str,
+          preview: m.media_url_https,
+        })) || [],
+        isRetweet: !!tweet.retweeted_status,
+        isReply: !!tweet.in_reply_to_status_id_str,
+        isQuoted: !!tweet.quoted_status,
+        isPin: false,
+        sensitiveContent: tweet.possibly_sensitive || false,
+        likes: tweet.favorite_count || undefined,
+        replies: tweet.reply_count || undefined,
+        retweets: tweet.retweet_count || undefined,
+        views: undefined,
+        quotes: tweet.quote_count || undefined,
+      }));
+
+      // Extract last tweet ID for pagination
+      const lastTweetId = timeline.tweets.length > 0
+        ? timeline.tweets[timeline.tweets.length - 1]?.id_str
+        : undefined;
+
+      return {
+        tweets: convertedTweets,
+        next: lastTweetId
+          ? { mode: 'v1', cursor: lastTweetId }
+          : undefined,
+      };
+    } catch (v1Error) {
+      console.error("Both v2 and v1.1 userTimeline (with replies) failed:", v1Error);
+      throw new Error(
+        `Failed to fetch tweets and replies. v2: ${error?.message}. v1.1: ${v1Error?.message}`,
+      );
+    }
+  }
+}
+
+/**
+ * Create a tweet using Twitter API v1.1
+ * Returns complete tweet data immediately (more efficient than v2)
+ */
+async function createCreateTweetRequestV1(
+  text: string,
+  auth: TwitterAuth,
+  tweetId?: string,
+): Promise<Tweet> {
+  const v2client = auth.getV2Client();
+  if (!v2client) {
+    throw new Error("V2 client is not initialized");
+  }
+
+  try {
+    const tweetConfig: any = {
+      status: text,
+    };
+
+    // Handle reply
+    if (tweetId) {
+      tweetConfig.in_reply_to_status_id = tweetId;
+    }
+
+    // Call v1.1 statuses/update endpoint
+    const result = await v2client.v1.tweet(text, tweetConfig);
+
+    // v1.1 returns complete tweet data, map to our Tweet interface
+    const me = await auth.me();
+    return {
+      id: result.id_str,
+      text: result.full_text || result.text,
+      conversationId: result.conversation_id_str || result.id_str,
+      timestamp: new Date(result.created_at).getTime() / 1000,
+      userId: result.user.id_str,
+      username: result.user.screen_name,
+      name: result.user.name,
+      permanentUrl: `https://twitter.com/${result.user.screen_name}/status/${result.id_str}`,
+      inReplyToStatusId: result.in_reply_to_status_id_str,
+      hashtags: result.entities?.hashtags?.map((h: any) => h.text) || [],
+      mentions: result.entities?.user_mentions?.map((m: any) => ({
+        id: m.id_str,
+        username: m.screen_name,
+        name: m.name,
+      })) || [],
+      photos: result.entities?.media?.filter((m: any) => m.type === 'photo').map((m: any) => ({
+        id: m.id_str,
+        url: m.media_url_https,
+        alt_text: m.ext_alt_text,
+      })) || [],
+      thread: [],
+      urls: result.entities?.urls?.map((u: any) => u.expanded_url) || [],
+      videos: result.entities?.media?.filter((m: any) => m.type === 'video').map((m: any) => ({
+        id: m.id_str,
+        preview: m.media_url_https,
+      })) || [],
+      likes: result.favorite_count || 0,
+      retweets: result.retweet_count || 0,
+      replies: result.reply_count || 0,
+    } as Tweet;
+  } catch (error) {
+    throw new Error(`Failed to create tweet via v1.1: ${error?.message || error}`);
   }
 }
 
@@ -576,6 +851,7 @@ export async function createCreateTweetRequest(
     throw new Error("V2 client is not initialized");
   }
 
+  // Try v2 first, fall back to v1.1 on failure
   try {
     let tweetConfig: any = {
       text,
@@ -628,7 +904,16 @@ export async function createCreateTweetRequest(
 
     return tweet;
   } catch (error) {
-    throw new Error(`Failed to create tweet: ${error?.message || error}`);
+    // If v2 fails, try v1.1 as fallback
+    console.warn(`Twitter API v2 failed, attempting v1.1 fallback: ${error?.message || error}`);
+    try {
+      return await createCreateTweetRequestV1(text, auth, tweetId);
+    } catch (v1Error) {
+      // Both failed, throw combined error
+      throw new Error(
+        `Failed to create tweet. v2 error: ${error?.message || error}. v1.1 error: ${v1Error?.message || v1Error}`
+      );
+    }
   }
 }
 
@@ -646,13 +931,19 @@ export async function createCreateNoteTweetRequest(
 export async function fetchListTweets(
   listId: string,
   maxTweets: number,
-  cursor: string | undefined,
+  cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
   const client = auth.getV2Client();
 
+  // Normalize cursor to PaginationState (backward compatibility)
+  const paginationState: PaginationState | undefined =
+    typeof cursor === 'string'
+      ? { mode: 'v2', cursor } // Legacy: assume string cursors are v2 tokens
+      : cursor;
+
   try {
-    const response = await client.v2.listTweets(listId, {
+    const v2Params: any = {
       max_results: Math.min(maxTweets, 100),
       "tweet.fields": [
         "id",
@@ -671,8 +962,14 @@ export async function fetchListTweets(
         "attachments.media_keys",
         "referenced_tweets.id",
       ],
-      pagination_token: cursor,
-    });
+    };
+
+    // Only use cursor if it's from v2
+    if (paginationState?.mode === 'v2') {
+      v2Params.pagination_token = paginationState.cursor;
+    }
+
+    const response = await client.v2.listTweets(listId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -684,7 +981,9 @@ export async function fetchListTweets(
 
     return {
       tweets: convertedTweets,
-      next: response.meta.next_token,
+      next: response.meta.next_token
+        ? { mode: 'v2', cursor: response.meta.next_token }
+        : undefined,
     };
   } catch (error) {
     throw new Error(`Failed to fetch list tweets: ${error.message}`);
@@ -722,7 +1021,7 @@ export async function* getTweets(
 
   const { value: userId } = userIdRes;
 
-  let cursor: string | undefined;
+  let cursor: PaginationState | undefined;
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
@@ -749,7 +1048,7 @@ export async function* getTweetsByUserId(
   maxTweets: number,
   auth: TwitterAuth,
 ): AsyncGenerator<Tweet, void> {
-  let cursor: string | undefined;
+  let cursor: PaginationState | undefined;
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
@@ -784,7 +1083,7 @@ export async function* getTweetsAndReplies(
 
   const { value: userId } = userIdRes;
 
-  let cursor: string | undefined;
+  let cursor: PaginationState | undefined;
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
@@ -811,7 +1110,7 @@ export async function* getTweetsAndRepliesByUserId(
   maxTweets: number,
   auth: TwitterAuth,
 ): AsyncGenerator<Tweet, void> {
-  let cursor: string | undefined;
+  let cursor: PaginationState | undefined;
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
@@ -836,13 +1135,19 @@ export async function* getTweetsAndRepliesByUserId(
 export async function fetchLikedTweets(
   userId: string,
   maxTweets: number,
-  cursor: string | undefined,
+  cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
   const client = auth.getV2Client();
 
+  // Normalize cursor to PaginationState (backward compatibility)
+  const paginationState: PaginationState | undefined =
+    typeof cursor === 'string'
+      ? { mode: 'v2', cursor } // Legacy: assume string cursors are v2 tokens
+      : cursor;
+
   try {
-    const response = await client.v2.userLikedTweets(userId, {
+    const v2Params: any = {
       max_results: Math.min(maxTweets, 100),
       "tweet.fields": [
         "id",
@@ -861,8 +1166,14 @@ export async function fetchLikedTweets(
         "attachments.media_keys",
         "referenced_tweets.id",
       ],
-      pagination_token: cursor,
-    });
+    };
+
+    // Only use cursor if it's from v2
+    if (paginationState?.mode === 'v2') {
+      v2Params.pagination_token = paginationState.cursor;
+    }
+
+    const response = await client.v2.userLikedTweets(userId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -874,7 +1185,9 @@ export async function fetchLikedTweets(
 
     return {
       tweets: convertedTweets,
-      next: response.meta.next_token,
+      next: response.meta.next_token
+        ? { mode: 'v2', cursor: response.meta.next_token }
+        : undefined,
     };
   } catch (error) {
     throw new Error(`Failed to fetch liked tweets: ${error.message}`);

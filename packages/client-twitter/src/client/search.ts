@@ -25,6 +25,7 @@ export enum SearchMode {
  * @param maxTweets Maximum number of tweets to return
  * @param searchMode Search mode (not all modes are supported in v2)
  * @param auth Authentication
+ * @param sinceId Only return tweets newer than this ID (v1.1 only, ignored in v2)
  * @returns Async generator of tweets
  */
 export async function* searchTweets(
@@ -32,6 +33,7 @@ export async function* searchTweets(
   maxTweets: number,
   searchMode: SearchMode,
   auth: TwitterAuth,
+  sinceId?: string,
 ): AsyncGenerator<Tweet, void> {
   const client = auth.getV2Client();
 
@@ -46,6 +48,7 @@ export async function* searchTweets(
       break;
   }
 
+  // Try v2 first
   try {
     const searchIterator = await client.v2.search(finalQuery, {
       max_results: Math.min(maxTweets, 100),
@@ -72,7 +75,6 @@ export async function* searchTweets(
     for await (const tweet of searchIterator) {
       if (count >= maxTweets) break;
 
-      // Convert to Tweet format
       const convertedTweet: Tweet = {
         id: tweet.id,
         text: tweet.text || "",
@@ -120,8 +122,67 @@ export async function* searchTweets(
       count++;
     }
   } catch (error) {
-    console.error("Search error:", error);
-    throw error;
+    console.warn("v2 search failed, trying v1.1 fallback:", error);
+
+    // Fall back to v1.1
+    try {
+      const v1Params: any = {
+        count: Math.min(maxTweets, 100),
+        tweet_mode: 'extended',
+        result_type: 'recent',
+      };
+
+      // Add since_id if provided (only fetch tweets newer than this ID)
+      if (sinceId) {
+        v1Params.since_id = sinceId;
+      }
+
+      const searchResults = await client.v1.search(finalQuery, v1Params);
+
+      for (const tweet of searchResults.statuses) {
+        const convertedTweet: Tweet = {
+          id: tweet.id_str,
+          text: tweet.full_text || tweet.text,
+          timestamp: new Date(tweet.created_at).getTime() / 1000,
+          timeParsed: new Date(tweet.created_at),
+          userId: tweet.user.id_str,
+          name: tweet.user.name,
+          username: tweet.user.screen_name,
+          conversationId: tweet.conversation_id_str || tweet.id_str,
+          hashtags: tweet.entities?.hashtags?.map((h: any) => h.text) || [],
+          mentions: tweet.entities?.user_mentions?.map((m: any) => ({
+            id: m.id_str,
+            username: m.screen_name,
+            name: m.name,
+          })) || [],
+          photos: tweet.entities?.media?.filter((m: any) => m.type === 'photo').map((m: any) => ({
+            id: m.id_str,
+            url: m.media_url_https,
+          })) || [],
+          thread: [],
+          urls: tweet.entities?.urls?.map((u: any) => u.expanded_url) || [],
+          videos: tweet.entities?.media?.filter((m: any) => m.type === 'video').map((m: any) => ({
+            id: m.id_str,
+            preview: m.media_url_https,
+          })) || [],
+          isRetweet: !!tweet.retweeted_status,
+          isReply: !!tweet.in_reply_to_status_id_str,
+          isQuoted: !!tweet.quoted_status,
+          isPin: false,
+          sensitiveContent: tweet.possibly_sensitive || false,
+          likes: tweet.favorite_count || undefined,
+          replies: tweet.reply_count || undefined,
+          retweets: tweet.retweet_count || undefined,
+          views: undefined,
+          quotes: tweet.quote_count || undefined,
+        };
+
+        yield convertedTweet;
+      }
+    } catch (v1Error) {
+      console.error("Both v2 and v1.1 search failed:", v1Error);
+      throw new Error(`Search failed. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+    }
   }
 }
 

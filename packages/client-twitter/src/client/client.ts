@@ -8,6 +8,7 @@ import type {
 } from "twitter-api-v2";
 import {
   type FetchTransformOptions,
+  type PaginationState,
   type QueryProfilesResponse,
   type QueryTweetsResponse,
   type RequestApiResult,
@@ -174,10 +175,11 @@ export class Client {
     maxTweets: number,
     searchMode: SearchMode,
     cursor?: string,
+    sinceId?: string,
   ): Promise<QueryTweetsResponse> {
     // Use the generator and collect results
     const tweets: Tweet[] = [];
-    const generator = searchTweets(query, maxTweets, searchMode, this.auth);
+    const generator = searchTweets(query, maxTweets, searchMode, this.auth, sinceId);
 
     for await (const tweet of generator) {
       tweets.push(tweet);
@@ -227,7 +229,7 @@ export class Client {
   public fetchListTweets(
     listId: string,
     maxTweets: number,
-    cursor?: string,
+    cursor?: string | PaginationState,
   ): Promise<QueryTweetsResponse> {
     return fetchListTweets(listId, maxTweets, cursor, this.auth);
   }
@@ -305,6 +307,7 @@ export class Client {
 
     const client = this.auth.getV2Client();
 
+    // Try v2 first
     try {
       const timeline = await client.v2.homeTimeline({
         max_results: Math.min(count, 100),
@@ -336,8 +339,49 @@ export class Client {
 
       return tweets;
     } catch (error) {
-      console.error("Failed to fetch home timeline:", error);
-      throw error;
+      console.warn("v2 homeTimeline failed, trying v1.1 fallback:", error);
+
+      // Fall back to v1.1
+      try {
+        const timeline = await client.v1.homeTimeline({
+          count: Math.min(count, 200),
+          tweet_mode: 'extended',
+        });
+
+        return timeline.tweets.map((tweet: any) => ({
+          id: tweet.id_str,
+          text: tweet.full_text || tweet.text,
+          conversationId: tweet.conversation_id_str || tweet.id_str,
+          timestamp: new Date(tweet.created_at).getTime() / 1000,
+          userId: tweet.user.id_str,
+          username: tweet.user.screen_name,
+          name: tweet.user.name,
+          permanentUrl: `https://twitter.com/${tweet.user.screen_name}/status/${tweet.id_str}`,
+          inReplyToStatusId: tweet.in_reply_to_status_id_str,
+          hashtags: tweet.entities?.hashtags?.map((h: any) => h.text) || [],
+          mentions: tweet.entities?.user_mentions?.map((m: any) => ({
+            id: m.id_str,
+            username: m.screen_name,
+            name: m.name,
+          })) || [],
+          photos: tweet.entities?.media?.filter((m: any) => m.type === 'photo').map((m: any) => ({
+            id: m.id_str,
+            url: m.media_url_https,
+          })) || [],
+          thread: [],
+          urls: tweet.entities?.urls?.map((u: any) => u.expanded_url) || [],
+          videos: tweet.entities?.media?.filter((m: any) => m.type === 'video').map((m: any) => ({
+            id: m.id_str,
+            preview: m.media_url_https,
+          })) || [],
+          likes: tweet.favorite_count || 0,
+          retweets: tweet.retweet_count || 0,
+          replies: tweet.reply_count || 0,
+        }));
+      } catch (v1Error) {
+        console.error("Both v2 and v1.1 homeTimeline failed:", v1Error);
+        throw new Error(`Failed to fetch home timeline. v2: ${error?.message}. v1.1: ${v1Error?.message}`);
+      }
     }
   }
 
@@ -923,7 +967,7 @@ export class Client {
     const allQuotes: Tweet[] = [];
 
     try {
-      let cursor: string | undefined;
+      let cursor: PaginationState | undefined;
       let totalFetched = 0;
 
       while (totalFetched < maxQuotes) {
@@ -967,7 +1011,7 @@ export class Client {
   public async fetchQuotedTweetsPage(
     tweetId: string,
     maxQuotes: number = 40,
-    cursor?: string,
+    cursor?: string | PaginationState,
   ): Promise<QueryTweetsResponse> {
     // For backward compatibility, collect quotes from the generator
     const quotes: Tweet[] = [];

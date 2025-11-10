@@ -398,7 +398,8 @@ export class ClientBase extends EventEmitter {
         query: string,
         maxTweets: number,
         searchMode: SearchMode,
-        cursor?: string
+        cursor?: string,
+        sinceId?: string
     ): Promise<QueryTweetsResponse> {
         const maxRetries = 3;
         let retries = 0;
@@ -416,7 +417,8 @@ export class ClientBase extends EventEmitter {
                                 query,
                                 maxTweets,
                                 searchMode,
-                                cursor
+                                cursor,
+                                sinceId
                             ),
                             timeoutPromise,
                         ])

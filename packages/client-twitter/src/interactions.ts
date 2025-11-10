@@ -134,12 +134,15 @@ export class TwitterInteractionClient {
             const twitterUsername = this.client.username;
 
             // Get mentions using search
+            // Exclude own tweets in query and only fetch tweets newer than last checked
             elizaLogger.log(`🔍 Searching for mentions of @${twitterUsername}...`);
             const mentionCandidates = (
                 await this.client.fetchSearchTweets(
-                    `@${twitterUsername}`,
+                    `@${twitterUsername} -from:${twitterUsername}`,
                     20,
-                    SearchMode.Latest
+                    SearchMode.Latest,
+                    undefined, // cursor
+                    this.client.lastCheckedTweetId?.toString() // sinceId
                 )
             ).tweets;
 

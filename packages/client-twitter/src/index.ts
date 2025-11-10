@@ -34,6 +34,9 @@ class TwitterManager {
     }
 }
 
+// Export pagination types for external consumers
+export type { PaginationMode, PaginationState } from "./client/api-types.ts";
+
 export const TwitterClientInterface: Client = {
     async start(runtime: IAgentRuntime) {
         const twitterConfig: TwitterConfig =
