@@ -305,11 +305,11 @@ export class Client {
       throw new Error("Not authenticated");
     }
 
-    const client = this.auth.getV2Client();
+    const v2Client = this.auth.getV2Client();
 
     // Try v2 first
     try {
-      const timeline = await client.v2.homeTimeline({
+      const timeline = await v2Client.v2.homeTimeline({
         max_results: Math.min(count, 100),
         "tweet.fields": [
           "id",
@@ -343,7 +343,8 @@ export class Client {
 
       // Fall back to v1.1
       try {
-        const timeline = await client.v1.homeTimeline({
+        const v1Client = this.auth.getV1Client();
+        const timeline = await v1Client.homeTimeline({
           count: Math.min(count, 200),
           tweet_mode: 'extended',
         });

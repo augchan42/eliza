@@ -35,7 +35,7 @@ export async function* searchTweets(
   auth: TwitterAuth,
   sinceId?: string,
 ): AsyncGenerator<Tweet, void> {
-  const client = auth.getV2Client();
+  const v2Client = auth.getV2Client();
 
   // Build query based on search mode
   let finalQuery = query;
@@ -50,7 +50,7 @@ export async function* searchTweets(
 
   // Try v2 first
   try {
-    const searchIterator = await client.v2.search(finalQuery, {
+    const searchIterator = await v2Client.v2.search(finalQuery, {
       max_results: Math.min(maxTweets, 100),
       "tweet.fields": [
         "id",
@@ -126,20 +126,24 @@ export async function* searchTweets(
 
     // Fall back to v1.1
     try {
-      const v1Params: any = {
+      const v1Client = auth.getV1Client();
+      const v1Params: Record<string, any> = {
+        q: finalQuery,
         count: Math.min(maxTweets, 100),
         tweet_mode: 'extended',
         result_type: 'recent',
       };
 
-      // Add since_id if provided (only fetch tweets newer than this ID)
       if (sinceId) {
         v1Params.since_id = sinceId;
       }
 
-      const searchResults = await client.v1.search(finalQuery, v1Params);
+      const searchResults = await v1Client.get("search/tweets.json", v1Params);
+      const statuses: any[] = Array.isArray(searchResults?.statuses)
+        ? searchResults.statuses
+        : [];
 
-      for (const tweet of searchResults.statuses) {
+      for (const tweet of statuses) {
         const convertedTweet: Tweet = {
           id: tweet.id_str,
           text: tweet.full_text || tweet.text,

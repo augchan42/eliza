@@ -314,7 +314,7 @@ export async function fetchTweets(
   cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const v2Client = auth.getV2Client();
 
   // Normalize cursor to PaginationState (backward compatibility)
   const paginationState: PaginationState | undefined =
@@ -350,7 +350,7 @@ export async function fetchTweets(
       v2Params.pagination_token = paginationState.cursor;
     }
 
-    const response = await client.v2.userTimeline(userId, v2Params);
+    const response = await v2Client.v2.userTimeline(userId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -392,7 +392,8 @@ export async function fetchTweets(
       }
       // If paginationState.mode was 'v2', we restart from beginning (no max_id)
 
-      const timeline = await client.v1.userTimeline(userId, v1Params);
+      const v1Client = auth.getV1Client();
+      const timeline = await v1Client.userTimeline(userId, v1Params);
 
       const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
         id: tweet.id_str,
@@ -468,7 +469,7 @@ export async function fetchTweetsAndReplies(
   cursor: string | PaginationState | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const v2Client = auth.getV2Client();
 
   // Normalize cursor to PaginationState (backward compatibility)
   const paginationState: PaginationState | undefined =
@@ -503,7 +504,7 @@ export async function fetchTweetsAndReplies(
       v2Params.pagination_token = paginationState.cursor;
     }
 
-    const response = await client.v2.userTimeline(userId, v2Params);
+    const response = await v2Client.v2.userTimeline(userId, v2Params);
 
     const convertedTweets: Tweet[] = [];
 
@@ -545,7 +546,8 @@ export async function fetchTweetsAndReplies(
       }
       // If paginationState.mode was 'v2', we restart from beginning (no max_id)
 
-      const timeline = await client.v1.userTimeline(userId, v1Params);
+      const v1Client = auth.getV1Client();
+      const timeline = await v1Client.userTimeline(userId, v1Params);
 
       const convertedTweets: Tweet[] = timeline.tweets.map((tweet: any) => ({
         id: tweet.id_str,
@@ -613,10 +615,7 @@ async function createCreateTweetRequestV1(
   auth: TwitterAuth,
   tweetId?: string,
 ): Promise<Tweet> {
-  const v2client = auth.getV2Client();
-  if (!v2client) {
-    throw new Error("V2 client is not initialized");
-  }
+  const v1client = auth.getV1Client();
 
   try {
     const tweetConfig: any = {
@@ -629,7 +628,7 @@ async function createCreateTweetRequestV1(
     }
 
     // Call v1.1 statuses/update endpoint
-    const result = await v2client.v1.tweet(text, tweetConfig);
+    const result = await v1client.tweet(text, tweetConfig);
 
     // v1.1 returns complete tweet data, map to our Tweet interface
     const me = await auth.me();

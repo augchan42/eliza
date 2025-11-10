@@ -1,13 +1,14 @@
-import { TwitterApi } from "twitter-api-v2";
+import { TwitterApi, TwitterApiv1 } from "twitter-api-v2";
 import { Profile } from "./profile";
 
 /**
  * Twitter API v2 authentication using developer credentials
  */
 export class TwitterAuth {
-  private v2Client: TwitterApi | null = null;
-  private authenticated = false;
-  private profile?: Profile;
+    private v2Client: TwitterApi | null = null;
+    private v1Client: TwitterApiv1 | null = null;
+    private authenticated = false;
+    private profile?: Profile;
 
   constructor(
     private appKey: string,
@@ -18,25 +19,37 @@ export class TwitterAuth {
     this.initializeClient();
   }
 
-  private initializeClient(): void {
-    this.v2Client = new TwitterApi({
-      appKey: this.appKey,
-      appSecret: this.appSecret,
-      accessToken: this.accessToken,
-      accessSecret: this.accessSecret,
-    });
-    this.authenticated = true;
-  }
+    private initializeClient(): void {
+        this.v2Client = new TwitterApi({
+            appKey: this.appKey,
+            appSecret: this.appSecret,
+            accessToken: this.accessToken,
+            accessSecret: this.accessSecret,
+        });
+        // readWrite ensures OAuth 1.0a context so v1.1 endpoints are available
+        this.v1Client = this.v2Client.readWrite.v1 as unknown as TwitterApiv1;
+        this.authenticated = true;
+    }
 
   /**
    * Get the Twitter API v2 client
    */
-  getV2Client(): TwitterApi {
-    if (!this.v2Client) {
-      throw new Error("Twitter API client not initialized");
+    getV2Client(): TwitterApi {
+        if (!this.v2Client) {
+            throw new Error("Twitter API client not initialized");
+        }
+        return this.v2Client;
     }
-    return this.v2Client;
-  }
+
+    /**
+     * Get the Twitter API v1.1 client (read/write)
+     */
+    getV1Client(): TwitterApiv1 {
+        if (!this.v1Client) {
+            throw new Error("Twitter API v1.1 client not initialized");
+        }
+        return this.v1Client;
+    }
 
   /**
    * Check if authenticated
