@@ -106,12 +106,11 @@ export class TwitterInteractionClient {
     }
 
     async start() {
-        const handleTwitterInteractionsLoop = () => {
-            this.handleTwitterInteractions();
+        const handleTwitterInteractionsLoop = async () => {
+            const waitTime = await this.handleTwitterInteractions();
             setTimeout(
                 handleTwitterInteractionsLoop,
-                // Defaults to 2 minutes
-                this.client.twitterConfig.TWITTER_POLL_INTERVAL * 1000
+                waitTime
             );
         };
         handleTwitterInteractionsLoop();
@@ -320,8 +319,50 @@ export class TwitterInteractionClient {
             await this.client.cacheLatestCheckedTweetId();
 
             elizaLogger.log("Finished checking Twitter interactions");
+
+            // Return normal poll interval (in milliseconds)
+            return this.client.twitterConfig.TWITTER_POLL_INTERVAL * 1000;
         } catch (error) {
             elizaLogger.error("Error in Twitter interactions:", error);
+
+            // Check if this is a rate limit error
+            if (error?.code === 429 && error?.rateLimit?.reset) {
+                const resetTime = error.rateLimit.reset;
+                const now = Math.floor(Date.now() / 1000);
+                const waitSeconds = Math.max(0, resetTime - now);
+
+                // Safety: Cap maximum wait time at 15 minutes
+                const MAX_WAIT_SECONDS = 15 * 60;
+
+                // If reset time is unreasonable, use exponential backoff instead
+                if (waitSeconds > MAX_WAIT_SECONDS || waitSeconds < 0) {
+                    elizaLogger.warn(
+                        `Invalid rate limit reset time: ${new Date(resetTime * 1000).toISOString()}. Using 5-minute backoff instead.`,
+                        {
+                            resetTime: new Date(resetTime * 1000).toISOString(),
+                            waitSeconds,
+                            now: new Date(now * 1000).toISOString()
+                        }
+                    );
+                    return 5 * 60 * 1000; // 5 minutes
+                }
+
+                const waitMs = (waitSeconds * 1000) + 60000; // Add 1 minute buffer
+
+                elizaLogger.warn(
+                    `Rate limited. Pausing interactions until ${new Date(resetTime * 1000).toISOString()}`,
+                    {
+                        waitSeconds,
+                        waitMinutes: Math.round(waitSeconds / 60),
+                        resetTime: new Date(resetTime * 1000).toISOString()
+                    }
+                );
+
+                return waitMs;
+            }
+
+            // For other errors, use normal interval
+            return this.client.twitterConfig.TWITTER_POLL_INTERVAL * 1000;
         }
     }
 

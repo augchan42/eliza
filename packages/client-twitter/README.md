@@ -44,6 +44,7 @@ TWITTER_USERNAME=YourBotUsername  # Auto-fetched if not provided
 TWITTER_DRY_RUN=false             # Set to true for testing without posting
 TWITTER_POLL_INTERVAL=120         # Seconds between interaction checks
 TWITTER_SEARCH_ENABLE=false       # Enable timeline search
+TWITTER_INTERACTIONS_ENABLE=true  # Enable interaction/mention monitoring (set to false for post-only mode)
 
 # Divination (Research Content)
 DIVINATION_INTERVAL_MIN=360       # Minimum minutes between divination posts

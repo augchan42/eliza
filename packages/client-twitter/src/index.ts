@@ -10,7 +10,7 @@ class TwitterManager {
     client: ClientBase;
     post: TwitterPostClient;
     search: TwitterSearchClient;
-    interaction: TwitterInteractionClient;
+    interaction?: TwitterInteractionClient;
     divination: TwitterDivinationClient;
     constructor(runtime: IAgentRuntime, twitterConfig: TwitterConfig) {
         this.client = new ClientBase(runtime, twitterConfig);
@@ -26,7 +26,9 @@ class TwitterManager {
             this.search = new TwitterSearchClient(this.client, runtime);
         }
 
-        this.interaction = new TwitterInteractionClient(this.client, runtime);
+        if (twitterConfig.TWITTER_INTERACTIONS_ENABLE) {
+            this.interaction = new TwitterInteractionClient(this.client, runtime);
+        }
         this.divination = new TwitterDivinationClient(this.client, runtime);
         elizaLogger.log("📱 Twitter manager initialized with divination client");
     }
@@ -47,7 +49,11 @@ export const TwitterClientInterface: Client = {
 
         if (manager.search) await manager.search.start();
 
-        await manager.interaction.start();
+        if (manager.interaction) {
+            await manager.interaction.start();
+        } else {
+            elizaLogger.log("📵 Twitter interactions disabled");
+        }
 
         if (manager.divination) {
             elizaLogger.log("🎯 Starting Twitter divination client...");

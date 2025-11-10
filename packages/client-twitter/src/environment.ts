@@ -22,6 +22,7 @@ export const twitterEnvSchema = z.object({
     TWITTER_USERNAME: z.string().optional(),
     MAX_TWEET_LENGTH: z.number().int().default(DEFAULT_MAX_TWEET_LENGTH),
     TWITTER_SEARCH_ENABLE: z.boolean().default(false),
+    TWITTER_INTERACTIONS_ENABLE: z.boolean().default(true),
     TWITTER_RETRY_LIMIT: z.number().int(),
     TWITTER_POLL_INTERVAL: z.number().int(),
     TWITTER_TARGET_USERS: z.array(twitterUsernameSchema).default([]),
@@ -109,6 +110,12 @@ export async function validateTwitterConfig(
                     runtime.getSetting("TWITTER_SEARCH_ENABLE") ||
                         process.env.TWITTER_SEARCH_ENABLE
                 ) ?? false,
+            // bool
+            TWITTER_INTERACTIONS_ENABLE:
+                parseBooleanFromText(
+                    runtime.getSetting("TWITTER_INTERACTIONS_ENABLE") ||
+                        process.env.TWITTER_INTERACTIONS_ENABLE
+                ) ?? true,
             // int
             TWITTER_RETRY_LIMIT: safeParseInt(
                 runtime.getSetting("TWITTER_RETRY_LIMIT") ||

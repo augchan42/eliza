@@ -1,10 +1,10 @@
 {
   "developer_name": "Aug",
   "trigger_phrases": [
-    "make it so",
     "run that",
-    "go ahead",
-    "yert"
+    "make it so",
+    "yert",
+    "go ahead"
   ],
   "blocked_tools": [
     "Edit",
